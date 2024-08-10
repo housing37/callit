@@ -3,6 +3,11 @@
 //  code size limit = 24576 bytes (a limit introduced in Spurious Dragon _ 2016)
 //  code size limit = 49152 bytes (a limit introduced in Shanghai _ 2023)
 // model ref: LUSDST.sol (081024)
+// NOTE: uint type precision ...
+//  uint8 max = 255
+//  uint16 max = ~65K -> 65,535
+//  uint32 max = ~4B -> 4,294,967,295
+//  uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
 pragma solidity ^0.8.24;        
 
 // inherited contracts
@@ -19,7 +24,7 @@ import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Rout
 
 // import "./SwapDelegate.sol";
 
-interface ISwapDelegate {
+interface ISwapDelegate { // (legacy)
     function VERSION() external view returns (uint8);
     function USER_INIT() external view returns (bool);
     function USER() external view returns (address);
@@ -28,7 +33,8 @@ interface ISwapDelegate {
     function USER_burnToken(address _token, uint256 _tokAmnt) external;
 }
 
-contract LUSDShareToken is ERC20, Ownable {
+// contract LUSDShareToken is ERC20, Ownable { // (legacy)
+contract CallitFactory is ERC20, Ownable {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
@@ -41,7 +47,7 @@ contract LUSDShareToken is ERC20, Ownable {
     address private SWAP_DELEGATE = SWAP_DELEGATE_INIT;
 
     /* -------------------------------------------------------- */
-    /* LUSDst additions
+    /* LUSDst additions (legacy)
     /* -------------------------------------------------------- */
     bool public ENABLE_TOK_BURN_LOCK;
     bool public ENABLE_BURN_DELEGATE;
@@ -50,7 +56,7 @@ contract LUSDShareToken is ERC20, Ownable {
     address public TOK_pLUSD = address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0);
 
     /* -------------------------------------------------------- */
-    /* GLOBALS                                                  */
+    /* GLOBALS (legacy)
     /* -------------------------------------------------------- */
     /* _ TOKEN INIT SUPPORT _ */
     string public tVERSION = '1.1';
@@ -91,7 +97,7 @@ contract LUSDShareToken is ERC20, Ownable {
     mapping(address => address[]) private USD_BST_PATHS;
 
     /* -------------------------------------------------------- */
-    /* STRUCTS                                        
+    /* STRUCTS (legacy)
     /* -------------------------------------------------------- */
     struct ACCT_PAYOUT {
         address receiver;
@@ -108,9 +114,8 @@ contract LUSDShareToken is ERC20, Ownable {
         uint256 blockNumber; // current block number of this payout
     }
 
-
     /* -------------------------------------------------------- */
-    /* EVENTS - LUSDST
+    /* EVENTS - LUSDST (legacy)
     /* -------------------------------------------------------- */
     event EnableLegacyUpdated(bool _prev, bool _new);
     event SetTokenBurnLock(address _prev_tok, bool _prev_lock_stat, address _new_tok, bool _new_lock_stat);
@@ -118,7 +123,7 @@ contract LUSDShareToken is ERC20, Ownable {
     event SetEnableAuxPay(bool _prev, bool _new);
 
     /* -------------------------------------------------------- */
-    /* EVENTS                                        
+    /* EVENTS (legacy)
     /* -------------------------------------------------------- */
     event KeeperTransfer(address _prev, address _new);
     event TokenNameSymbolUpdated(string TOK_NAME, string TOK_SYMB);
@@ -139,7 +144,7 @@ contract LUSDShareToken is ERC20, Ownable {
     event BuyAndBurnExecuted(address _burnTok, uint256 _burnAmnt);
 
     /* -------------------------------------------------------- */
-    /* CONSTRUCTOR                                              */
+    /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
     constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {
@@ -187,7 +192,7 @@ contract LUSDShareToken is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* MODIFIERS                                                
+    /* MODIFIERS (legacy)
     /* -------------------------------------------------------- */
     modifier onlyKeeper() {
         require(msg.sender == KEEPER, "!keeper :p");
@@ -195,7 +200,7 @@ contract LUSDShareToken is ERC20, Ownable {
     }
     
     /* -------------------------------------------------------- */
-    /* PUBLIC - KEEPER SUPPORT            
+    /* PUBLIC - KEEPER SUPPORT (legacy)
     /* -------------------------------------------------------- */
     function KEEPER_setEnableAuxPay(bool _enable) external onlyKeeper() {
         bool prev = ENABLE_AUX_PAY;
@@ -295,7 +300,7 @@ contract LUSDShareToken is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - KEEPER - ACCESSORS
+    /* PUBLIC - KEEPER - ACCESSORS (legacy)
     /* -------------------------------------------------------- */
     function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
         require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
@@ -305,7 +310,7 @@ contract LUSDShareToken is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - ACCESSORS
+    /* PUBLIC - ACCESSORS (legacy)
     /* -------------------------------------------------------- */
     function getAccounts() external view returns (address[] memory) {
         return ACCOUNTS;
@@ -335,6 +340,110 @@ contract LUSDShareToken is ERC20, Ownable {
     }
     function getSwapDelegateInfo() external view returns (address, uint8, address) {
         return (SWAP_DELEGATE, SWAPD.VERSION(), SWAPD.USER());
+    }
+
+    /* -------------------------------------------------------- */
+    /* GLOBALS (CALLIT)
+    /* -------------------------------------------------------- */
+    mapping(address => MARKET[]) public ACCT_MARKETS;
+    uint16 MAX_RESULTS = 100;
+
+    /* -------------------------------------------------------- */
+    /* EVENTS (CALLIT)
+    /* -------------------------------------------------------- */
+    event MarketCreated(address _creator, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, uint256 _blockNumber, bool _live);
+    
+    /* -------------------------------------------------------- */
+    /* STRUCTS (CALLIT)
+    /* -------------------------------------------------------- */
+    struct MARKET {
+        string name;
+        string category;
+        string rules;
+        string imgUrl;
+        uint64 usdAmntLP;
+        uint256 dtEndCalls; // unix timestamp 1970, no more bets, LP removed from generated DEXs
+        string[] resultLabels; // required: length == _resultDescrs
+        string[] resultDescrs; // required: length == _resultLabels
+        address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
+        address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
+        uint256 blockNumber; // block number this market was created
+        bool live;
+    }
+
+    /* -------------------------------------------------------- */
+    /* PUBLIC - ACCESSORS (CALLIT)
+    /* -------------------------------------------------------- */
+    function getCallTicketUsdPrice(address _creator, address _ticket, uint32 _ticketCount) external view returns(uint64) {
+        // NOTE: uint32 max = ~4B -> 4,294,967,295
+        // TODO: loop through markets in ACCT_MARKETS[_creator]
+        //  find market with _ticket in 'resultOptionTokens'
+        //  get current usd value dex prices for all addresses in 'resultOptionTokens'
+        //  _ticket price = 1 - SUM(all prices except _ticket)
+
+        return 0;
+    }
+
+    /* -------------------------------------------------------- */
+    /* PUBLIC - USER INTERFACE (CALLIT)
+    /* -------------------------------------------------------- */
+    // any user can create a market
+    //  input: string market category
+    //  input: string market name
+    //  input: string rules
+    //  input: string market IMG url
+    //  input: uint64 USD LP amount to start (requires account balance via 'receive()')
+    //  input: uint256 date/time market end, no more bets (sec since January 1, 1970)
+    //          all LP will be removed from generated DEXs
+    //  input: string[] calldata array of result labels (required: length == _resultDescrs)
+    //  input: string[] calldata array of result descriptions (required: length == _resultLabels)
+    function CreateMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external {
+        // TODO: validate '_usdAmntLP' against msg.sender balance 
+        // TODO: validate _resultLabels.length <= MAX_RESULTS
+        // TODO: loop through _resultLabels & deploy ERC20s for each, 
+        //      then generate dex LP for each, using "_getAmountsForInitLP(_usdAmntLP, _resultLabels.length) returns(uint64,uint256)"
+        //          ie. generate _resultLabels.length pairs -> uint256 TCKr:uint64 USD
+        //      then save each contract & LP address to arrays
+        address[] memory resultOptionTokens = new address[](_resultLabels.length);
+        address[] memory resultTokenLPs = new address[](_resultLabels.length);
+        
+        
+        // save this market and emit log
+        ACCT_MARKETS[msg.sender].push(MARKET(_name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
+        emit MarketCreated(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
+    }
+
+    function BuyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
+        // TODO: loop through markets in ACCT_MARKETS[_creator]
+        //  find market with _ticket in 'resultOptionTokens'
+        //  check if current dt < market._dtEndCalls
+        //   if yes, 
+        //      get price w/ 'getCallTicketUsdPrice'
+        //      verify: ACCT_USD_BALANCES[msg.sender] >= price * _ticketCount
+        //      deduct balance: ACCT_USD_BALANCES[msg.sender] -= price * _ticketCount;
+        //      mint _ticketCount to msg.sender
+
+        // LEFT OFF HERE ... does this algorithm work?
+        //  will users be able to buy excess _ticket tokens at cheaper rate and take advantage?
+    }
+
+    function EndMarketCalls(address _creator, address _anyTicket) external {
+        // TODO: loop through markets in ACCT_MARKETS[_creator]
+        //  find market with _ticket in 'resultOptionTokens'
+        //  check if current dt >= market._dtEndCalls
+        //   if yes, pull all LP from this market
+    }
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE - SUPPORTING (legacy)
+    /* -------------------------------------------------------- */
+    function _getAmountsForInitLP(uint64 _usdAmntLP, uint16 _resultOptionCnt) private returns(uint64, uint256) {
+        require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
+        return _usdAmntLP / _resultOptionCnt, _getInitDexSupplyForUsdAmnt(_usdAmntLP);
+    }
+    function _getInitDexSupplyForUsdAmnt(uint64 _usdAmntLP) private returns(uint256) {
+        // TODO: need algorithm to specify dex token supply for _usdAmntLP side
+        return 0;
     }
 
     /* -------------------------------------------------------- */
@@ -410,7 +519,7 @@ contract LUSDShareToken is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* PRIVATE - SUPPORTING                                     */
+    /* PRIVATE - SUPPORTING (legacy)
     /* -------------------------------------------------------- */
     function _setUsdBstPath(address _usdStable, address[] memory _path) private {
         require(_usdStable != address(0) && _path.length > 1, ' invalid inputs ;{=} ');
@@ -798,6 +907,11 @@ contract LUSDShareToken is ERC20, Ownable {
         _burn(msg.sender, _burnAmnt); // NOTE: checks _balance[msg.sender]
     }
     function decimals() public pure override returns (uint8) {
+        // return 6; // (6 decimals) 
+            // * min USD = 0.000001 (6 decimals) 
+            // uint16 max USD: ~0.06 -> 0.065535 (6 decimals)
+            // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals) _ max num: ~4B -> 4,294,967,295
+            // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
         return 18; // (18 decimals) 
             // * min USD = 0.000000000000000001 (18 decimals) 
             // uint64 max USD: ~18 -> 18.446744073709551615 (18 decimals)
