@@ -345,8 +345,13 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS (CALLIT)
     /* -------------------------------------------------------- */
+    uint16 MAX_RESULTS = 100; // ADMIN: max # of result options a market may have
+    uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
+    uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
+    
+    mapping(address => string) public ACCT_HANDLES;
     mapping(address => MARKET[]) public ACCT_MARKETS;
-    uint16 MAX_RESULTS = 100;
+    
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -356,8 +361,14 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
+    // struct MARKET_CREATOR {
+    //     address creator; // EOA
+    //     string handle; // creator display name (editable)
+    // }
+
     struct MARKET {
-        string name;
+        address creator; // EOA creator
+        string name; // display name for this market (maybe auto-generate w/ )
         string category;
         string rules;
         string imgUrl;
@@ -387,6 +398,23 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - USER INTERFACE (CALLIT)
     /* -------------------------------------------------------- */
+    function setMyAcctHandle(string _handle) external {
+        require(_hanlde.length >= MIN_HANDLE_SIZE && _hanlde.length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
+        require(bytes(_handle)[0] != 0x20, ' !_handle space start :+[ '); // 0x20 -> ASCII for ' ' (single space)
+        for (uint8 i=0; i < _hanlde.length;) {
+            if (bytes(_handle)[i] != 0x20) {
+                // Found a non-space character (set and return)
+                ACCT_HANDLES[msg.sender] = _handle;
+                return; 
+            }
+            unchecked {
+                i++;
+            }
+        }
+        
+        revert(' !blank space handles :-[=] ');
+    }
+
     // any user can create a market
     //  input: string market category
     //  input: string market name
@@ -407,9 +435,8 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory resultOptionTokens = new address[](_resultLabels.length);
         address[] memory resultTokenLPs = new address[](_resultLabels.length);
         
-        
         // save this market and emit log
-        ACCT_MARKETS[msg.sender].push(MARKET(_name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
+        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
         emit MarketCreated(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
     }
 
@@ -425,6 +452,12 @@ contract CallitFactory is ERC20, Ownable {
 
         // LEFT OFF HERE ... does this algorithm work?
         //  will users be able to buy excess _ticket tokens at cheaper rate and take advantage?
+        // OPTION 1: calculate a limit to _ticketCount that an arb user can purchase for 'getCallTicketUsdPrice'
+        // OPTION 2: no limit for _ticketCount. this means ...
+        //      a) the arb user can potentially sell down _ticket on the open market
+        //      b) the arb user can excessively mint (potentially) winning tokens for a single price, 
+        //          this increases the % of their prize-pool distribution, as opposed to a dex AMM LP 
+        //          algorthimically limiting/raising the price when purchasing excessive amounts
     }
 
     function EndMarketCalls(address _creator, address _anyTicket) external {
