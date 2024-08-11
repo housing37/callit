@@ -349,9 +349,8 @@ contract CallitFactory is ERC20, Ownable {
     uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
     uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
     
-    mapping(address => string) public ACCT_HANDLES;
-    mapping(address => MARKET[]) public ACCT_MARKETS;
-    
+    mapping(address => string) public ACCT_HANDLES; // market creators (etc.) can set their own handles
+    mapping(address => MARKET[]) public ACCT_MARKETS; // store all markets people create
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -361,11 +360,6 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
-    // struct MARKET_CREATOR {
-    //     address creator; // EOA
-    //     string handle; // creator display name (editable)
-    // }
-
     struct MARKET {
         address creator; // EOA creator
         string name; // display name for this market (maybe auto-generate w/ )
@@ -396,7 +390,7 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - USER INTERFACE (CALLIT)
+    /* PUBLIC - MUTATORS (CALLIT)
     /* -------------------------------------------------------- */
     function setMyAcctHandle(string _handle) external {
         require(_hanlde.length >= MIN_HANDLE_SIZE && _hanlde.length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
@@ -415,17 +409,10 @@ contract CallitFactory is ERC20, Ownable {
         revert(' !blank space handles :-[=] ');
     }
 
-    // any user can create a market
-    //  input: string market category
-    //  input: string market name
-    //  input: string rules
-    //  input: string market IMG url
-    //  input: uint64 USD LP amount to start (requires account balance via 'receive()')
-    //  input: uint256 date/time market end, no more bets (sec since January 1, 1970)
-    //          all LP will be removed from generated DEXs
-    //  input: string[] calldata array of result labels (required: length == _resultDescrs)
-    //  input: string[] calldata array of result descriptions (required: length == _resultLabels)
-    function CreateMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external {
+    /* -------------------------------------------------------- */
+    /* PUBLIC - USER INTERFACE (CALLIT)
+    /* -------------------------------------------------------- */
+    function createMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external {
         // TODO: validate '_usdAmntLP' against msg.sender balance 
         // TODO: validate _resultLabels.length <= MAX_RESULTS
         // TODO: loop through _resultLabels & deploy ERC20s for each, 
@@ -440,7 +427,7 @@ contract CallitFactory is ERC20, Ownable {
         emit MarketCreated(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
     }
 
-    function BuyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
+    function buyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  find market with _ticket in 'resultOptionTokens'
         //  check if current dt < market._dtEndCalls
@@ -460,7 +447,7 @@ contract CallitFactory is ERC20, Ownable {
         //          algorthimically limiting/raising the price when purchasing excessive amounts
     }
 
-    function EndMarketCalls(address _creator, address _anyTicket) external {
+    function endMarketCalls(address _creator, address _anyTicket) external {
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  find market with _ticket in 'resultOptionTokens'
         //  check if current dt >= market._dtEndCalls
