@@ -349,7 +349,7 @@ contract CallitFactory is ERC20, Ownable {
     uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
     uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
     uint64 MIN_USD_PROMO_TARGET = 100; // ADMIN: min $ target for creating promo codes
-    uint64 USD_BUY_PROMO_PER_CALL = 100; // usd amount buy needed per $CALL earned
+    uint64 USD_BUY_PROMO_PER_CALL = 100; // usd amount buy needed per $CALL earned in promo (note: global across all promos to avoid exploitations)
     
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market creators (etc.) can set their own handles
@@ -405,6 +405,14 @@ contract CallitFactory is ERC20, Ownable {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
+    function KEEPER_setMaxMarketResultOptions(uint16 _optionCnt) external onlyKeeper {
+        MAX_RESULTS = _optionCnt; // max # of result options a market may have
+    }
+    function KEEPER_setMinMaxAcctHandleSize(uint8 _min, uint _max) external onlyKeeper {
+        MIN_HANDLE_SIZE = _min; // min # of chars for account handles
+        MAX_HANDLE_SIZE = _max; // max # of chars for account handles
+    }
+
     function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
         MIN_USD_PROMO_TARGET = _usdTarget;
     }
@@ -433,7 +441,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     function createMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external {
         // TODO: validate '_usdAmntLP' against msg.sender balance 
-        // TODO: validate _resultLabels.length <= MAX_RESULTS
+        // TODO: validate 2 <= _resultLabels.length <= MAX_RESULTS
         // TODO: loop through _resultLabels & deploy ERC20s for each, 
         //      then generate dex LP for each, using "_getAmountsForInitLP(_usdAmntLP, _resultLabels.length) returns(uint64,uint256)"
         //          ie. generate _resultLabels.length pairs -> uint256 TCKr:uint64 USD
@@ -468,7 +476,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - verify if _usdAmnt >= USD_BUY_PROMO_PER_CALL, then mint $CALL to msg.sender (mint amount = _usdAmnt / USD_BUY_PROMO_PER_CALL)
         //  - calc & deduct influencer reward from _usdAmnt and send to promo.EOA (reward = promo.percReward * _usdAmnt)
         //  - use remaining _usdAmnt to buy _ticket from DEX (_ticket receiver = msg.sender)
-        
+
         //  - deduct _usdAmnt from account balance
         ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
 
