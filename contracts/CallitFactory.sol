@@ -379,15 +379,6 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS (CALLIT)
     /* -------------------------------------------------------- */
-    function getCallTicketUsdPrice(address _creator, address _ticket, uint32 _ticketCount) external view returns(uint64) {
-        // NOTE: uint32 max = ~4B -> 4,294,967,295
-        // TODO: loop through markets in ACCT_MARKETS[_creator]
-        //  find market with _ticket in 'resultOptionTokens'
-        //  get current usd value dex prices for all addresses in 'resultOptionTokens'
-        //  _ticket price = 1 - SUM(all prices except _ticket)
-
-        return 0;
-    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - MUTATORS (CALLIT)
@@ -427,19 +418,23 @@ contract CallitFactory is ERC20, Ownable {
         emit MarketCreated(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
     }
 
-    function buyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
+    // function buyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
+    function exeArbPriceParityForTicket(address _creator, address _ticket) external {
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  find market with _ticket in 'resultOptionTokens'
         //  check if current dt < market._dtEndCalls
         //   if yes, 
-        //      get price w/ 'getCallTicketUsdPrice'
-        //      verify: ACCT_USD_BALANCES[msg.sender] >= price * _ticketCount
-        //      deduct balance: ACCT_USD_BALANCES[msg.sender] -= price * _ticketCount;
-        //      mint _ticketCount to msg.sender
+        //      use '_getCallTicketUsdTargetPrice' to get target price for _ticket price parity 
+        //      use '_getMarketForTicket' to get LP pair addresss for _ticket
+        //      use '_calculateTokensToMint(target price, pair address)' to get _ticket mint count for DEX sell to bring _ticket to price parity
+        //      verify: ACCT_USD_BALANCES[msg.sender] >= target price * _ticket mint count
+        //      deduct balance: ACCT_USD_BALANCES[msg.sender] -= target price * _ticket mint count;
+        //      mint _ticket mint count to this factory and sell on DEX on behalf of msg.sender
+        //      calc & send profits to msg.sender: gross usd received from sell - (target price * _ticket mint count)
 
         // LEFT OFF HERE ... does this algorithm work?
         //  will users be able to buy excess _ticket tokens at cheaper rate and take advantage?
-        // OPTION 1: calculate a limit to _ticketCount that an arb user can purchase for 'getCallTicketUsdPrice'
+        // OPTION 1: calculate a limit to _ticketCount that an arb user can purchase for '_getCallTicketUsdTargetPrice'
         // OPTION 2: no limit for _ticketCount. this means ...
         //      a) the arb user can potentially sell down _ticket on the open market
         //      b) the arb user can excessively mint (potentially) winning tokens for a single price, 
@@ -453,6 +448,63 @@ contract CallitFactory is ERC20, Ownable {
         //  check if current dt >= market._dtEndCalls
         //   if yes, pull all LP from this market
     }
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE - SUPPORTING (CALLIT)
+    /* -------------------------------------------------------- */
+    function _getMarketForTicket(address _creator, addres_ ticket) private view returns(MARKET) {
+        // TODO: loop through markets in ACCT_MARKETS[_creator]
+        //  return market with _ticket in 'resultOptionTokens'
+    }
+    function _getCallTicketUsdTargetPrice(address _creator, address _ticket, uint32 _ticketCount) private view returns(uint64) {
+        // NOTE: uint32 max = ~4B -> 4,294,967,295
+        // TODO: loop through markets in ACCT_MARKETS[_creator]
+        //  find market with _ticket in 'resultOptionTokens'
+        //  get current usd value dex prices for all addresses in 'resultOptionTokens'
+        //  _ticket price = 1 - SUM(all prices except _ticket)
+
+        return 0;
+    }
+    function _calculateTokensToMint(address pairAddress, uint targetPrice) external view returns (uint256) {
+        // Assuming reserve0 is token and reserve1 is USD
+        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(pairAddress).getReserves();
+
+        uint256 currentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
+        require(targetPrice < currentPrice, "Target price must be less than current price.");
+
+        // Calculate the amount of tokens to mint
+        uint256 tokensToMint = (uint256(reserve1) * 1e18 / targetPrice) - uint256(reserve0);
+
+        return tokensToMint;
+    }
+
+    // function _calculateTokensToMint( // utilize 'getAmountsIn'
+    //     address pairAddress,
+    //     address token,
+    //     address usdToken,
+    //     uint targetPrice
+    // ) external view returns (uint256) {
+    //     // Assuming reserve0 is token and reserve1 is USD
+    //     (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(pairAddress).getReserves();
+
+    //     uint256 currentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
+    //     require(targetPrice < currentPrice, "Target price must be less than current price.");
+
+    //     // Calculate the amount of USD in the pool if targetPrice is achieved
+    //     uint256 newReserve1 = targetPrice * reserve0 / 1e18;
+
+    //     // Use getAmountsOut to determine how much of the token needs to be sold
+    //     uint256 amountOut = reserve1 - newReserve1;
+
+    //     address;
+    //     path[0] = token;
+    //     path[1] = usdToken;
+
+    //     // This will give us how many tokens need to be swapped to get `amountOut` of USD
+    //     uint256[] memory amountsIn = uniswapRouter.getAmountsIn(amountOut, path);
+
+    //     return amountsIn[0];
+    // }
 
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (legacy)
