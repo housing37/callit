@@ -360,12 +360,13 @@ contract CallitFactory is ERC20, Ownable {
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
     event MarketCreated(address _creator, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, uint256 _blockNumber, bool _live);
+    event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
     struct ACCT_PROMO {
-        address EOA; // influencer wallet this promo is for
+        address promotor; // influencer wallet this promo is for
         string promoCode;
         uint64 usdTarget; // usd amount this promo is good for
         uint64 usdUsed; // usd amount this promo has used so far
@@ -412,12 +413,23 @@ contract CallitFactory is ERC20, Ownable {
         MIN_HANDLE_SIZE = _min; // min # of chars for account handles
         MAX_HANDLE_SIZE = _max; // max # of chars for account handles
     }
-
     function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
         MIN_USD_PROMO_TARGET = _usdTarget;
     }
     function KEEPER_setUsdPromoBuyReqPerCall(uint64 _usdBuyRequired) external onlyKeepr {
         USD_BUY_PROMO_PER_CALL = _usdBuyRequired;
+    }
+
+    /* -------------------------------------------------------- */
+    /* PUBLIC - ADMIN MUTATORS (CALLIT)
+    /* -------------------------------------------------------- */
+    function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
+        require(_promotor != address(0) && _validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
+        address promoCodeHash = _generateAddressHash(_promotor, _promoCode);
+        ACCT_PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
+        require(promo.EOA == address(0), ' promo already exists :-O ');
+        PROMO_CODE_HASHES[promoCodeHash].push(ACCT_PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
+        emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
 
     /* -------------------------------------------------------- */
@@ -452,14 +464,6 @@ contract CallitFactory is ERC20, Ownable {
         // save this market and emit log
         ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
         emit MarketCreated(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
-    }
-
-    function ADMIN_initPromoForWallet(address _EOA, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
-        require(_EOA != address(0) && _validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
-        address promoCodeHash = _generateAddressHash(_EOA, _promoCode);
-        ACCT_PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
-        require(promo.EOA == address(0), ' promo already exists :-O ');
-        PROMO_CODE_HASHES[promoCodeHash].push(ACCT_PROMO(_EOA, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
     }
 
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
