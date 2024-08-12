@@ -348,9 +348,13 @@ contract CallitFactory is ERC20, Ownable {
     uint16 MAX_RESULTS = 100; // ADMIN: max # of result options a market may have
     uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
     uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
+    uint64 MIN_USD_PROMO_TARGET = 100; // ADMIN: min $ target for creating promo codes
+    uint64 USD_BUY_PROMO_PER_CALL = 100; // usd amount buy needed per $CALL earned
     
+    mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market creators (etc.) can set their own handles
     mapping(address => MARKET[]) public ACCT_MARKETS; // store all markets people create
+    mapping(address => ACCT_PROMO[]) public PROMO_CODE_HASHES; // store promo code hashes for EOA accounts
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -360,6 +364,16 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
+    struct ACCT_PROMO {
+        address EOA; // influencer wallet this promo is for
+        string promoCode;
+        uint64 usdTarget; // usd amount this promo is good for
+        uint64 usdUsed; // usd amount this promo has used so far
+        uint8 percReward; // % of caller buys rewarded
+        address adminCreator; // admin who created this promo
+        uint256 blockNumber; // block number this promo was created
+    }
+
     struct MARKET {
         address creator; // EOA creator
         string name; // display name for this market (maybe auto-generate w/ )
@@ -377,6 +391,25 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
+    /* MODIFIERS (CALLIT)
+    /* -------------------------------------------------------- */
+    modifier onlyAdmin() {
+        require(msg.sender == KEEPER || ADMINS[msg.sender] == true, " !admin :p");
+        _;
+    }
+
+    /* -------------------------------------------------------- */
+    /* PUBLIC - KEEPER MUTATORS (CALLIT)
+    /* -------------------------------------------------------- */
+    function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
+        require(_admin != address(0), ' !_admin :{+} ');
+        ADMINS[_admin] = _enable;
+    }
+    function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
+        MIN_USD_PROMO_TARGET = _usdTarget;
+    }
+
+    /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS (CALLIT)
     /* -------------------------------------------------------- */
 
@@ -386,18 +419,10 @@ contract CallitFactory is ERC20, Ownable {
     function setMyAcctHandle(string _handle) external {
         require(_hanlde.length >= MIN_HANDLE_SIZE && _hanlde.length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
         require(bytes(_handle)[0] != 0x20, ' !_handle space start :+[ '); // 0x20 -> ASCII for ' ' (single space)
-        for (uint8 i=0; i < _hanlde.length;) {
-            if (bytes(_handle)[i] != 0x20) {
-                // Found a non-space character (set and return)
-                ACCT_HANDLES[msg.sender] = _handle;
-                return; 
-            }
-            unchecked {
-                i++;
-            }
-        }
-        
-        revert(' !blank space handles :-[=] ');
+        if (_validNonWhiteSpaceString(_handle))
+            ACCT_HANDLES[msg.sender] = _handle;
+        else
+            revert(' !blank space handles :-[=] ');        
     }
 
     /* -------------------------------------------------------- */
@@ -416,6 +441,41 @@ contract CallitFactory is ERC20, Ownable {
         // save this market and emit log
         ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
         emit MarketCreated(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
+    }
+
+    function ADMIN_initPromoForWallet(address _EOA, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
+        require(_EOA != address(0) && _validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
+        address promoCodeHash = _generateAddressHash(_EOA, _promoCode);
+        ACCT_PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
+        require(promo.EOA == address(0), ' promo already exists :-O ');
+        PROMO_CODE_HASHES[promoCodeHash].push(ACCT_PROMO(_EOA, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
+    }
+
+    function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
+        ACCT_PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        require(promo.EOA != address(0), ' invalid promo :-O ');
+        require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
+        require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
+
+        // NOTE: algorithmic logic...
+        //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in ACCT_PROMO struct for EOA influencer)
+        //  - influencer gives out promoCodeHash for callers to use w/ this function to purchase any _ticket they want
+        //  - verify promo has not expired (usdTarget not hit yet) and enough promo is left to cover _usdAmnt
+        //  - verify account balance covers _usdAmnt
+        //  - deduct promo.percReward from _usdAmnt and send to promo.EOA
+        //  - verify if _usdAmnt >= USD_BUY_PROMO_PER_CALL, and mint $CALL amount = _usdAmnt / USD_BUY_PROMO_PER_CALL
+        //  LEFT OFF HERE ... designing
+        //  - deduct _usdAmnt from account balance
+        //  - update promo.usdUsed (add _usdAmnt)
+
+        ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
+        promo.usdUsed += _usdAmnt;
+    }
+
+    function checkPromoBalance(address _promoCodeHash) external returns(uint64) {
+        ACCT_PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        require(promo.EOA != address(0), ' invalid promo :-O ');
+        return promo.usdTarget - promo.usdUsed;
     }
 
     // function buyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
@@ -452,6 +512,29 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
+        for (uint8 i=0; i < _s.length;) {
+            if (bytes(_s)[i] != 0x20) {
+                // Found a non-space character, return true
+                return true; 
+            }
+            unchecked {
+                i++;
+            }
+        }
+
+        // found string with all whitespaces as chars
+        return false;
+    }
+    function _generateAddressHash(address host, string memory uid) external pure returns (address) {
+        // Concatenate the address and the string, and then hash the result
+        bytes32 hash = keccak256(abi.encodePacked(host, uid));
+
+        // LEFT OFF HERE ... is this a bug? 'uint160' ? shoudl be uint16? 
+        address generatedAddress = address(uint160(uint256(hash)));
+        return generatedAddress;
+    }
+
     function _getMarketForTicket(address _creator, addres_ ticket) private view returns(MARKET) {
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  return market with _ticket in 'resultOptionTokens'
