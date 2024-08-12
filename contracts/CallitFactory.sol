@@ -453,7 +453,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     function createMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
-        require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS, ' bad result count :( ');
+        require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad result count :( ');
         // TODO: loop through _resultLabels & deploy ERC20s for each, 
         //      then generate dex LP for each, using "_getAmountsForInitLP(_usdAmntLP, _resultLabels.length) returns(uint64,uint256)"
         //          ie. generate _resultLabels.length pairs -> uint256 TCKr:uint64 USD
