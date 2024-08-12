@@ -408,6 +408,9 @@ contract CallitFactory is ERC20, Ownable {
     function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
         MIN_USD_PROMO_TARGET = _usdTarget;
     }
+    function KEEPER_setUsdPromoBuyReqPerCall(uint64 _usdBuyRequired) external onlyKeepr {
+        USD_BUY_PROMO_PER_CALL = _usdBuyRequired;
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS (CALLIT)
@@ -462,13 +465,14 @@ contract CallitFactory is ERC20, Ownable {
         //  - influencer gives out promoCodeHash for callers to use w/ this function to purchase any _ticket they want
         //  - verify promo has not expired (usdTarget not hit yet) and enough promo is left to cover _usdAmnt
         //  - verify account balance covers _usdAmnt
-        //  - deduct promo.percReward from _usdAmnt and send to promo.EOA
-        //  - verify if _usdAmnt >= USD_BUY_PROMO_PER_CALL, and mint $CALL amount = _usdAmnt / USD_BUY_PROMO_PER_CALL
-        //  LEFT OFF HERE ... designing
+        //  - verify if _usdAmnt >= USD_BUY_PROMO_PER_CALL, then mint $CALL to msg.sender (mint amount = _usdAmnt / USD_BUY_PROMO_PER_CALL)
+        //  - calc & deduct influencer reward from _usdAmnt and send to promo.EOA (reward = promo.percReward * _usdAmnt)
+        //  - use remaining _usdAmnt to buy _ticket from DEX (_ticket receiver = msg.sender)
+        
         //  - deduct _usdAmnt from account balance
-        //  - update promo.usdUsed (add _usdAmnt)
-
         ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
+
+        //  - update promo.usdUsed (add _usdAmnt)
         promo.usdUsed += _usdAmnt;
     }
 
