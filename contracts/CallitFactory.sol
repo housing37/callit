@@ -367,7 +367,9 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     event MarketCreated(address _creator, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
-    
+    event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
+    event PromoBuyPerformed(address _buyer, address _ticket, address _promoCodeHash, uint64 _grossUsdAmnt, uint64 _netUsdAmnt);
+
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
@@ -518,19 +520,27 @@ contract CallitFactory is ERC20, Ownable {
         // calc influencer reward from _usdAmnt & send to promo.promotor
         uint64 usdReward = promo.percReward * _usdAmnt;
         IERC20(lowStableHeld).transfer(promo.promotor, usdReward);
+        emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
             // LEFT OFF HERE ... need to validate decimals for lowStableHeld and usdReward
 
         // deduct usdReward & additional fees from _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
         net_usdAmnt = _deductPromoBuyFees(net_usdAmnt, _usdAmnt);
+            // LEF OFF HERE ... finish _deductPromoBuyFees integration
 
-        //  - use remaining net_usdAmnt to buy _ticket from DEX (_ticket receiver = msg.sender)
+        // use remaining net_usdAmnt to buy _ticket from DEX (_ticket receiver = msg.sender)
+        // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
+        //  auto-sets receiver to SWAP_DELEGATE & transfers tokens from SWAP_DELEGATE
+        address[2] memory usd_tick_path = [lowStableHeld, _ticket]; // ref: https://ethereum.stackexchange.com/a/28048
+        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
 
         // deduct _usdAmnt from account balance
         ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
 
         // update promo.usdUsed (add _usdAmnt)
         promo.usdUsed += _usdAmnt;
+
+        emit PromoBuyPerformed(msg.sender, _ticket, _promoCodeHash, _usdAmnt, net_usdAmnt);
     }
     function _deductPromoBuyFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
         uint8 feePerc0; // = global
@@ -968,7 +978,7 @@ contract CallitFactory is ERC20, Ownable {
         stab_amnt_out = _normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
         return stab_amnt_out;
     }
-    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path) private returns (uint256) {
+    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
         address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
         uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
         (uint8 rtrIdx, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
@@ -977,12 +987,12 @@ contract CallitFactory is ERC20, Ownable {
         // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
         //   and then get tok_amnt_out from delegate (USER_maintenance)
         // else, swap with BST address(this) as receiver 
-        if (_stab_tok_path[_stab_tok_path.length-1] == address(this))  {
+        if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
             uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
             SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
             return tok_amnt_out;
         } else {
-            uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, address(this), false); // true = fromETH
+            uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
             return tok_amnt_out;
         }
     }
