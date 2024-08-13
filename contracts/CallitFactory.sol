@@ -441,7 +441,7 @@ contract CallitFactory is ERC20, Ownable {
         require(_promotor != address(0) && _validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
         address promoCodeHash = _generateAddressHash(_promotor, _promoCode);
         ACCT_PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
-        require(promo.EOA == address(0), ' promo already exists :-O ');
+        require(promo.promotor == address(0), ' promo already exists :-O ');
         PROMO_CODE_HASHES[promoCodeHash].push(ACCT_PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
@@ -496,29 +496,55 @@ contract CallitFactory is ERC20, Ownable {
 
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
         ACCT_PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        require(promo.EOA != address(0), ' invalid promo :-O ');
+        require(promo.promotor != address(0), ' invalid promo :-O ');
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
+
+        // Get stable to work with ...
+        //  NOTE: if no single stable can cover '_usdAmnt', lowStableHeld == 0x0, 
+        address lowStableHeld = _getStableHeldLowMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // NOTE: algorithmic logic...
         //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in ACCT_PROMO struct for EOA influencer)
         //  - influencer gives out promoCodeHash for callers to use w/ this function to purchase any _ticket they want
-        //  - verify promo has not expired (usdTarget not hit yet) and enough promo is left to cover _usdAmnt
-        //  - verify account balance covers _usdAmnt
-        //  - verify if _usdAmnt >= USD_BUY_PROMO_PER_CALL, then mint $CALL to msg.sender (mint amount = _usdAmnt / USD_BUY_PROMO_PER_CALL)
-        //  - calc & deduct influencer reward from _usdAmnt and send to promo.EOA (reward = promo.percReward * _usdAmnt)
-        //  - use remaining _usdAmnt to buy _ticket from DEX (_ticket receiver = msg.sender)
+        
+        // check if msg.sender earned $CALL tokens
+        if (_usdAmnt >= USD_BUY_PROMO_PER_CALL) {
+            // mint $CALL to msg.sender
+            _mint(msg.sender, _usdAmnt / USD_BUY_PROMO_PER_CALL);
+        }
 
-        //  - deduct _usdAmnt from account balance
+        // calc influencer reward from _usdAmnt & send to promo.promotor
+        uint64 usdReward = promo.percReward * _usdAmnt;
+        IERC20(lowStableHeld).transfer(promo.promotor, usdReward);
+            // LEFT OFF HERE ... need to validate decimals for lowStableHeld and usdReward
+
+        // deduct usdReward & additional fees from _usdAmnt
+        uint64 net_usdAmnt = _usdAmnt - usdReward;
+        net_usdAmnt = _deductPromoBuyFees(net_usdAmnt, _usdAmnt);
+
+        //  - use remaining net_usdAmnt to buy _ticket from DEX (_ticket receiver = msg.sender)
+
+        // deduct _usdAmnt from account balance
         ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
 
-        //  - update promo.usdUsed (add _usdAmnt)
+        // update promo.usdUsed (add _usdAmnt)
         promo.usdUsed += _usdAmnt;
     }
-
+    function _deductPromoBuyFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+        uint8 feePerc0; // = global
+        uint8 feePerc1; // = global
+        uint8 feePerc2; // = global
+        uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
+        return net_usdAmnt;
+        // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
+    }
     function checkPromoBalance(address _promoCodeHash) external returns(uint64) {
         ACCT_PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        require(promo.EOA != address(0), ' invalid promo :-O ');
+        require(promo.promotor != address(0), ' invalid promo :-O ');
         return promo.usdTarget - promo.usdUsed;
     }
 
@@ -563,7 +589,7 @@ contract CallitFactory is ERC20, Ownable {
         // string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, Strings.toString(_resultNum)));
         // string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, last4, "-", _markNum, "-", Strings.toString(_resultNum)));
         string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, string(abi.encode(_resultNum))));
-        string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, " " last4, "-", _markNum, "-", string(abi.encode(_resultNum))));
+        string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, " ", last4, "-", _markNum, "-", string(abi.encode(_resultNum))));
 
         return (tokenName, tokenSymbol);
     }
