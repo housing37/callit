@@ -360,7 +360,7 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market creators (etc.) can set their own handles
     mapping(address => MARKET[]) public ACCT_MARKETS; // store all markets people create
-    mapping(address => ACCT_PROMO[]) public PROMO_CODE_HASHES; // store promo code hashes for EOA accounts
+    mapping(address => PROMO[]) public PROMO_CODE_HASHES; // store promo code hashes for EOA accounts
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -373,7 +373,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
-    struct ACCT_PROMO {
+    struct PROMO {
         address promotor; // influencer wallet this promo is for
         string promoCode;
         uint64 usdTarget; // usd amount this promo is good for
@@ -442,9 +442,9 @@ contract CallitFactory is ERC20, Ownable {
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
         require(_promotor != address(0) && _validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
         address promoCodeHash = _generateAddressHash(_promotor, _promoCode);
-        ACCT_PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
+        PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
         require(promo.promotor == address(0), ' promo already exists :-O ');
-        PROMO_CODE_HASHES[promoCodeHash].push(ACCT_PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
+        PROMO_CODE_HASHES[promoCodeHash].push(PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
 
@@ -497,7 +497,7 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
-        ACCT_PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
@@ -508,7 +508,7 @@ contract CallitFactory is ERC20, Ownable {
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // NOTE: algorithmic logic...
-        //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in ACCT_PROMO struct for EOA influencer)
+        //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in PROMO struct for EOA influencer)
         //  - influencer gives out promoCodeHash for callers to use w/ this function to purchase any _ticket they want
         
         // check if msg.sender earned $CALL tokens
@@ -544,13 +544,14 @@ contract CallitFactory is ERC20, Ownable {
         emit PromoBuyPerformed(msg.sender, _ticket, _promoCodeHash, _usdAmnt, net_usdAmnt);
     }
     function checkPromoBalance(address _promoCodeHash) external returns(uint64) {
-        ACCT_PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
         return promo.usdTarget - promo.usdUsed;
     }
 
     // function buyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
     function exeArbPriceParityForTicket(address _creator, address _ticket) external {
+
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  find market with _ticket in 'resultOptionTokens'
         //  check if current dt < market._dtEndCalls
@@ -671,6 +672,7 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     function _getMarketForTicket(address _creator, addres_ ticket) private view returns(MARKET) {
+        PROMO storage promo = ACCT_MARKETS[_creator];
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  return market with _ticket in 'resultOptionTokens'
     }
