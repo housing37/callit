@@ -351,6 +351,12 @@ contract CallitFactory is ERC20, Ownable {
     uint64 public TOK_TICK_INIT_SUPPLY = 1000000; // init supply used for new call ticket tokens (uint64 = ~18,000Q max)
     string public TOK_TICK_NAME_SEED = "TCK#";
     string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
+
+    uint64 public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+        // NOTE: additional launch security: caps EOA $CALL earned to 255
+        //  but also limits the EOA following (KEEPER setter available; should raise after launch)
+
+    uint16 MIN_USD_MARK_LIQ = 10; // min usd liquidity need for 'createMarket' (total to split across all resultOptions)
     uint16 MAX_RESULTS = 100; // ADMIN: max # of result options a market may have
     uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
     uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
@@ -435,6 +441,13 @@ contract CallitFactory is ERC20, Ownable {
     function KEEPER_setTokTickInitSupply(uint64 _initSupply) external onlyKeeper {
         TOK_TICK_INIT_SUPPLY = _initSupply; // NOTE: uint64 max = ~18,000Q
     }
+    function KEEPER_setMaxEoaMarkets(uint64 _max) external onlyKeeper { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
+        MAX_EOA_MARKETS = _max;
+    }
+    function KEEPER_setMinInitMarketLiq(uint16 _min) external onlyKeeper {
+        MIN_USD_MARK_LIQ = _min;
+    }
+        
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN MUTATORS (CALLIT)
@@ -451,6 +464,10 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS (CALLIT)
     /* -------------------------------------------------------- */
+    function getAccountMarkets(address _account) external view returns (ACCT_MARKETS[] memory) {
+        require(_account != address(0), ' 0 address? ;[+] ');
+        return ACCT_MARKETS[_account];
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - MUTATORS (CALLIT)
@@ -470,11 +487,15 @@ contract CallitFactory is ERC20, Ownable {
     function createMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad result count :( ');
+        require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
 
-        // initilize arrays and market number for struct MARKET tracking
+        // initilize/validate market number for struct MARKET tracking
+        uint32 mark_num = ACCT_MARKETS[msg.sender].length;
+        require(mark_num <= MAX_EOA_MARKETS, ' max EOA markets :O ');
+
+        // initilize arrays for struct MARKET updates
         address[] memory resultOptionTokens = new address[](_resultLabels.length);
         address[] memory resultTokenLPs = new address[](_resultLabels.length);
-        uint32 mark_num = ACCT_MARKETS[msg.sender].length;
 
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS = uint64 type
@@ -551,7 +572,7 @@ contract CallitFactory is ERC20, Ownable {
 
     // function buyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
     function exeArbPriceParityForTicket(address _creator, address _ticket) external {
-
+        require(_creator != address(0) && _ticket != address(0), ' bad address :+<> ');
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  find market with _ticket in 'resultOptionTokens'
         //  check if current dt < market._dtEndCalls
@@ -575,6 +596,19 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _getMarketForTicket(address _creator, address _ticket) private view returns(MARKET) {
+        MARKET[] markets = ACCT_MARKETS[_creator];
+        for (uint256 i = 0; i < markets.length;) {
+            MARKET storage mark = markets[i];
+            if (address(mark.resultOptionTokens) == address(_ticket))
+                return mark;
+            unchecked {
+                i++;
+            }
+        }
+        
+        revert(' market not found :( ');
+    }
     function _deductPromoBuyFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
         uint8 feePerc0; // = global
         uint8 feePerc1; // = global
@@ -669,12 +703,6 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE ... is this a bug? 'uint160' ? shoudl be uint16? 
         address generatedAddress = address(uint160(uint256(hash)));
         return generatedAddress;
-    }
-
-    function _getMarketForTicket(address _creator, addres_ ticket) private view returns(MARKET) {
-        PROMO storage promo = ACCT_MARKETS[_creator];
-        // TODO: loop through markets in ACCT_MARKETS[_creator]
-        //  return market with _ticket in 'resultOptionTokens'
     }
     function _getCallTicketUsdTargetPrice(address _creator, address _ticket, uint32 _ticketCount) private view returns(uint64) {
         // NOTE: uint32 max = ~4B -> 4,294,967,295
