@@ -8,21 +8,24 @@
 //  uint16 max = ~65K -> 65,535
 //  uint32 max = ~4B -> 4,294,967,295
 //  uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
-pragma solidity ^0.8.24;        
+pragma solidity ^0.8.24;
 
 // inherited contracts
+// import "@openzeppelin/contracts/utils/Strings.sol";
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; // deploy
 // import "@openzeppelin/contracts/access/Ownable.sol"; // deploy
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 // import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
 
 // local _ $ npm install @openzeppelin/contracts
+import "./node_modules/@openzeppelin/contracts/utils/Strings.sol";
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 // import "./SwapDelegate.sol";
+import "./CallitTicket.sol";
 
 interface ISwapDelegate { // (legacy)
     function VERSION() external view returns (uint8);
@@ -345,6 +348,9 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS (CALLIT)
     /* -------------------------------------------------------- */
+    uint64 public TOK_TICK_INIT_SUPPLY = 1000000; // init supply used for new call ticket tokens (uint64 = ~18,000Q max)
+    string public TOK_TICK_NAME_SEED = "TCK#";
+    string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
     uint16 MAX_RESULTS = 100; // ADMIN: max # of result options a market may have
     uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
     uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
@@ -359,7 +365,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
-    event MarketCreated(address _creator, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, uint256 _blockNumber, bool _live);
+    event MarketCreated(address _creator, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     
     /* -------------------------------------------------------- */
@@ -377,6 +383,7 @@ contract CallitFactory is ERC20, Ownable {
 
     struct MARKET {
         address creator; // EOA creator
+        uint32 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
         string name; // display name for this market (maybe auto-generate w/ )
         string category;
         string rules;
@@ -419,6 +426,13 @@ contract CallitFactory is ERC20, Ownable {
     function KEEPER_setUsdPromoBuyReqPerCall(uint64 _usdBuyRequired) external onlyKeepr {
         USD_BUY_PROMO_PER_CALL = _usdBuyRequired;
     }
+    function KEEPER_setTokTicketNameSymbSeeds(string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
+        TOK_TICK_NAME_SEED = _nameSeed;
+        TOK_TICK_SYMB_SEED = _symbSeed;
+    }
+    function KEEPER_setTokTickInitSupply(uint64 _initSupply) external onlyKeeper {
+        TOK_TICK_INIT_SUPPLY = _initSupply; // NOTE: uint64 max = ~18,000Q
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN MUTATORS (CALLIT)
@@ -454,16 +468,30 @@ contract CallitFactory is ERC20, Ownable {
     function createMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad result count :( ');
-        // TODO: loop through _resultLabels & deploy ERC20s for each, 
-        //      then generate dex LP for each, using "_getAmountsForInitLP(_usdAmntLP, _resultLabels.length) returns(uint64,uint256)"
-        //          ie. generate _resultLabels.length pairs -> uint256 TCKr:uint64 USD
-        //      then save each contract & LP address to arrays
+
+        // initilize arrays and market number for struct MARKET tracking
         address[] memory resultOptionTokens = new address[](_resultLabels.length);
         address[] memory resultTokenLPs = new address[](_resultLabels.length);
-        
+        uint32 mark_num = ACCT_MARKETS[msg.sender].length;
+
+        // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
+        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS = uint64 type
+            // Deploy a new ERC20 token for each result label
+            (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(_creator, mark_num, _resultNum);
+            address new_tick_tok = address (new CallitTicket(TOK_TICK_INIT_SUPPLY, tok_name, tok_symb));
+            resultOptionTokens[i] = new_tick_tok;
+
+            // Get amounts for initial LP & Create DEX LP for the token
+            (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(_usdAmntLP, _resultLabels.length);
+            address lpAddress = _createDexLP(new_tick_tok, usdAmount, tokenAmount);
+            resultTokenLPs[i] = lpAddress;
+            require(new_tick_tok != address(0) && lpAddress != address(0), ' err: gen tick tok | lp :( ');
+            unchecked {i++;}
+        }
+
         // save this market and emit log
-        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
-        emit MarketCreated(msg.sender, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
+        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
+        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
     }
 
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
@@ -507,15 +535,6 @@ contract CallitFactory is ERC20, Ownable {
         //      deduct balance: ACCT_USD_BALANCES[msg.sender] -= target price * _ticket mint count;
         //      mint _ticket mint count to this factory and sell on DEX on behalf of msg.sender
         //      calc & send profits to msg.sender: gross usd received from sell - (target price * _ticket mint count)
-
-        // LEFT OFF HERE ... does this algorithm work?
-        //  will users be able to buy excess _ticket tokens at cheaper rate and take advantage?
-        // OPTION 1: calculate a limit to _ticketCount that an arb user can purchase for '_getCallTicketUsdTargetPrice'
-        // OPTION 2: no limit for _ticketCount. this means ...
-        //      a) the arb user can potentially sell down _ticket on the open market
-        //      b) the arb user can excessively mint (potentially) winning tokens for a single price, 
-        //          this increases the % of their prize-pool distribution, as opposed to a dex AMM LP 
-        //          algorthimically limiting/raising the price when purchasing excessive amounts
     }
 
     function endMarketCalls(address _creator, address _anyTicket) external {
@@ -528,6 +547,68 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _genTokenNameSymbol(address _creator, uint32 _markNum, uint16 _resultNum) private pure returns(string, string) {
+        // Convert the address to a string
+        string memory addrStr = toAsciiString(_creator);
+
+        // Extract the first 4 characters (excluding the "0x" prefix)
+        // string memory first4 = substring(addrStr, 2, 6);
+        
+        // Extract the last 4 characters using length
+        // string memory last4 = substring(addrStr, 38, 42);
+        uint len = bytes(addrStr).length;
+        string memory last4 = substring(addrStr, len - 4, len);
+
+        // Concatenate to form symbol & name
+        // string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, Strings.toString(_resultNum)));
+        // string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, last4, "-", _markNum, "-", Strings.toString(_resultNum)));
+        string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, string(abi.encode(_resultNum))));
+        string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, " " last4, "-", _markNum, "-", string(abi.encode(_resultNum))));
+
+        return (tokenName, tokenSymbol);
+    }
+    // Assumed helper functions (implementations not shown)
+    function _createDexLP(address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount) private returns (address) {
+        // LEFT OFF HERE ... _usdStable & _usdAmount must check and convert to use correct decimals
+
+        // Approve tokens for Uniswap Router
+        IERC20(_token).safeApprove(address(uniswapRouter), _tokenAmount);
+        // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
+
+        // Add liquidity to the pool
+        (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
+            _token,                // Token address
+            _usdStable,           // Assuming ETH as the second asset (or replace with another token address)
+            _tokenAmount,          // Desired _token amount
+            _usdAmount,            // Desired ETH amount (converted from USD or directly provided)
+            0,                    // Min amount of _token (slippage tolerance)
+            0,                    // Min amount of ETH (slippage tolerance)
+            address(this),        // Recipient of liquidity tokens
+            block.timestamp + 300 // Deadline (5 minutes from now)
+        );
+
+        // Return the address of the liquidity pool
+        // For Uniswap V2, the LP address is not directly returned but you can obtain it by querying the factory.
+        // This example assumes you store or use the liquidity tokens or LP in your contract directly.
+
+        // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
+        // For simplicity, we're returning a placeholder.
+        // Retrieve the LP address
+        address lpAddress = uniswapFactory.getPair(_token, _usdStable);
+        return lpAddress;
+
+        // NOTE: LEFT OFF HERE ... may need external support functions for LP & LP token maintence, etc.
+        //      similar to accessors that retrieve native and ERC20 tokens held by contract
+    }
+
+    function _getAmountsForInitLP(uint64 _usdAmntLP, uint16 _resultOptionCnt) private returns(uint64, uint256) {
+        require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
+        return (_usdAmntLP / _resultOptionCnt, _getInitDexSupplyForUsdAmnt(_usdAmntLP));
+    }
+    function _getInitDexSupplyForUsdAmnt(uint64 _usdAmntLP) private returns(uint256) {
+        // TODO: need algorithm to specify dex token supply for _usdAmntLP side
+        return 0;
+    }
     function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
         for (uint8 i=0; i < _s.length;) {
             if (bytes(_s)[i] != 0x20) {
@@ -604,18 +685,6 @@ contract CallitFactory is ERC20, Ownable {
 
     //     return amountsIn[0];
     // }
-
-    /* -------------------------------------------------------- */
-    /* PRIVATE - SUPPORTING (legacy)
-    /* -------------------------------------------------------- */
-    function _getAmountsForInitLP(uint64 _usdAmntLP, uint16 _resultOptionCnt) private returns(uint64, uint256) {
-        require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
-        return _usdAmntLP / _resultOptionCnt, _getInitDexSupplyForUsdAmnt(_usdAmntLP);
-    }
-    function _getInitDexSupplyForUsdAmnt(uint64 _usdAmntLP) private returns(uint256) {
-        // TODO: need algorithm to specify dex token supply for _usdAmntLP side
-        return 0;
-    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - USER INTERFACE (LUSDST legacy)
