@@ -540,17 +540,8 @@ contract CallitFactory is ERC20, Ownable {
         // update promo.usdUsed (add _usdAmnt)
         promo.usdUsed += _usdAmnt;
 
+        // emit log
         emit PromoBuyPerformed(msg.sender, _ticket, _promoCodeHash, _usdAmnt, net_usdAmnt);
-    }
-    function _deductPromoBuyFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
-        uint8 feePerc0; // = global
-        uint8 feePerc1; // = global
-        uint8 feePerc2; // = global
-        uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
-        net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
-        net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
-        return net_usdAmnt;
-        // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
     }
     function checkPromoBalance(address _promoCodeHash) external returns(uint64) {
         ACCT_PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
@@ -583,6 +574,16 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _deductPromoBuyFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+        uint8 feePerc0; // = global
+        uint8 feePerc1; // = global
+        uint8 feePerc2; // = global
+        uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
+        return net_usdAmnt;
+        // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
+    }
     function _genTokenNameSymbol(address _creator, uint32 _markNum, uint16 _resultNum) private pure returns(string, string) {
         // Convert the address to a string
         string memory addrStr = toAsciiString(_creator);
@@ -606,6 +607,7 @@ contract CallitFactory is ERC20, Ownable {
     // Assumed helper functions (implementations not shown)
     function _createDexLP(address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount) private returns (address) {
         // LEFT OFF HERE ... _usdStable & _usdAmount must check and convert to use correct decimals
+        //          need to properly set & use: uniswapRouter & uniswapFactory
 
         // Approve tokens for Uniswap Router
         IERC20(_token).safeApprove(address(uniswapRouter), _tokenAmount);
