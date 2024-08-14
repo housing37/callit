@@ -411,7 +411,7 @@ contract CallitFactory is ERC20, Ownable {
         string rules;
         string imgUrl;
         uint64 usdAmntLP;
-        uint256 dtEndCalls; // unix timestamp 1970, no more bets, LP removed from generated DEXs
+        uint256 dtCallDeadline; // unix timestamp 1970, no more bets, LP removed from generated DEXs
         string[] resultLabels; // required: length == _resultDescrs
         string[] resultDescrs; // required: length == _resultLabels
         address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
@@ -505,7 +505,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - USER INTERFACE (CALLIT)
     /* -------------------------------------------------------- */
-    function createMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtEndCalls, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
+    function createMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtCallDeadline, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad result count :( ');
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
@@ -545,8 +545,8 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // save this market and emit log
-        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.number, true)); // true = live
-        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.number, true); // true = live
+        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtCallDeadline, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.number, true)); // true = live
+        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtCallDeadline, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.number, true); // true = live
     }
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
@@ -607,7 +607,7 @@ contract CallitFactory is ERC20, Ownable {
         // get MARKET & idx for _ticket & validate call time not ended
         //  NOTE: MAX_EOA_MARKETS is uint64
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(_creator, _ticket); // reverts if market not found
-        require(mark.dtEndCalls > block.timestamp, ' _ticket calls finished :( ');
+        require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // get target price for _ticket price parity 
         uint256 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
@@ -638,13 +638,13 @@ contract CallitFactory is ERC20, Ownable {
 
         // algorithmic logic...
         //  get market for _ticket
-        //  verify mark.dtEndCalls has indeed passed
+        //  verify mark.dtCallDeadline has indeed passed
         //  loop through _ticket LP addresses and pull all liquidity
 
         // get MARKET & idx for _ticket & validate call time not ended
         //  NOTE: MAX_EOA_MARKETS is uint64
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(_creator, _ticket); // reverts if market not found
-        require(mark.dtEndCalls <= block.timestamp, ' _ticket calls finished :(( ');
+        require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed :(( ');
 
         // loop through pair addresses and pull liquidity 
         address[] _ticketLPs = mark.resultTokenLPs;
