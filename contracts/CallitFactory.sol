@@ -387,6 +387,7 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => MARKET[]) public ACCT_MARKETS; // store all markets people create
     mapping(address => PROMO[]) public PROMO_CODE_HASHES; // store promo code hashes for EOA accounts
     mapping(address => address) public TICKET_MAKERS; // store ticket to maker mapping
+    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -597,8 +598,9 @@ contract CallitFactory is ERC20, Ownable {
         if (_usdAmnt >= RATIO_PROMO_USD_PER_CALL_TOK) {
             // mint $CALL to msg.sender
             _mint(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
-            // LEFT OFF HERE ... everytime '_mint' is called from this contract, 
-            //  need to log in mapping or array in order to track voting rights
+
+            // log $CALL votes earned
+            EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
         }
 
         // calc influencer reward from _usdAmnt to send to promo.promotor
@@ -680,6 +682,8 @@ contract CallitFactory is ERC20, Ownable {
         //  verify mark.dtCallDeadline has indeed passed
         //  loop through _ticket LP addresses and pull all liquidity
 
+        // LEFT OFF HERE ... need incentive for 'anyone' to call this function and pay gas (maybe earn minted $CALL?)
+
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
@@ -728,7 +732,16 @@ contract CallitFactory is ERC20, Ownable {
         //  store votes in struct MARKET maybe?
         //  need to track/verify $CALL token held through out this market time period
         //  need to track max votes or $CALL earned by EOAs
+
+        // $CALL token earnings design...
+        //  - buyer earns $CALL in 'buyCallTicketWithPromoCode'
+        //  - market maker should earn call when market is closed (init LP requirement needed)
+        //  - invoking 'closeMarketCalls' earns some $CALL maybe?
+
+            // // log $CALL votes earned
+            // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
     }
+
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
