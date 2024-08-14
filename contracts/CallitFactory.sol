@@ -374,10 +374,10 @@ contract CallitFactory is ERC20, Ownable {
         //  but also limits the EOA following (KEEPER setter available; should raise after launch)
 
     uint16 MIN_USD_MARK_LIQ = 10; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
-    uint16 MAX_RESULTS = 100; // ADMIN: max # of result options a market may have
-    uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
-    uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
-    uint64 MIN_USD_PROMO_TARGET = 100; // ADMIN: min $ target for creating promo codes
+    uint16 MAX_RESULTS = 100; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
+    uint8 MIN_HANDLE_SIZE = 1; // min # of chars for account handles
+    uint8 MAX_HANDLE_SIZE = 25; // max # of chars for account handles
+    uint64 MIN_USD_PROMO_TARGET = 100; // min $ target for creating promo codes
     uint64 RATIO_PROMO_USD_PER_CALL_TOK = 100; // usd amount buy needed per $CALL earned in promo (note: global across all promos to avoid exploitations)
         // LEFT OFF HERE  ... may need decimal precision integration
     uint16 RATIO_LP_TOK_PER_USD = 10000;
@@ -541,7 +541,7 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
 
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
-        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS = uint64 type
+        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
             // Deploy a new ERC20 token for each result label
             (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i);
             address new_tick_tok = address (new CallitTicket(TOK_TICK_INIT_SUPPLY, tok_name, tok_symb));
