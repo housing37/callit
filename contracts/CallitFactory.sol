@@ -394,7 +394,8 @@ contract CallitFactory is ERC20, Ownable {
     event MarketCreated(address _maker, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, uint256 _blockTime, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
-    event PromoBuyPerformed(address _buyer, address _ticket, address _promoCodeHash, uint64 _grossUsdAmnt, uint64 _netUsdAmnt);
+    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
+    event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
 
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
@@ -477,6 +478,8 @@ contract CallitFactory is ERC20, Ownable {
         MIN_USD_MARK_LIQ = _min;
     }
     function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable) external onlyKeeper {
+        // max array size = 255 (uint8 loop)
+        require(_isAddressInArray(_router, USWAP_V2_ROUTERS) && _isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist router|stable :() ');
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_UNISWAP_V2_FACTORY = _factory;
         NEW_TICK_USD_STABLE = _usdStable;
@@ -571,15 +574,16 @@ contract CallitFactory is ERC20, Ownable {
         emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.timestamp, block.number, true); // true = live
     }
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
+        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
 
-        // Get stable to work with ...
-        //  NOTE: if no single stable can cover '_usdAmnt', lowStableHeld == 0x0, 
-        address lowStableHeld = _getStableHeldLowMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+        // get MARKET & idx for _ticket & validate call time not ended
+        //  NOTE: MAX_EOA_MARKETS is uint64
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // NOTE: algorithmic logic...
         //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in PROMO struct for EOA influencer)
@@ -593,30 +597,51 @@ contract CallitFactory is ERC20, Ownable {
             //  need to log in mapping or array in order to track voting rights
         }
 
-        // calc influencer reward from _usdAmnt & send to promo.promotor
+        // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = promo.percReward * _usdAmnt;
-        IERC20(lowStableHeld).transfer(promo.promotor, usdReward);
+        _payPromotorReward(usdReward, promo.promotor);
         emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
-            // LEFT OFF HERE ... need to validate decimals for lowStableHeld and usdReward
 
         // deduct usdReward & additional fees from _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
         net_usdAmnt = _deductPromoBuyFees(_usdAmnt, net_usdAmnt); // LEFT OFF HERE ... finish _deductPromoBuyFees integration
 
-        // use remaining net_usdAmnt to buy _ticket from DEX (_ticket receiver = msg.sender)
-        // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-        //  auto-sets receiver to SWAP_DELEGATE & transfers tokens from SWAP_DELEGATE
-        address[2] memory usd_tick_path = [lowStableHeld, _ticket]; // ref: https://ethereum.stackexchange.com/a/28048
-        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
+        // verifiy contract holds enough tick_stable_tok for DEX buy
+        //  if not, swap another contract held stable that can indeed cover
+        address tick_stable_tok = mark.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
+        uint256 contr_stab_bal = IERC20(tick_stable_tok).balanceOf(address(this)); 
+        if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
+            uint256 net_usdAmnt_needed = net_usdAmnt - contr_stab_bal;
+            (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, tick_stable_tok);
+            emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
-        // deduct _usdAmnt from account balance
+            // verify
+            uint256 contr_stab_bal_check = IERC20(tick_stable_tok).balanceOf(address(this));
+            require(contr_stab_bal_check >= net_usdAmnt, ' tick-stable swap failed :[] ' );
+        }
+
+        // swap remaining net_usdAmnt of tick_stable_tok for _ticket on DEX (_ticket receiver = msg.sender)
+        address[2] memory usd_tick_path = [tick_stable_tok, _ticket]; // ref: https://ethereum.stackexchange.com/a/28048
+        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
+            // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
+            //  auto-sets receiver to SWAP_DELEGATE & transfers tokens from SWAP_DELEGATE
+
+        // deduct full OG input _usdAmnt from account balance
         ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
 
-        // update promo.usdUsed (add _usdAmnt)
+        // update promo.usdUsed (add full OG input _usdAmnt)
         promo.usdUsed += _usdAmnt;
 
         // emit log
-        emit PromoBuyPerformed(msg.sender, _ticket, _promoCodeHash, _usdAmnt, net_usdAmnt);
+        emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
+    }
+    function _isAddressInArray(address _addr, address[] _addrArr) private returns(bool) {
+        for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
+            if (_addrArr[i] == _addr)
+                return true;
+            unchecked {i++;}
+        }
+        return false;
     }
     function checkPromoBalance(address _promoCodeHash) external returns(uint64) {
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
@@ -624,12 +649,12 @@ contract CallitFactory is ERC20, Ownable {
         return promo.usdTarget - promo.usdUsed;
     }
 
-    function exeArbPriceParityForTicket(address _maker, address _ticket) external {
-        require(_maker != address(0) && _ticket != address(0), ' bad address :+<> ');
+    function exeArbPriceParityForTicket(address _ticket) external {
+        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended
         //  NOTE: MAX_EOA_MARKETS is uint64
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(_maker, _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // get target price for _ticket price parity 
@@ -649,15 +674,15 @@ contract CallitFactory is ERC20, Ownable {
         cTicket.mintForPriceParity(address(this), tokensToMint);
         require(cTicket.balanceOf(address(this) >= tokensToMint), ' err: cTicket mint :<> ');
         address[2] tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
-        uint256 gross_stab_amnt_out = _exeSwapTokForStable(tokensToMint, tok_stab_path, address(this), mark.resultTokenRouters[tickIdx]);
+        uint256 gross_stab_amnt_out = _exeSwapTokForStable(tokensToMint, tok_stab_path, address(this), mark.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
 
         // calc & send net profits to msg.sender
         uint256 net_usd_profits = gross_stab_amnt_out - total_usd_cost;
         net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, net_usd_profits); // LEFT OFF HERE ... finish _deductArbExeFees integration
         IERC20(mark.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
     }
-    function closeMarketCalls(address _maker, address _ticket) external {
-        require(_maker != address(0) && _ticket != address(0), ' bad address :+<> ');
+    function closeMarketCalls(address _ticket) external {
+        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // algorithmic logic...
         //  get market for _ticket
@@ -666,7 +691,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // get MARKET & idx for _ticket & validate call time not ended
         //  NOTE: MAX_EOA_MARKETS is uint64
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(_maker, _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed :(( ');
 
         // loop through pair addresses and pull liquidity 
@@ -708,6 +733,27 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _payPromotorReward(uint256 _usdReward, address _promotor) private {
+        // Get stable to work with ... (any stable that covers 'usdReward' is fine)
+        //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
+        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // pay promo.promotor their usdReward w/ lowStableHeld (any stable thats covered)
+        IERC20(lowStableHeld).transfer(_promotor, _usdReward);
+            // LEFT OFF HERE ... need to validate decimals for lowStableHeld and usdReward
+    }
+    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
+        // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
+        //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
+        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // create path and perform stable-to-stable swap
+        address[2] stab_stab_path = [highStableHeld, _tickStable];
+        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
+        return (stab_amnt_out,highStableHeld);
+    }
     function _getCallTicketUsdTargetPrice(MARKET _mark, address _ticket) private view returns(uint256) {
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
