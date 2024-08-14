@@ -366,6 +366,9 @@ contract CallitFactory is ERC20, Ownable {
     string public TOK_TICK_NAME_SEED = "TCK#";
     string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
 
+    uint256 SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
+    bool USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    
     uint64 public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
         // NOTE: additional launch security: caps EOA $CALL earned to 255
         //  but also limits the EOA following (KEEPER setter available; should raise after launch)
@@ -387,7 +390,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
-    event MarketCreated(address _maker, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, uint256 _blockNumber, bool _live);
+    event MarketCreated(address _maker, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, uint256 _blockTime, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
     event PromoBuyPerformed(address _buyer, address _ticket, address _promoCodeHash, uint64 _grossUsdAmnt, uint64 _netUsdAmnt);
@@ -413,7 +416,9 @@ contract CallitFactory is ERC20, Ownable {
         string rules;
         string imgUrl;
         uint64 usdAmntLP;
-        uint256 dtCallDeadline; // unix timestamp 1970, no more bets, LP removed from generated DEXs
+        uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
+        uint256 dtResultVoteStart; // unix timestamp 1970, earned $CALL token EOAs may start voting
+        uint256 dtResultVoteEnd; // unix timestamp 1970, earned $CALL token EOAs voting ends
         string[] resultLabels; // required: length == _resultDescrs
         string[] resultDescrs; // required: length == _resultLabels
         address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
@@ -421,6 +426,7 @@ contract CallitFactory is ERC20, Ownable {
         address[] resultTokenRouters;
         address[] resultTokenFactories;
         address[] resultTokenUsdStables;
+        uint256 blockTimestamp; // sec timestamp this market was created
         uint256 blockNumber; // block number this market was created
         bool live;
     }
@@ -473,7 +479,11 @@ contract CallitFactory is ERC20, Ownable {
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_UNISWAP_V2_FACTORY = _factory;
         NEW_TICK_USD_STABLE = _usdStable;
-    }        
+    }
+    function KEEPER_setEnableDefaultVoteTime(uint256 _sec, bool _enable) external onlyKeeper {
+        SEC_DEFAULT_VOTE_TIME = _sec; // 24 * 60 * 60 == 86,400 sec == 24 hours
+        USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN MUTATORS (CALLIT)
@@ -510,14 +520,18 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - USER INTERFACE (CALLIT)
     /* -------------------------------------------------------- */
-    function makeNewMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtCallDeadline, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
+    function makeNewMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad result count :( ');
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
+        require(_dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // initilize/validate market number for struct MARKET tracking
         uint32 mark_num = ACCT_MARKETS[msg.sender].length;
         require(mark_num <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
+
+        // check for admin defualt vote time, update _dtResultVoteEnd accordingly
+        if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
 
         // initilize arrays for struct MARKET updates
         address[] memory resultOptionTokens = new address[](_resultLabels.length);
@@ -550,8 +564,8 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // save this market and emit log
-        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtCallDeadline, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.number, true)); // true = live
-        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtCallDeadline, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.number, true); // true = live
+        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.timestamp, block.number, true)); // true = live
+        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, block.timestamp, block.number, true); // true = live
     }
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
@@ -572,6 +586,8 @@ contract CallitFactory is ERC20, Ownable {
         if (_usdAmnt >= RATIO_PROMO_USD_PER_CALL_TOK) {
             // mint $CALL to msg.sender
             _mint(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
+            // LEFT OFF HERE ... everytime '_mint' is called from this contract, 
+            //  need to log in mapping or array in order to track voting rights
         }
 
         // calc influencer reward from _usdAmnt & send to promo.promotor
