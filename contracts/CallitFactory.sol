@@ -585,8 +585,7 @@ contract CallitFactory is ERC20, Ownable {
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
 
-        // get MARKET & idx for _ticket & validate call time not ended
-        //  NOTE: MAX_EOA_MARKETS is uint64
+        // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
@@ -643,8 +642,7 @@ contract CallitFactory is ERC20, Ownable {
     function exeArbPriceParityForTicket(address _ticket) external {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
-        // get MARKET & idx for _ticket & validate call time not ended
-        //  NOTE: MAX_EOA_MARKETS is uint64
+        // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
@@ -671,6 +669,8 @@ contract CallitFactory is ERC20, Ownable {
         uint256 net_usd_profits = gross_stab_amnt_out - total_usd_cost;
         net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, net_usd_profits); // LEFT OFF HERE ... finish _deductArbExeFees integration
         IERC20(mark.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
+
+        // LEFT OFF HERE ... need emit event log
     }
     function closeMarketCalls(address _ticket) external {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
@@ -680,8 +680,7 @@ contract CallitFactory is ERC20, Ownable {
         //  verify mark.dtCallDeadline has indeed passed
         //  loop through _ticket LP addresses and pull all liquidity
 
-        // get MARKET & idx for _ticket & validate call time not ended
-        //  NOTE: MAX_EOA_MARKETS is uint64
+        // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
 
@@ -718,9 +717,18 @@ contract CallitFactory is ERC20, Ownable {
                 i++;
             }
         }
-
     }
 
+    function voteForMarketResult(address _ticketVote) external {
+        // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticketVote], _ticketVote); // reverts if market not found
+        require(mark.dtResultVoteStart <= block.timestamp, ' market voting not started yet :p ');
+
+        // LEFT OFF HERE ... need to design voting algorithm
+        //  store votes in struct MARKET maybe?
+        //  need to track/verify $CALL token held through out this market time period
+        //  need to track max votes or $CALL earned by EOAs
+    }
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
