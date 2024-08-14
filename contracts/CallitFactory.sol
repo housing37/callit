@@ -386,6 +386,7 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
     mapping(address => MARKET[]) public ACCT_MARKETS; // store all markets people create
     mapping(address => PROMO[]) public PROMO_CODE_HASHES; // store promo code hashes for EOA accounts
+    mapping(address => address) public TICKET_MAKERS; // store ticket to maker mapping
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -524,7 +525,7 @@ contract CallitFactory is ERC20, Ownable {
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
-        require(_dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
+        require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // initilize/validate market number for struct MARKET tracking
         uint32 mark_num = ACCT_MARKETS[msg.sender].length;
@@ -560,6 +561,8 @@ contract CallitFactory is ERC20, Ownable {
             resultTokenRouters[i] = NEW_TICK_UNISWAP_V2_ROUTER;
             resultTokenFactories[i] = NEW_TICK_UNISWAP_V2_FACTORY;
             resultTokenUsdStables[i] = NEW_TICK_USD_STABLE;
+
+            TICKET_MAKERS[new_tick_tok] = msg.sender;
             unchecked {i++;}
         }
 
