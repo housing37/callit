@@ -508,6 +508,11 @@ contract CallitFactory is ERC20, Ownable {
         require(_account != address(0), ' 0 address? ;[+] ');
         return ACCT_MARKETS[_account];
     }
+    function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
+        PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        require(promo.promotor != address(0), ' invalid promo :-O ');
+        return promo.usdTarget - promo.usdUsed;
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - MUTATORS (CALLIT)
@@ -635,20 +640,6 @@ contract CallitFactory is ERC20, Ownable {
         // emit log
         emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
     }
-    function _isAddressInArray(address _addr, address[] _addrArr) private returns(bool) {
-        for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
-            if (_addrArr[i] == _addr)
-                return true;
-            unchecked {i++;}
-        }
-        return false;
-    }
-    function checkPromoBalance(address _promoCodeHash) external returns(uint64) {
-        PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        require(promo.promotor != address(0), ' invalid promo :-O ');
-        return promo.usdTarget - promo.usdUsed;
-    }
-
     function exeArbPriceParityForTicket(address _ticket) external {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
@@ -692,7 +683,7 @@ contract CallitFactory is ERC20, Ownable {
         // get MARKET & idx for _ticket & validate call time not ended
         //  NOTE: MAX_EOA_MARKETS is uint64
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
-        require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed :(( ');
+        require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
 
         // loop through pair addresses and pull liquidity 
         address[] _ticketLPs = mark.resultTokenLPs;
@@ -753,6 +744,14 @@ contract CallitFactory is ERC20, Ownable {
         address[2] stab_stab_path = [highStableHeld, _tickStable];
         uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
         return (stab_amnt_out,highStableHeld);
+    }
+    function _isAddressInArray(address _addr, address[] _addrArr) private returns(bool) {
+        for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
+            if (_addrArr[i] == _addr)
+                return true;
+            unchecked {i++;}
+        }
+        return false;
     }
     function _getCallTicketUsdTargetPrice(MARKET _mark, address _ticket) private view returns(uint256) {
         // algorithmic logic ...
