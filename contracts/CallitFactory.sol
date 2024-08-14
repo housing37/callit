@@ -633,7 +633,7 @@ contract CallitFactory is ERC20, Ownable {
         net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, net_usd_profits); // LEFT OFF HERE ... finish _deductArbExeFees integration
         IERC20(mark.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
     }
-    function endMarketCalls(address _creator, address _ticket) external {
+    function closeMarketCalls(address _creator, address _ticket) external {
         require(_creator != address(0) && _ticket != address(0), ' bad address :+<> ');
 
         // algorithmic logic...
