@@ -16,6 +16,7 @@ pragma solidity ^0.8.24;
 // import "@openzeppelin/contracts/access/Ownable.sol"; // deploy
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 // import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
+// import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/utils/Strings.sol";
@@ -23,6 +24,8 @@ import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+
 
 // import "./SwapDelegate.sol";
 import "./CallitTicket.sol";
@@ -348,6 +351,10 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS (CALLIT)
     /* -------------------------------------------------------- */
+    address NEW_TICK_UNISWAP_V2_ROUTER;
+    address NEW_TICK_UNISWAP_V2_FACTORY;
+    address NEW_TICK_USD_STABLE;
+
     uint64 public TOK_TICK_INIT_SUPPLY = 1000000; // init supply used for new call ticket tokens (uint64 = ~18,000Q max)
     string public TOK_TICK_NAME_SEED = "TCK#";
     string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
@@ -371,7 +378,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
-    event MarketCreated(address _creator, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, uint256 _blockNumber, bool _live);
+    event MarketCreated(address _creator, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint256 _dtEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenStableUSD, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
     event PromoBuyPerformed(address _buyer, address _ticket, address _promoCodeHash, uint64 _grossUsdAmnt, uint64 _netUsdAmnt);
@@ -402,6 +409,9 @@ contract CallitFactory is ERC20, Ownable {
         string[] resultDescrs; // required: length == _resultLabels
         address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
         address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
+        address[] resultTokenRouters;
+        address[] resultTokenFactories;
+        address[] resultTokenStableUSD;
         uint256 blockNumber; // block number this market was created
         bool live;
     }
@@ -447,7 +457,11 @@ contract CallitFactory is ERC20, Ownable {
     function KEEPER_setMinInitMarketLiq(uint16 _min) external onlyKeeper {
         MIN_USD_MARK_LIQ = _min;
     }
-        
+    function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable) external onlyKeeper {
+        NEW_TICK_UNISWAP_V2_ROUTER = _router;
+        NEW_TICK_UNISWAP_V2_FACTORY = _factory;
+        NEW_TICK_USD_STABLE = _usdStable;
+    }        
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN MUTATORS (CALLIT)
@@ -496,27 +510,37 @@ contract CallitFactory is ERC20, Ownable {
         // initilize arrays for struct MARKET updates
         address[] memory resultOptionTokens = new address[](_resultLabels.length);
         address[] memory resultTokenLPs = new address[](_resultLabels.length);
+        address[] memory resultTokenRouters = new address[](_resultLabels.length);
+        address[] memory resultTokenFactories = new address[](_resultLabels.length);
+        address[] memory resultTokenStableUSD = new address[](_resultLabels.length);
 
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS = uint64 type
             // Deploy a new ERC20 token for each result label
             (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(_creator, mark_num, _resultNum);
             address new_tick_tok = address (new CallitTicket(TOK_TICK_INIT_SUPPLY, tok_name, tok_symb));
-            resultOptionTokens[i] = new_tick_tok;
-
+            
             // Get amounts for initial LP & Create DEX LP for the token
             (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(_usdAmntLP, _resultLabels.length);
-            address lpAddress = _createDexLP(new_tick_tok, usdAmount, tokenAmount);
-            resultTokenLPs[i] = lpAddress;
+            address lpAddress = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
+                            // _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount)
+
+            // verify ERC20 & LP was created
             require(new_tick_tok != address(0) && lpAddress != address(0), ' err: gen tick tok | lp :( ');
+
+            resultOptionTokens[i] = new_tick_tok;
+            resultTokenLPs[i] = lpAddress;
+
+            resultTokenRouters[i] = NEW_TICK_UNISWAP_V2_ROUTER;
+            resultTokenFactories[i] = NEW_TICK_UNISWAP_V2_FACTORY;
+            resultTokenStableUSD[i] = NEW_TICK_USD_STABLE;
             unchecked {i++;}
         }
 
         // save this market and emit log
-        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true)); // true = live
-        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, block.number, true); // true = live
+        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenStableUSD, block.number, true)); // true = live
+        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, _dtEndCalls, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenStableUSD, block.number, true); // true = live
     }
-
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
@@ -573,19 +597,22 @@ contract CallitFactory is ERC20, Ownable {
     // function buyMintedCallTicket(address _creator, address _ticket, uint32 _ticketCount) external returns(uint64) {
     function exeArbPriceParityForTicket(address _creator, address _ticket) external {
         require(_creator != address(0) && _ticket != address(0), ' bad address :+<> ');
+
+        MARKET storage mark = _getMarketForTicket(_creator, _ticket); // reverts if market not found
+        uint256 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
+
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  find market with _ticket in 'resultOptionTokens'
         //  check if current dt < market._dtEndCalls
         //   if yes, 
-        //      use '_getCallTicketUsdTargetPrice' to get target price for _ticket price parity 
         //      use '_getMarketForTicket' to get LP pair addresss for _ticket
+        //      use '_getCallTicketUsdTargetPrice' to get target price for _ticket price parity 
         //      use '_calculateTokensToMint(target price, pair address)' to get _ticket mint count for DEX sell to bring _ticket to price parity
         //      verify: ACCT_USD_BALANCES[msg.sender] >= target price * _ticket mint count
         //      deduct balance: ACCT_USD_BALANCES[msg.sender] -= target price * _ticket mint count;
         //      mint _ticket mint count to this factory and sell on DEX on behalf of msg.sender
         //      calc & send profits to msg.sender: gross usd received from sell - (target price * _ticket mint count)
     }
-
     function endMarketCalls(address _creator, address _anyTicket) external {
         // TODO: loop through markets in ACCT_MARKETS[_creator]
         //  find market with _ticket in 'resultOptionTokens'
@@ -596,6 +623,25 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _getCallTicketUsdTargetPrice(MARKET _mark, address _ticket) private view returns(uint256) {
+        // algorithmic logic ...
+        //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
+        //   -> _ticket price = 1 - SUM(all prices except _ticket)
+
+        address[] tickets = _mark.resultOptionTokens;
+        uint256 alt_sum = 0;
+        for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
+            if (tickets[i] != _ticket) {
+                address pairAddress = mark.resultTokenLPs[i];
+                uint256 amountsOut = _estimateLastPriceForTCK(pairAddress);
+                alt_sum += amountsOut; // LEFT OFF HERE ... may need to account for differnt stable deimcals
+            }
+            
+            unchecked {i++;}
+        }
+
+        return 1 - alt_sum;
+    }
     function _getMarketForTicket(address _creator, address _ticket) private view returns(MARKET) {
         MARKET[] markets = ACCT_MARKETS[_creator];
         for (uint256 i = 0; i < markets.length;) {
@@ -640,14 +686,17 @@ contract CallitFactory is ERC20, Ownable {
         return (tokenName, tokenSymbol);
     }
     // Assumed helper functions (implementations not shown)
-    function _createDexLP(address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount) private returns (address) {
+    function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount) private returns (address) {
         // LEFT OFF HERE ... _usdStable & _usdAmount must check and convert to use correct decimals
         //          need to properly set & use: uniswapRouter & uniswapFactory
 
-        // Approve tokens for Uniswap Router
-        IERC20(_token).safeApprove(address(uniswapRouter), _tokenAmount);
-        // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
+        IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
+        IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
+        // Approve tokens for Uniswap Router
+        IERC20(_token).safeApprove(_uswapV2Router, _tokenAmount);
+        // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
+            
         // Add liquidity to the pool
         (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
             _token,                // Token address
@@ -696,7 +745,7 @@ contract CallitFactory is ERC20, Ownable {
         // found string with all whitespaces as chars
         return false;
     }
-    function _generateAddressHash(address host, string memory uid) external pure returns (address) {
+    function _generateAddressHash(address host, string memory uid) private pure returns (address) {
         // Concatenate the address and the string, and then hash the result
         bytes32 hash = keccak256(abi.encodePacked(host, uid));
 
@@ -704,19 +753,12 @@ contract CallitFactory is ERC20, Ownable {
         address generatedAddress = address(uint160(uint256(hash)));
         return generatedAddress;
     }
-    function _getCallTicketUsdTargetPrice(address _creator, address _ticket, uint32 _ticketCount) private view returns(uint64) {
-        // NOTE: uint32 max = ~4B -> 4,294,967,295
-        // TODO: loop through markets in ACCT_MARKETS[_creator]
-        //  find market with _ticket in 'resultOptionTokens'
-        //  get current usd value dex prices for all addresses in 'resultOptionTokens'
-        //  _ticket price = 1 - SUM(all prices except _ticket)
-
-        return 0;
-    }
-    function _calculateTokensToMint(address pairAddress, uint targetPrice) external view returns (uint256) {
+    function _calculateTokensToMint(address pairAddress, uint targetPrice) private view returns (uint256) {
         // Assuming reserve0 is token and reserve1 is USD
         (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(pairAddress).getReserves();
 
+        // LEFT OFF HERE ... may need to compensate for differt stable decimals 
+        
         uint256 currentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
         require(targetPrice < currentPrice, "Target price must be less than current price.");
 
@@ -724,6 +766,15 @@ contract CallitFactory is ERC20, Ownable {
         uint256 tokensToMint = (uint256(reserve1) * 1e18 / targetPrice) - uint256(reserve0);
 
         return tokensToMint;
+    }
+    // Option 1: Estimate the price using reserves
+    function _estimateLastPriceForTCK(address _pairAddress) private view returns (uint256 price) {
+        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddress).getReserves();
+        
+        // Assuming token0 is the ERC20 token and token1 is the paired asset (e.g., ETH or a stablecoin)
+        price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
+        // LEFT OF HERE ... to check or account for differen stable decimals
+        return price;
     }
 
     // function _calculateTokensToMint( // utilize 'getAmountsIn'
@@ -1161,12 +1212,15 @@ contract CallitFactory is ERC20, Ownable {
 
         return (currHighIdx, currHigh);
     }
-
+    function _swap_v2_quote(address _dexRouter, address[] _path, uint256 _amntIn) private view returns (uint256) {
+        uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
+        return amountsOut[amountsOut.length -1];
+    }
     // uniwswap v2 protocol based: get quote and execute swap
-    function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
+    function _swap_v2_wrap(address router, address[] memory path, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
         require(path.length >= 2, 'err: path.length :/');
-        uint256[] memory amountsOut = IUniswapV2Router02(router).getAmountsOut(amntIn, path); // quote swap
-        uint256 amntOut = _swap_v2(router, path, amntIn, amountsOut[amountsOut.length -1], outReceiver, fromETH); // approve & execute swap
+        uint256 amntOutQuote = _swap_v2_quote(router, path, amntIn);
+        uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
                 
         // verifiy new balance of token received
         uint256 new_bal = IERC20(path[path.length -1]).balanceOf(outReceiver);
