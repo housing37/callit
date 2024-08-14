@@ -633,11 +633,53 @@ contract CallitFactory is ERC20, Ownable {
         net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, net_usd_profits); // LEFT OFF HERE ... finish _deductArbExeFees integration
         IERC20(mark.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
     }
-    function endMarketCalls(address _creator, address _anyTicket) external {
-        // TODO: loop through markets in ACCT_MARKETS[_creator]
-        //  find market with _ticket in 'resultOptionTokens'
-        //  check if current dt >= market._dtEndCalls
-        //   if yes, pull all LP from this market
+    function endMarketCalls(address _creator, address _ticket) external {
+        require(_creator != address(0) && _ticket != address(0), ' bad address :+<> ');
+
+        // algorithmic logic...
+        //  get market for _ticket
+        //  verify mark.dtEndCalls has indeed passed
+        //  loop through _ticket LP addresses and pull all liquidity
+
+        // get MARKET & idx for _ticket & validate call time not ended
+        //  NOTE: MAX_EOA_MARKETS is uint64
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(_creator, _ticket); // reverts if market not found
+        require(mark.dtEndCalls <= block.timestamp, ' _ticket calls finished :(( ');
+
+        // loop through pair addresses and pull liquidity 
+        address[] _ticketLPs = mark.resultTokenLPs;
+        for (uint16 i = 0; i < _ticketLPs.length;) { // MAX_RESULTS is uint16
+            // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(mark.resultTokenFactories[i]);
+            IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(mark.resultTokenRouters[i]);
+            address pairAddress = _ticketLPs[i];
+            
+            // pull liquidity from pairAddress
+            IERC20 pairToken = IERC20(pairAddress);
+            uint256 liquidity = pairToken.balanceOf(address(this));  // Get the contract's balance of the LP tokens
+            
+            // Approve the router to spend the LP tokens
+            pairToken.approve(address(uniswapRouter), liquidity);
+            
+            // Retrieve the token pair
+            address token0 = IUniswapV2Pair(pairAddress).token0();
+            address token1 = IUniswapV2Pair(pairAddress).token1();
+
+            // Remove liquidity
+            uniswapRouter.removeLiquidity(
+                token0,
+                token1,
+                liquidity,
+                0, // Min amount of token0, to prevent slippage (adjust based on your needs)
+                0, // Min amount of token1, to prevent slippage (adjust based on your needs)
+                address(this), // Send tokens to the contract itself or a specified recipient
+                block.timestamp + 300 // Deadline (5 minutes from now)
+            );
+
+            unchecked {
+                i++;
+            }
+        }
+
     }
 
     /* -------------------------------------------------------- */
@@ -665,7 +707,7 @@ contract CallitFactory is ERC20, Ownable {
     function _getMarketForTicket(address _creator, address _ticket) private view returns(MARKET, uint64) {
         // NOTE: MAX_EOA_MARKETS is uint64
         MARKET[] markets = ACCT_MARKETS[_creator];
-        for (uint256 i = 0; i < markets.length;) {
+        for (uint64 i = 0; i < markets.length;) {
             MARKET storage mark = markets[i];
             if (address(mark.resultOptionTokens) == address(_ticket))
                 return (mark, i);
