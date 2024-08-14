@@ -375,8 +375,10 @@ contract CallitFactory is ERC20, Ownable {
     uint8 MIN_HANDLE_SIZE = 1; // ADMIN: min # of chars for account handles
     uint8 MAX_HANDLE_SIZE = 25; // ADMIN: max # of chars for account handles
     uint64 MIN_USD_PROMO_TARGET = 100; // ADMIN: min $ target for creating promo codes
-    uint64 USD_BUY_PROMO_PER_CALL = 100; // usd amount buy needed per $CALL earned in promo (note: global across all promos to avoid exploitations)
-    
+    uint64 RATIO_PROMO_USD_PER_CALL_TOK = 100; // usd amount buy needed per $CALL earned in promo (note: global across all promos to avoid exploitations)
+        // LEFT OFF HERE  ... may need decimal precision integration
+    uint16 RATIO_LP_TOK_PER_USD = 10000;
+
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market creators (etc.) can set their own handles
     mapping(address => MARKET[]) public ACCT_MARKETS; // store all markets people create
@@ -448,8 +450,11 @@ contract CallitFactory is ERC20, Ownable {
     function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
         MIN_USD_PROMO_TARGET = _usdTarget;
     }
-    function KEEPER_setUsdPromoBuyReqPerCall(uint64 _usdBuyRequired) external onlyKeeper {
-        USD_BUY_PROMO_PER_CALL = _usdBuyRequired;
+    function KEEPER_setRatioPromoBuyUsdPerCall(uint64 _usdBuyRequired) external onlyKeeper {
+        RATIO_PROMO_USD_PER_CALL_TOK = _usdBuyRequired;
+    }
+    function KEEPER_setRatioLpTokPerUsd(uint16 _ratio) external onlyKeeper {
+        RATIO_LP_TOK_PER_USD = _ratio;
     }
     function KEEPER_setTokTicketNameSymbSeeds(string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
         TOK_TICK_NAME_SEED = _nameSeed;
@@ -564,9 +569,9 @@ contract CallitFactory is ERC20, Ownable {
         //  - influencer gives out promoCodeHash for callers to use w/ this function to purchase any _ticket they want
         
         // check if msg.sender earned $CALL tokens
-        if (_usdAmnt >= USD_BUY_PROMO_PER_CALL) {
+        if (_usdAmnt >= RATIO_PROMO_USD_PER_CALL_TOK) {
             // mint $CALL to msg.sender
-            _mint(msg.sender, _usdAmnt / USD_BUY_PROMO_PER_CALL);
+            _mint(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
         }
 
         // calc influencer reward from _usdAmnt & send to promo.promotor
@@ -798,11 +803,11 @@ contract CallitFactory is ERC20, Ownable {
 
     function _getAmountsForInitLP(uint64 _usdAmntLP, uint16 _resultOptionCnt) private returns(uint64, uint256) {
         require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
-        return (_usdAmntLP / _resultOptionCnt, _getInitDexSupplyForUsdAmnt(_usdAmntLP));
+        // return (_usdAmntLP / _resultOptionCnt, _getInitDexTokSupplyForUsdAmnt(_usdAmntLP) / _resultOptionCnt);
+        return (_usdAmntLP / _resultOptionCnt, _getInitDexTokSupplyForUsdAmnt(_usdAmntLP / _resultOptionCnt));
     }
-    function _getInitDexSupplyForUsdAmnt(uint64 _usdAmntLP) private returns(uint256) {
-        // TODO: need algorithm to specify dex token supply for _usdAmntLP side
-        return 0;
+    function _getInitDexTokSupplyForUsdAmnt(uint64 _usdAmnt) private returns(uint256) {
+        return _usdAmnt * RATIO_LP_TOK_PER_USD;
     }
     function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
         for (uint8 i=0; i < _s.length;) {
