@@ -701,8 +701,6 @@ contract CallitFactory is ERC20, Ownable {
         //  verify mark.dtCallDeadline has indeed passed
         //  loop through _ticket LP addresses and pull all liquidity
 
-        // LEFT OFF HERE ... need incentive for 'anyone' to call this function and pay gas (maybe earn minted $CALL?)
-
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
