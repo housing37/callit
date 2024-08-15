@@ -698,6 +698,7 @@ contract CallitFactory is ERC20, Ownable {
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
+        require(mark.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
         // loop through pair addresses and pull liquidity 
         address[] _ticketLPs = mark.resultTokenLPs;
@@ -738,7 +739,7 @@ contract CallitFactory is ERC20, Ownable {
             // semi-verify correct ticket token stable was pulled and recieved
             require(IERC20(mark.resultTokenUsdStables[i]).balanceOf(address(this)) >= amountToken1, ' stab bal mismatch after liq pull :+( ');
 
-            // update market prize pool with 
+            // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
             mark.usdAmntPrizePool += amountToken1; // LEFT OFF HERE ... need to account for usd decimal mismatch or whatever
         }
     }
