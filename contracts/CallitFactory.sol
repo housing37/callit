@@ -604,6 +604,7 @@ contract CallitFactory is ERC20, Ownable {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
+        require(promo.promotor != msg.sender, ' !use your own promo :0 '); // may prevent some exploitations (maybe?)
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
 
@@ -765,18 +766,14 @@ contract CallitFactory is ERC20, Ownable {
         require(mark.dtResultVoteStart <= block.timestamp, ' market voting not started yet :p ');
         require(mark.dtResultVoteEnd > block.timestamp, ' market voting ended :p ');
 
+        //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
+        (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
+        require(!is_maker && !is_caller, ' no self-voting :o ');
+
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         uint64 vote_cnt = _validVoteCount(msg.sender, mark);
         require(vote_cnt > 0, ' invalid voter :{=} ');
-
-        //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
-        bool self_vote = mark.maker == msg.sender; // true = found maker
-        for (uint16 i = 0; i < mark.resultOptionTokens;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
-            self_vote = IERC20(mark.resultOptionTokens[i]).balanceOf(msg.sender) > 0; // true = found caller
-            unchecked {i++;}
-        }
-        require(!self_vote, ' no self-voting :o ');
 
         //  - store vote in struct MARKET
         mark.resultTokenVotes[tickIdx] += vote_cnt;
@@ -825,7 +822,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // $CALL token earnings design...
         //  DONE - buyer earns $CALL in 'buyCallTicketWithPromoCode'
-        //  - market maker should earn call when market is closed (init LP requirement needed)
+        //  DONE - market maker should earn call when market is closed (init LP requirement needed)
         //  - invoking 'closeMarketCallsForTicket' earns $CALL
         //  - invoking 'closeMarketForTicket' earns $CALL
         //  - market losers can trade-in their tickets for minted $CALL
@@ -836,6 +833,15 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _addressIsMarketMakerOrCaller(address _addr, MARKET _mark) private returns(bool,bool) {
+        bool is_maker = _mark.maker == msg.sender; // true = found maker
+        bool is_caller = false;
+        for (uint16 i = 0; i < _mark.resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+            is_caller = IERC20(_mark.resultOptionTokens[i]).balanceOf(msg.sender) > 0; // true = found caller
+            unchecked {i++;}
+        }
+        return (is_maker, is_caller);
+    }
     function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         _mint(_receiver, _callAmnt);
