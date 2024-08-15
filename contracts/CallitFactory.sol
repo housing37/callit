@@ -398,12 +398,13 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
-    event MarketCreated(address _maker, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 _usdInitPrizePool, uint64 _usdVoterRewardPool, uint64 _usdRewardPerVote, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, address[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
+    event MarketCreated(address _maker, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 usdAmntPrizePool_init, uint64 _usdAmntPrizePool_net, uint64 _usdVoterRewardPool, uint64 _usdRewardPerVote, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, address[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
     event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
-
+    event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
+    
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
@@ -425,6 +426,7 @@ contract CallitFactory is ERC20, Ownable {
         string imgUrl;
         uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
         uint64 usdAmntPrizePool; // default 0, until market voting ends
+        uint64 usdAmntPrizePool_net; // default 0, until market voting ends
         uint64 usdVoterRewardPool; // default 0, until close market calc
         uint64 usdRewardPerVote; // default 0, until close mark calc
         uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
@@ -561,7 +563,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - USER INTERFACE (CALLIT)
     /* -------------------------------------------------------- */
-    function makeNewMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { 
+    function makeNewMarket(string calldata _name, string calldata _category, string calldata _rules, string calldata _imgUrl, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] calldata _resultLabels, string[] calldata _resultDescrs) external { // _deductMarketMakerFees from _usdAmntLP
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
@@ -570,6 +572,9 @@ contract CallitFactory is ERC20, Ownable {
         // initilize/validate market number for struct MARKET tracking
         uint32 mark_num = ACCT_MARKETS[msg.sender].length;
         require(mark_num <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
+
+        // deduct 'market maker fees' from _usdAmntLP
+        uint64 net_usdAmntLP = _deductMarketMakerFees(_usdAmntLP, _usdAmntLP);
 
         // check for admin defualt vote time, update _dtResultVoteEnd accordingly
         if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
@@ -589,7 +594,7 @@ contract CallitFactory is ERC20, Ownable {
             address new_tick_tok = address (new CallitTicket(TOK_TICK_INIT_SUPPLY, tok_name, tok_symb));
             
             // Get amounts for initial LP & Create DEX LP for the token
-            (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(_usdAmntLP, _resultLabels.length);
+            (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _resultLabels.length);
             address lpAddress = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
                             // _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount)
 
@@ -608,11 +613,14 @@ contract CallitFactory is ERC20, Ownable {
             unchecked {i++;}
         }
 
+        // deduct full OG usd input from account balance
+        ACCT_USD_BALANCES[msg.sender] -= _usdAmntLP;
+
         // save this market and emit log
-        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true)); // true = live
-        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
+        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true)); // true = live
+        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
     }
-    function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
+    function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductPromoBuyFees from _usdAmnt
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
@@ -641,7 +649,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = promo.percReward * _usdAmnt;
-        _payUsdReward(usdReward, promo.promotor); // pay w/ lowest value whitelist stable held
+        _payUsdReward(usdReward, promo.promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
         emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
 
         // deduct usdReward & additional fees from _usdAmnt
@@ -677,7 +685,7 @@ contract CallitFactory is ERC20, Ownable {
         // emit log
         emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
     }
-    function exeArbPriceParityForTicket(address _ticket) external {
+    function exeArbPriceParityForTicket(address _ticket) external { // _deductArbExeFees from arb profits
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
@@ -690,7 +698,10 @@ contract CallitFactory is ERC20, Ownable {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
         uint64 /* ~18,000Q */ tokensToMint = _calculateTokensToMint(mark.resultTokenLPs[tickIdx], ticketTargetPriceUSD);
 
-        // verify msg.sender usd balance & deduct
+        // verify msg.sender usd balance covers contract sale of minted discounted tokens
+        //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
+        //   'ticketTargetPriceUSD' price should be less usd then selling 'tokensToMint' @ current DEX price 
+        //   HENCE, usd profit = gross_stab_amnt_out - total_usd_cost
         uint256 total_usd_cost = ticketTargetPriceUSD * tokensToMint;
         require(ACCT_USD_BALANCES[msg.sender] >= total_usd_cost, ' low balance :( ');
         ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; // LEFT OFF HERE ... ticketTargetPriceUSD is uint256, but ACCT_USD_BALANCES is uint64
@@ -704,13 +715,15 @@ contract CallitFactory is ERC20, Ownable {
         uint256 gross_stab_amnt_out = _exeSwapTokForStable(tokensToMint, tok_stab_path, address(this), mark.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
 
         // calc & send net profits to msg.sender
-        uint256 net_usd_profits = gross_stab_amnt_out - total_usd_cost;
-        net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, net_usd_profits); // LEFT OFF HERE ... finish _deductArbExeFees integration
+        //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
+        //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
+        uint256 net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, gross_stab_amnt_out); // LEFT OFF HERE ... finish _deductArbExeFees integration
+        require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
         IERC20(mark.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
 
         // LEFT OFF HERE ... need emit event log
     }
-    function closeMarketCallsForTicket(address _ticket) external {
+    function closeMarketCallsForTicket(address _ticket) external { // no fee
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // algorithmic logic...
@@ -769,7 +782,7 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE ... need emit event log
         //  mint $CALL token reward to msg.sender
     }
-    function castVoteForMarketTicket(address _ticket) external {
+    function castVoteForMarketTicket(address _ticket) external { // no fee
         // algorithmic logic...
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
@@ -799,7 +812,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // LEFT OFF HERE ... need emit event log
     }
-    function closeMarketForTicket(address _ticket) external {
+    function closeMarketForTicket(address _ticket) external { // _deductMarketCloseFees from mark.usdAmntPrizePool
         // algorithmic logic...
         //  - count votes in mark.resultTokenVotes 
         //  - set mark.winningVoteResultIdx accordingly
@@ -818,6 +831,10 @@ contract CallitFactory is ERC20, Ownable {
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
         mark.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.usdAmntPrizePool);
+
+        // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
+        mark.usdAmntPrizePool_net = mark.usdAmntPrizePool - mark.usdVoterRewardPool;
+        mark.usdAmntPrizePool_net = _deductMarketCloseFees(mark.usdAmntPrizePool, mark.usdAmntPrizePool_net);
 
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.usdRewardPerVote = mark.usdVoterRewardPool / mark.resultTokenVotes[mark.winningVoteResultIdx];
@@ -843,9 +860,9 @@ contract CallitFactory is ERC20, Ownable {
         // log $CALL votes earned w/ ...
         // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
     }
-    function claimVoterRewards() external {
+    function claimVoterRewards() external { // _deductVoterClaimFees from usdRewardOwed
         // NOTE: loops through all non-piad msg.sender votes (including 'live' markets)
-
+        require(ACCT_MARKET_VOTES[msg.sender].length > 0, ' no un-paid market votes :) ');
         uint64 usdRewardOwed = 0;
         for (uint64 i = 0; i < ACCT_MARKET_VOTES[msg.sender].length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
             MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[msg.sender][i];
@@ -875,11 +892,20 @@ contract CallitFactory is ERC20, Ownable {
             unchecked {i++;}
         }
 
-        _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held
+        usdRewardOwed = _deductVoterClaimFees(usdRewardOwed, usdRewardOwed);
+        _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
         // LEFT OFF HERE ... need emit event log
         // emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
     }
+    function claimWinnings(address _ticket) external {
+        // algorithmic logic...
+        //  - 
 
+        // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        require(mark.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
+        require(!mark.live, ' market still live :o ' );
+    }
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
@@ -934,6 +960,10 @@ contract CallitFactory is ERC20, Ownable {
             return 0; // return no valid votes
     }
     function _payUsdReward(uint256 _usdReward, address _promotor) private {
+        if (_usdReward == 0) {
+            emit AlertZeroReward(msg.sender, _usdReward, _promotor);
+            return;
+        }
         // Get stable to work with ... (any stable that covers 'usdReward' is fine)
         //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
         address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
@@ -995,7 +1025,47 @@ contract CallitFactory is ERC20, Ownable {
         
         revert(' market not found :( ');
     }
+    // function _deductPrizePoolVoterFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64) {
+    //     mark.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, _usdAmnt);
+    //     return _net_usdAmnt - _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, _usdAmnt);
+    // }
+    
+    function _deductVoterClaimFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+        // NOTE: no other deductions yet from _usdAmnt
+        uint8 feePerc0; // = global
+        uint8 feePerc1; // = global
+        uint8 feePerc2; // = global
+        uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
+        return net_usdAmnt;
+        // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
+    }
+    function _deductMarketCloseFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+        // NOTE: PERC_PRIZEPOOL_VOTERS already deducted from _usdAmnt
+        // NOTE: for naming convention should use 'PERC_PRIZEPOOL_...' just like 'PERC_PRIZEPOOL_VOTERS'
+        uint8 feePerc0; // = global
+        uint8 feePerc1; // = global
+        uint8 feePerc2; // = global
+        uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
+        return net_usdAmnt;
+        // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
+    }
+    function _deductMarketMakerFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+        // NOTE: no other deductions yet from _usdAmnt
+        uint8 feePerc0; // = global
+        uint8 feePerc1; // = global
+        uint8 feePerc2; // = global
+        uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
+        net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
+        return net_usdAmnt;
+        // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
+    }
     function _deductArbExeFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+        // NOTE: no other deductions yet from _usdAmnt
         uint8 feePerc0; // = global
         uint8 feePerc1; // = global
         uint8 feePerc2; // = global
@@ -1006,6 +1076,7 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
     }
     function _deductPromoBuyFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+        // NOTE: promo.percReward already deducted from _usdAmnt
         uint8 feePerc0; // = global
         uint8 feePerc1; // = global
         uint8 feePerc2; // = global
