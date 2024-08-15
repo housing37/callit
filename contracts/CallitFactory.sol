@@ -387,11 +387,11 @@ contract CallitFactory is ERC20, Ownable {
 
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
-    mapping(address => MARKET[]) public ACCT_MARKETS; // store all maker to markets mapping
-    mapping(address => address) public TICKET_MAKERS; // store ticket to maker mapping
-    mapping(address => PROMO) public PROMO_CODE_HASHES; // store promo code hashes to promo mapping
+    mapping(address => MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping
+    mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
+    mapping(address => PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
-    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // remember to reset to 0 (ie. 'not locked')
+    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -414,7 +414,6 @@ contract CallitFactory is ERC20, Ownable {
         address adminCreator; // admin who created this promo
         uint256 blockNumber; // block number this promo was created
     }
-
     struct MARKET {
         address maker; // EOA market maker
         uint32 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
