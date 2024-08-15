@@ -388,6 +388,7 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => PROMO[]) public PROMO_CODE_HASHES; // store promo code hashes for EOA accounts
     mapping(address => address) public TICKET_MAKERS; // store ticket to maker mapping
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // remember to reset to 0 (ie. 'not locked')
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -723,10 +724,49 @@ contract CallitFactory is ERC20, Ownable {
         }
     }
 
-    function voteForMarketResult(address _ticketVote) external {
+    function _validVoteCount(address _voter, MARKET _mark) private returns(uint64) {
+        // if indeed locked && locked before _mark start time, calc & return active vote count
+        if (ACCT_CALL_VOTE_LOCK_TIME[msg.sender] > 0 && ACCT_CALL_VOTE_LOCK_TIME[msg.sender] <= _mark.blockTimestamp) {
+            uint64 votes_earned = EARNED_CALL_VOTES[msg.sender]; // note: EARNED_CALL_VOTES stores uint64 type
+            uint64 votes_held = balanceOf(address(this)); // LEFT OFF HERE ... balanceOf might not be uint64
+            uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
+            return votes_active;
+        }
+        else
+            return 0; // return no valid votes
+    }
+
+    function setCallTokenVoteLock(bool _lock) external {
+        ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
+    }
+    function castVoteForMarketTicketResult(address _ticketVote) external {
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticketVote], _ticketVote); // reverts if market not found
         require(mark.dtResultVoteStart <= block.timestamp, ' market voting not started yet :p ');
+
+        //  - verify $CALL token held/locked through out this market time period
+        //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
+        uint64 vote_cnt = _validVoteCount(msg.sender, mark);
+        require(vote_cnt > 0, ' invalid voter :{=} ');
+
+        //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
+        bool self_vote = mark.maker == msg.sender; // true = found maker
+        for (uint16 i = 0; i < mark.resultOptionTokens;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+            self_vote = IERC20(mark.resultOptionTokens[i]).balanceOf(msg.sender) > 0; // true = found caller
+            unchecked {i++;}
+        }
+        require(!self_vote, ' no self-voting :o ');
+
+        //  - pay msg.sender for voting (1 $CALL vote == a % of prize pool)
+        //      note: paid only if vote == "majority of votes" (handled in seperate payout function called?)
+        // LEFT OFF HERE ... need to log prize pool in struct MARKET maybe?
+
+        // algorithmic logic...
+        //  - verify $CALL token held/locked through out this market time period
+        //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
+        //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
+        //  - pay msg.sender for voting (1 $CALL vote == a % of prize pool)
+        //      note: paid only if vote == "majority of votes" (handled in seperate payout function called?)
 
         // LEFT OFF HERE ... need to design voting algorithm
         //  store votes in struct MARKET maybe?
@@ -734,7 +774,7 @@ contract CallitFactory is ERC20, Ownable {
         //  need to track max votes or $CALL earned by EOAs
 
         // $CALL token earnings design...
-        //  - buyer earns $CALL in 'buyCallTicketWithPromoCode'
+        //  DONE - buyer earns $CALL in 'buyCallTicketWithPromoCode'
         //  - market maker should earn call when market is closed (init LP requirement needed)
         //  - invoking 'closeMarketCalls' earns some $CALL maybe?
 
@@ -1459,11 +1499,16 @@ contract CallitFactory is ERC20, Ownable {
             // uint128 max USD: ~340T -> 340,282,366,920,938,463,463.374607431768211455 (18 decimals)
     }
     function transferFrom(address from, address to, uint256 value) public override returns (bool) {
+        require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;) ');
         if (from != address(this)) {
             return super.transferFrom(from, to, value);
         } else {
             _transfer(from, to, value); // balance checks, etc. indeed occur
         }
         return true;
+    }
+    function transfer(address to, uint256 value) public override returns (bool) {
+        require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;0 ');
+        return super.transfer(to, value);
     }
 }
