@@ -387,9 +387,9 @@ contract CallitFactory is ERC20, Ownable {
 
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
-    mapping(address => MARKET[]) public ACCT_MARKETS; // store all markets people create
-    mapping(address => PROMO[]) public PROMO_CODE_HASHES; // store promo code hashes for EOA accounts
+    mapping(address => MARKET[]) public ACCT_MARKETS; // store all maker to markets mapping
     mapping(address => address) public TICKET_MAKERS; // store ticket to maker mapping
+    mapping(address => PROMO) public PROMO_CODE_HASHES; // store promo code hashes to promo mapping
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // remember to reset to 0 (ie. 'not locked')
 
@@ -514,7 +514,8 @@ contract CallitFactory is ERC20, Ownable {
         address promoCodeHash = _generateAddressHash(_promotor, _promoCode);
         PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
         require(promo.promotor == address(0), ' promo already exists :-O ');
-        PROMO_CODE_HASHES[promoCodeHash].push(PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
+        // PROMO_CODE_HASHES[promoCodeHash].push(PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
+        PROMO_CODE_HASHES[promoCodeHash] = PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
 
@@ -776,7 +777,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - store vote in struct MARKET
         mark.resultTokenVotes[tickIdx] += vote_cnt;
 
-        // LEFT OFF HERE ... need to figure out algorithm logging EOA votes casted
+        // LEFT OFF HERE ... need to figure out algorithm logging EOA votes casted (result index & vote_cnt)
         //  and then having EOA come back to claim voter fee earned
         //  may need to track total voter fees owed/earned
 
