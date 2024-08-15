@@ -792,19 +792,9 @@ contract CallitFactory is ERC20, Ownable {
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
 
-        // travers mark.resultTokenVotes for winning idx
-        //  NOTE: default winning index is 0 & ties will settle on lower index
-        uint64[] voteCounts = new uint64[](mark.resultTokenVotes.length);
-        uint16 idxCurrHigh = 0;
-        for (uint16 i = 0; i < mark.resultTokenVotes.length;) {
-            // uint64 voteCount = mark.resultTokenVotes[i];
-            if (mark.resultTokenVotes[i] > mark.resultTokenVotes[idxCurrHigh])
-                idxCurrHigh = i;
-            unchecked {i++;}
-        }
-
-        // set mark.winningVoteResultIdx for voter fee claim algorithm (ie. only pay majority voters)
-        mark.winningVoteResultIdx = idxCurrHigh;
+        // getting winning result index to set mark.winningVoteResultIdx
+        //  for voter fee claim algorithm (ie. only pay majority voters)
+        mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark);
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
         mark.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.usdAmntPrizePool);
@@ -831,6 +821,17 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _getWinningVoteIdxForMarket(MARKET _mark) private returns(uint16) {
+        // travers mark.resultTokenVotes for winning idx
+        //  NOTE: default winning index is 0 & ties will settle on lower index
+        uint16 idxCurrHigh = 0;
+        for (uint16 i = 0; i < _mark.resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+            if (_mark.resultTokenVotes[i] > _mark.resultTokenVotes[idxCurrHigh])
+                idxCurrHigh = i;
+            unchecked {i++;}
+        }
+        return idxCurrHigh;
+    }
     function _addressIsMarketMakerOrCaller(address _addr, MARKET _mark) private returns(bool,bool) {
         bool is_maker = _mark.maker == msg.sender; // true = found maker
         bool is_caller = false;
