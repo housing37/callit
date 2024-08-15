@@ -380,6 +380,8 @@ contract CallitFactory is ERC20, Ownable {
     uint64 MIN_USD_PROMO_TARGET = 100; // min $ target for creating promo codes
     uint64 RATIO_PROMO_USD_PER_CALL_TOK = 100; // usd amount buy needed per $CALL earned in promo (note: global across all promos to avoid exploitations)
         // LEFT OFF HERE  ... may need decimal precision integration
+    uint64 RATIO_LP_USD_PER_CALL_TOK = 100; // init LP usd amount needed per $CALL earned by market maker
+        // LEFT OFF HERE  ... may need decimal precision integration
     uint16 RATIO_LP_TOK_PER_USD = 10000;
     uint32 private PERC_PRIZEPOOL_VOTERS = 200; // 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
 
@@ -467,6 +469,9 @@ contract CallitFactory is ERC20, Ownable {
     }
     function KEEPER_setRatioPromoBuyUsdPerCall(uint64 _usdBuyRequired) external onlyKeeper {
         RATIO_PROMO_USD_PER_CALL_TOK = _usdBuyRequired;
+    }
+    function KEEPER_setRatioMarketLpUsdPerCall(uint64 _usdLpRequired) external onlyKeeper {
+        RATIO_LP_USD_PER_CALL_TOK = _usdLpRequired;
     }
     function KEEPER_setRatioLpTokPerUsd(uint16 _ratio) external onlyKeeper {
         RATIO_LP_TOK_PER_USD = _ratio;
@@ -612,11 +617,8 @@ contract CallitFactory is ERC20, Ownable {
         
         // check if msg.sender earned $CALL tokens
         if (_usdAmnt >= RATIO_PROMO_USD_PER_CALL_TOK) {
-            // mint $CALL to msg.sender
-            _mint(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
-
-            // log $CALL votes earned
-            EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
+            // mint $CALL to msg.sender & log $CALL votes earned
+            _mintCallToksEarned(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
         }
 
         // calc influencer reward from _usdAmnt to send to promo.promotor
@@ -806,11 +808,17 @@ contract CallitFactory is ERC20, Ownable {
             unchecked {i++;}
         }
 
-        // set mark.winningVoteResultIdx for claim algorithm (ie. only pay majority voters)
+        // set mark.winningVoteResultIdx for voter fee claim algorithm (ie. only pay majority voters)
         mark.winningVoteResultIdx = idxCurrHigh;
 
-        // calc & save voter usd reward from prize pool in mark
+        // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
         mark.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.usdAmntPrizePool);
+
+        // check if mark.maker earned $CALL tokens
+        if (mark.usdAmntLP >= RATIO_LP_USD_PER_CALL_TOK) {
+            // mint $CALL to mark.maker & log $CALL votes earned
+            _mintCallToksEarned(mark.maker, mark.usdAmntLP / RATIO_LP_USD_PER_CALL_TOK);
+        }
 
         // LEFT OFF HERE ... need emit event log
         //  mint $CALL token reward to msg.sender
@@ -820,7 +828,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - market maker should earn call when market is closed (init LP requirement needed)
         //  - invoking 'closeMarketCallsForTicket' earns $CALL
         //  - invoking 'closeMarketForTicket' earns $CALL
-        // 
+        //  - market losers can trade-in their tickets for minted $CALL
         // log $CALL votes earned w/ ...
         // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
     }
@@ -828,6 +836,13 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private {
+        // mint _callAmnt $CALL to _receiver & log $CALL votes earned
+        _mint(_receiver, _callAmnt);
+        EARNED_CALL_VOTES[_receiver] += _callAmnt;
+
+        // LEFT OFF HERE ... need emit even log
+    }
     function _validVoteCount(address _voter, MARKET _mark) private returns(uint64) {
         // if indeed locked && locked before _mark start time, calc & return active vote count
         if (ACCT_CALL_VOTE_LOCK_TIME[msg.sender] > 0 && ACCT_CALL_VOTE_LOCK_TIME[msg.sender] <= _mark.blockTimestamp) {
