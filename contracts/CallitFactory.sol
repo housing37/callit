@@ -612,13 +612,18 @@ contract CallitFactory is ERC20, Ownable {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
-        require(promo.promotor != msg.sender, ' !use your own promo :0 '); // may prevent some exploitations (maybe?)
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
+
+        // potential exploitation preventions
+        //  promotor can't earn both $CALL & USD reward w/ their own promo
+        //  maker can't earn $CALL twice on same market (from both "promo buy" & "making market")
+        require(promo.promotor != msg.sender, ' !use your own promo :0 ');
+        require(mark.maker != msg.sender,' !promo buy for maker ;( ');
 
         // NOTE: algorithmic logic...
         //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in PROMO struct for EOA influencer)
