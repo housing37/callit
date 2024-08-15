@@ -392,12 +392,13 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
-    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store all voter to their MARKET_VOTEs (markets voted in) mapping
+    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (markets voted in) mapping
+    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (markets voted in) mapping
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
-    event MarketCreated(address _maker, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 _usdInitPrizePool, uint64 _usdVoterRewardPool, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, address[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
+    event MarketCreated(address _maker, uint32 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 _usdInitPrizePool, uint64 _usdVoterRewardPool, uint64 _usdRewardPerVote, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, address[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
     event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
@@ -424,7 +425,8 @@ contract CallitFactory is ERC20, Ownable {
         string imgUrl;
         uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
         uint64 usdAmntPrizePool; // default 0, until market voting ends
-        uint64 usdVoterRewardPool; // default 0, until close market
+        uint64 usdVoterRewardPool; // default 0, until close market calc
+        uint64 usdRewardPerVote; // default 0, until close mark calc
         uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
         uint256 dtResultVoteStart; // unix timestamp 1970, earned $CALL token EOAs may start voting
         uint256 dtResultVoteEnd; // unix timestamp 1970, earned $CALL token EOAs voting ends
@@ -443,10 +445,12 @@ contract CallitFactory is ERC20, Ownable {
     }
     struct MARKET_VOTE {
         address voter;
+        address voteResultToken;
         uint16 voteResultIdx;
         uint64 voteResultCnt;
         address marketMaker;
         uint32 marketNum;
+        bool paid;
     }
 
     /* -------------------------------------------------------- */
@@ -605,8 +609,8 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // save this market and emit log
-        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true)); // true = live
-        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
+        ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true)); // true = live
+        emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
     }
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
@@ -637,7 +641,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = promo.percReward * _usdAmnt;
-        _payPromotorReward(usdReward, promo.promotor);
+        _payUsdReward(usdReward, promo.promotor); // pay w/ lowest value whitelist stable held
         emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
 
         // deduct usdReward & additional fees from _usdAmnt
@@ -770,7 +774,8 @@ contract CallitFactory is ERC20, Ownable {
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
-        //  - store vote in struct MARKET
+        //  - store vote in struct MARKET_VOTE and push to ACCT_MARKET_VOTES
+        //  - 
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
@@ -789,28 +794,19 @@ contract CallitFactory is ERC20, Ownable {
         //  - store vote in struct MARKET
         mark.resultTokenVotes[tickIdx] += vote_cnt;
 
-    // struct MARKET_VOTE {
-    //     address voter;
-    //     uint16 voteResultIdx;
-    //     uint64 voteResultCnt;
-    //     address marketMaker;
-    //     uint32 marketNum;
-    // }
-
-        // log market vote per EOA, so EOA can claim voter fees earned (for votes = "majority of votes / winning result option")
-        ACCT_MARKET_VOTES[msg.sender].push(MARKET_VOTE(msg.sender, tickIdx, vote_cnt, mark.maker, mark.marketNum));
-
-        // LEFT OFF HERE ... need to figure out algorithm logging EOA votes casted (result index & vote_cnt)
-        //  and then having EOA come back to claim voter fee earned
-        //  may need to track total voter fees owed/earned
+        // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
+        ACCT_MARKET_VOTES[msg.sender].push(MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
 
         // LEFT OFF HERE ... need emit event log
     }
     function closeMarketForTicket(address _ticket) external {
         // algorithmic logic...
-        //  - count votes in mark.resultTokenVotes and set mark.winningVoteResultIdx
-        //  - pay msg.sender for voting (1 $CALL vote == a % of prize pool)
-        //      note: paid only if vote == "majority of votes" (handled in seperate payout function called?)
+        //  - count votes in mark.resultTokenVotes 
+        //  - set mark.winningVoteResultIdx accordingly
+        //  - calc market usdVoterRewardPool (using global KEEPER set percent)
+        //  - calc market usdRewardPerVote (for voter reward claiming)
+        //  - calc & mint $CALL to market maker (if earned)
+        //  - set market 'live' status = false;
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
@@ -823,11 +819,17 @@ contract CallitFactory is ERC20, Ownable {
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
         mark.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.usdAmntPrizePool);
 
+        // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
+        mark.usdRewardPerVote = mark.usdVoterRewardPool / mark.resultTokenVotes[mark.winningVoteResultIdx];
+
         // check if mark.maker earned $CALL tokens
         if (mark.usdAmntLP >= RATIO_LP_USD_PER_CALL_TOK) {
             // mint $CALL to mark.maker & log $CALL votes earned
             _mintCallToksEarned(mark.maker, mark.usdAmntLP / RATIO_LP_USD_PER_CALL_TOK);
         }
+
+        // close market
+        mark.live = false;
 
         // LEFT OFF HERE ... need emit event log
         //  mint $CALL token reward to msg.sender
@@ -841,10 +843,58 @@ contract CallitFactory is ERC20, Ownable {
         // log $CALL votes earned w/ ...
         // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
     }
+    function claimVoterRewards() external {
+        // NOTE: loops through all non-piad msg.sender votes (including 'live' markets)
+
+        uint64 usdRewardOwed = 0;
+        for (uint64 i = 0; i < ACCT_MARKET_VOTES[msg.sender].length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
+            MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[msg.sender][i];
+            (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found
+
+            // skip live MARKETs
+            if (mark.live) {
+                unchecked {i++;}
+                continue;
+            }
+
+            // verify voter should indeed be paid & add usd reward to usdRewardOwed
+            //  ie. msg.sender's vote == winning result option (majority of votes)
+            //       AND ... this MARKET_VOTE has not been paid yet
+            if (m_vote.voteResultIdx == mark.winningVoteResultIdx && !m_vote.paid) {
+                usdRewardOwed += mark.usdRewardPerVote * m_vote.voteResultCnt;
+                m_vote.paid = true; // set paid
+            }
+
+            // check for 'paid' MARKET_VOTE found in ACCT_MARKET_VOTES (& move to ACCT_MARKET_VOTES_PAID)
+            //  NOTE: integration moves MARKET_VOTE that was just set as 'paid' above, to ACCT_MARKET_VOTES_PAID
+            //   AND ... catches any 'prev-paid' MARKET_VOTEs lingering in non-paid ACCT_MARKET_VOTES array
+            if (m_vote.paid) { 
+                _moveMarketVoteIdxToPaid(m_vote, i);
+                continue; // Skip 'i++'; continue w/ current idx, to check new item at position 'i'
+            }
+            unchecked {i++;}
+        }
+
+        _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held
+        // LEFT OFF HERE ... need emit event log
+        // emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
+    }
 
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _moveMarketVoteIdxToPaid(MARKET_VOTE _m_vote, uint64 _idxMove) private {
+        // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
+        ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
+
+        // remove _idxMove MARKET_VOTE from ACCT_MARKET_VOTES[msg.sender]
+        //  by replacing it with the last element (then popping last element)
+        uint64 lastIdx = uint64(ACCT_MARKET_VOTES[msg.sender].length) - 1;
+        if (_idxMove != lastIdx) {
+            ACCT_MARKET_VOTES[msg.sender][_idxMove] = ACCT_MARKET_VOTES[msg.sender][lastIdx];
+        }
+        ACCT_MARKET_VOTES[msg.sender].pop(); // Remove the last element (now a duplicate)
+    }
     function _getWinningVoteIdxForMarket(MARKET _mark) private returns(uint16) {
         // travers mark.resultTokenVotes for winning idx
         //  NOTE: default winning index is 0 & ties will settle on lower index
@@ -883,7 +933,7 @@ contract CallitFactory is ERC20, Ownable {
         else
             return 0; // return no valid votes
     }
-    function _payPromotorReward(uint256 _usdReward, address _promotor) private {
+    function _payUsdReward(uint256 _usdReward, address _promotor) private {
         // Get stable to work with ... (any stable that covers 'usdReward' is fine)
         //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
         address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
