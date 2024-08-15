@@ -535,6 +535,9 @@ contract CallitFactory is ERC20, Ownable {
         else
             revert(' !blank space handles :-[=] ');        
     }
+    function setCallTokenVoteLock(bool _lock) external {
+        ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - USER INTERFACE (CALLIT)
@@ -742,24 +745,9 @@ contract CallitFactory is ERC20, Ownable {
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
             mark.usdAmntPrizePool += amountToken1; // LEFT OFF HERE ... need to account for usd decimal mismatch or whatever
         }
-    }
 
-    function _validVoteCount(address _voter, MARKET _mark) private returns(uint64) {
-        // if indeed locked && locked before _mark start time, calc & return active vote count
-        if (ACCT_CALL_VOTE_LOCK_TIME[msg.sender] > 0 && ACCT_CALL_VOTE_LOCK_TIME[msg.sender] <= _mark.blockTimestamp) {
-            uint64 votes_earned = EARNED_CALL_VOTES[msg.sender]; // note: EARNED_CALL_VOTES stores uint64 type
-            uint64 votes_held = balanceOf(address(this)); // LEFT OFF HERE ... balanceOf might not be uint64
-            uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
-            return votes_active;
-        }
-        else
-            return 0; // return no valid votes
+        // LEFT OFF HERE ... need emit event log
     }
-
-    function setCallTokenVoteLock(bool _lock) external {
-        ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
-    }
-
     function castVoteForMarketTicket(address _ticket) external {
         // algorithmic logic...
         //  - verify $CALL token held/locked through out this market time period
@@ -787,6 +775,8 @@ contract CallitFactory is ERC20, Ownable {
 
         //  - store vote in struct MARKET
         mark.resultTokenVotes[tickIdx] += vote_cnt;
+
+        // LEFT OFF HERE ... need emit event log
     }
     function closeMarketForTicket(address _ticket) external {
         // algorithmic logic...
@@ -818,6 +808,17 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _validVoteCount(address _voter, MARKET _mark) private returns(uint64) {
+        // if indeed locked && locked before _mark start time, calc & return active vote count
+        if (ACCT_CALL_VOTE_LOCK_TIME[msg.sender] > 0 && ACCT_CALL_VOTE_LOCK_TIME[msg.sender] <= _mark.blockTimestamp) {
+            uint64 votes_earned = EARNED_CALL_VOTES[msg.sender]; // note: EARNED_CALL_VOTES stores uint64 type
+            uint64 votes_held = balanceOf(address(this)); // LEFT OFF HERE ... balanceOf might not be uint64
+            uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
+            return votes_active;
+        }
+        else
+            return 0; // return no valid votes
+    }
     function _payPromotorReward(uint256 _usdReward, address _promotor) private {
         // Get stable to work with ... (any stable that covers 'usdReward' is fine)
         //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
