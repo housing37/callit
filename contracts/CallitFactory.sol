@@ -392,6 +392,7 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
+    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store all voter to their MARKET_VOTEs (markets voted in) mapping
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -439,6 +440,13 @@ contract CallitFactory is ERC20, Ownable {
         uint256 blockTimestamp; // sec timestamp this market was created
         uint256 blockNumber; // block number this market was created
         bool live;
+    }
+    struct MARKET_VOTE {
+        address voter;
+        uint16 voteResultIdx;
+        uint64 voteResultCnt;
+        address marketMaker;
+        uint32 marketNum;
     }
 
     /* -------------------------------------------------------- */
@@ -775,6 +783,17 @@ contract CallitFactory is ERC20, Ownable {
 
         //  - store vote in struct MARKET
         mark.resultTokenVotes[tickIdx] += vote_cnt;
+
+    // struct MARKET_VOTE {
+    //     address voter;
+    //     uint16 voteResultIdx;
+    //     uint64 voteResultCnt;
+    //     address marketMaker;
+    //     uint32 marketNum;
+    // }
+
+        // log market vote per EOA, so EOA can claim voter fees earned (for votes = "majority of votes / winning result option")
+        ACCT_MARKET_VOTES[msg.sender].push(MARKET_VOTE(msg.sender, tickIdx, vote_cnt, mark.maker, mark.marketNum));
 
         // LEFT OFF HERE ... need to figure out algorithm logging EOA votes casted (result index & vote_cnt)
         //  and then having EOA come back to claim voter fee earned
