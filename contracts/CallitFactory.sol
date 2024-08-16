@@ -696,8 +696,8 @@ contract CallitFactory is ERC20, Ownable {
         int256 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket); // may return negative
         require(ticketTargetPriceUSD > 0, ' bad target price w/ alt_sum > 1 ;=() ');
             // LEFT OFF HERE ... can't just revert
-            //  NOTE: need alternate solution to bring down the high alt_sum
-            //  NOTE: this case doesn't always mean that a single alt ticket price > $1 
+            //  NOTE: need alternate solution to bring down a high alt_sum
+            //  NOTE: need alternate solution to bring down a single alt ticket price > $1 
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
         uint64 /* ~18,000Q */ tokensToMint = _calculateTokensToMint(mark.resultTokenLPs[tickIdx], ticketTargetPriceUSD);
