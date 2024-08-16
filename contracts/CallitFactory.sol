@@ -703,18 +703,19 @@ contract CallitFactory is ERC20, Ownable {
         uint256 amountsOutUSD = _estimateLastPriceForTCK(mark.resultTokenLPs[tickIdx]);
 
         // check if arb parity attempt is for _ticket price > $1.00
-        if (amountsOutUSD > 1) {
+        if (amountsOutUSD >= 1) {
             // set target price to $1.00; NOTE: still conforms to requirements below
             //  ie. 'ticketTargetPriceUSD' < 'tokensToMint' @ current DEX price 
-            ticketTargetPriceUSD = 1;
-                // LEFT OFF HERE ... need decimal precision for $1 (x2)
+            ticketTargetPriceUSD = 1; // should be $0.99
+                // LEFT OFF HERE ... need decimal precision for $1.00 & $0.99 
+                //  amountsOutUSD & ticketTargetPriceUSD
         } else {
             // arb parity attempt is NOT for _ticket price > $1.00
             //  hence, set target price based on all of this market's other ticket prices
             ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket); // may return negative
             require(ticketTargetPriceUSD > 0, ' bad target price w/ alt_sum > 1 ;=() ');
                 // LEFT OFF HERE ... can't just revert
-                //  NOTE: need alternate solution to bring down a high alt_sum (where _ticket price < $1.00)
+                //  NOTE: need alternate solution to bring down high alt_sum price (when input _ticket price < $1)
         }
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
