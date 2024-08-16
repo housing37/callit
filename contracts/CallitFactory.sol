@@ -384,8 +384,9 @@ contract CallitFactory is ERC20, Ownable {
     uint64 RATIO_LP_USD_PER_CALL_TOK = 100; // init LP usd amount needed per $CALL earned by market maker
         // LEFT OFF HERE  ... may need decimal precision integration
     uint16 RATIO_LP_TOK_PER_USD = 10000;
-    uint32 private PERC_PRIZEPOOL_VOTERS = 200; // 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    uint32 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
     uint8 public RATIO_CALL_MINT_PER_LOSER = 1;
+    uint8 public PERC_OF_LOSER_SUPPLY_CALL_EARN = 2500 // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
 
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
@@ -520,8 +521,10 @@ contract CallitFactory is ERC20, Ownable {
         require(_perc <= 10000, ' invalid _perc :() ');
         PERC_PRIZEPOOL_VOTERS = _perc;
     }
-    function KEEPER_setRatioCallMintPerLoser(uint8 _amount) external onlyKeeper {
+    function KEEPER_setReqCallMintPerLoser(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
+        require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
         RATIO_CALL_MINT_PER_LOSER = _amount;
+        PERC_OF_LOSER_SUPPLY_CALL_EARN = _percSupplyReq;
     }
     
 
@@ -912,8 +915,12 @@ contract CallitFactory is ERC20, Ownable {
             // send payout to msg.sender
             _payUsdReward(usdPrizePoolShare, msg.sender);
         } else {
-            // mint $CALL to loser msg.sender & log $CALL votes earned
-            _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER);
+            // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
+            uint64 perc_supply_owned = _perc_total_supply_owned(_ticket, msg.sender);
+            if (perc_supply_owned >= PERC_OF_LOSER_SUPPLY_CALL_EARN) {
+                // mint $CALL to loser msg.sender & log $CALL votes earned
+                _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER);
+            }
         }
 
         // burn IERC20(_ticket).balanceOf(msg.sender)
@@ -963,6 +970,18 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _perc_total_supply_owned(address _token, address _account) external view returns (uint64) {
+        uint64 accountBalance = _uint64_from_uint256(IERC20(_token).balanceOf(_account));
+        uint64 totalSupply = _uint64_from_uint256(IERC20(_token).totalSupply());
+
+        // Prevent division by zero by checking if totalSupply is greater than zero
+        require(totalSupply > 0, "Total supply must be greater than zero");
+
+        // Calculate the percentage (in basis points, e.g., 1% = 100 basis points)
+        uint64 percentage = (accountBalance * 10000) / totalSupply;
+
+        return percentage; // Returns the percentage in basis points (e.g., 500 = 5%)
+    }
     function _moveMarketVoteIdxToPaid(MARKET_VOTE _m_vote, uint64 _idxMove) private {
         // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
         ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
