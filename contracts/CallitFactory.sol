@@ -385,6 +385,7 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE  ... may need decimal precision integration
     uint16 RATIO_LP_TOK_PER_USD = 10000;
     uint32 private PERC_PRIZEPOOL_VOTERS = 200; // 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    uint8 public RATIO_CALL_MINT_PER_LOSER = 1;
 
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
@@ -519,6 +520,10 @@ contract CallitFactory is ERC20, Ownable {
         require(_perc <= 10000, ' invalid _perc :() ');
         PERC_PRIZEPOOL_VOTERS = _perc;
     }
+    function KEEPER_setRatioCallMintPerLoser(uint8 _amount) external onlyKeeper {
+        RATIO_CALL_MINT_PER_LOSER = _amount;
+    }
+    
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN MUTATORS (CALLIT)
@@ -906,6 +911,7 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE ... need emit event log
         // emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
     }
+    
     function claimTicketRewards(address _ticket) external {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{+} ');
         require(IERC20(_ticket).balanceOf(msg.sender) > 0, ' ticket !owned ;( ');
@@ -922,12 +928,18 @@ contract CallitFactory is ERC20, Ownable {
         require(!mark.live, ' market still live :o ' );
         require(mark.winningVoteResultIdx == tickIdx, ' not a winner :( ');
 
-        // calc payout based on: _ticket.balanceOf(msg.sender) & mark.usdAmntPrizePool_net & _ticket.totalSupply();
-        uint64 usdPerTicket = mark.usdAmntPrizePool_net / IERC20(_ticket).totalSupply();
-        uint64 usdPrizePoolShare = usdPerTicket * IERC20(_ticket).balanceOf(msg.sender);
+        bool is_winner = mark.winningVoteResultIdx == tickIdx;
+        if (is_winner) {
+            // calc payout based on: _ticket.balanceOf(msg.sender) & mark.usdAmntPrizePool_net & _ticket.totalSupply();
+            uint64 usdPerTicket = mark.usdAmntPrizePool_net / IERC20(_ticket).totalSupply();
+            uint64 usdPrizePoolShare = usdPerTicket * IERC20(_ticket).balanceOf(msg.sender);
 
-        // send payout to msg.sender
-        _payUsdReward(usdPrizePoolShare, msg.sender);
+            // send payout to msg.sender
+            _payUsdReward(usdPrizePoolShare, msg.sender);
+        } else {
+            // mint $CALL to loser msg.sender & log $CALL votes earned
+            _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER);
+        }
 
         // burn IERC20(_ticket).balanceOf(msg.sender)
         ICallitTicket cTicket = ICallitTicket(_ticket);
