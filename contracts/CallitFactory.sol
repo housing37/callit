@@ -374,6 +374,7 @@ contract CallitFactory is ERC20, Ownable {
         // NOTE: additional launch security: caps EOA $CALL earned to 255
         //  but also limits the EOA following (KEEPER setter available; should raise after launch)
 
+    uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
     uint16 MIN_USD_MARK_LIQ = 10; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     uint16 MAX_RESULTS = 100; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
     uint8 MIN_HANDLE_SIZE = 1; // min # of chars for account handles
@@ -525,6 +526,10 @@ contract CallitFactory is ERC20, Ownable {
         require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
         RATIO_CALL_MINT_PER_LOSER = _amount;
         PERC_OF_LOSER_SUPPLY_CALL_EARN = _percSupplyReq;
+    }
+    function KEEPER_setMinCallTickTargPrice(uint64 _usdMin) external onlyKeeper {
+        // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+        MIN_USD_CALL_TICK_TARGET_PRICE = _usdMin;
     }
     
 
@@ -701,25 +706,10 @@ contract CallitFactory is ERC20, Ownable {
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
-        // init target price var & get last price estimate for _ticket
-        int256 ticketTargetPriceUSD;
-        uint256 amountsOutUSD = _estimateLastPriceForTCK(mark.resultTokenLPs[tickIdx]);
-
-        // check if arb parity attempt is for _ticket price > $1.00
-        if (amountsOutUSD >= 1) {
-            // set target price to $1.00; NOTE: still conforms to requirements below
-            //  ie. 'ticketTargetPriceUSD' < 'tokensToMint' @ current DEX price 
-            ticketTargetPriceUSD = 1; // should be $0.99
-                // LEFT OFF HERE ... need decimal precision for $1.00 & $0.99 
-                //  amountsOutUSD & ticketTargetPriceUSD
-        } else {
-            // arb parity attempt is NOT for _ticket price > $1.00
-            //  hence, set target price based on all of this market's other ticket prices
-            ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket); // may return negative
-            require(ticketTargetPriceUSD > 0, ' bad target price w/ alt_sum > 1 ;=() ');
-                // LEFT OFF HERE ... can't just revert
-                //  NOTE: need alternate solution to bring down high alt_sum price (when input _ticket price < $1)
-        }
+        // calc target usd price for _ticket (in order to bring this market to price parity)
+        //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
+        //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
+        uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
         uint64 /* ~18,000Q */ tokensToMint = _calculateTokensToMint(mark.resultTokenLPs[tickIdx], ticketTargetPriceUSD);
@@ -971,8 +961,8 @@ contract CallitFactory is ERC20, Ownable {
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
     function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
-        uint64 accountBalance = _uint64_from_uint256(IERC20(_token).balanceOf(_account));
-        uint64 totalSupply = _uint64_from_uint256(IERC20(_token).totalSupply());
+        uint256 accountBalance = IERC20(_token).balanceOf(_account);
+        uint256 totalSupply = IERC20(_token).totalSupply();
 
         // Prevent division by zero by checking if totalSupply is greater than zero
         require(totalSupply > 0, "Total supply must be greater than zero");
@@ -1065,17 +1055,18 @@ contract CallitFactory is ERC20, Ownable {
         }
         return false;
     }
-    function _getCallTicketUsdTargetPrice(MARKET _mark, address _ticket) private view returns(int256) {
+    function _getCallTicketUsdTargetPrice(MARKET _mark, address _ticket) private view returns(uint64) {
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
-        //   -> _ticket price = 1 - SUM(all prices except _ticket)
+        //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
+        //   -> if result target price <= 0, then set/return input _ticket target price = $0.01
 
         address[] tickets = _mark.resultOptionTokens;
-        uint256 alt_sum = 0;
+        uint64 alt_sum = 0;
         for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
             if (tickets[i] != _ticket) {
                 address pairAddress = _mark.resultTokenLPs[i];
-                uint256 amountsOut = _estimateLastPriceForTCK(pairAddress);
+                uint64 amountsOut = _estimateLastPriceForTCK(pairAddress, _mark.resultTokenUsdStables[i]);
                 alt_sum += amountsOut; // LEFT OFF HERE ... may need to account for differnt stable deimcals
             }
             
@@ -1084,7 +1075,8 @@ contract CallitFactory is ERC20, Ownable {
 
         // NOTE: returns negative if alt_sum is greater than 1
         //  edge case should be handle in caller
-        return 1 - alt_sum; 
+        int64 target_price = 1 - int64(alt_sum);
+        return target_price > 0 ? uint64(target_price) : MIN_USD_CALL_TICK_TARGET_PRICE; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
     }
     function _getMarketForTicket(address _maker, address _ticket) private view returns(MARKET, uint64) {
         require(_maker != address (0) && _ticket != address(0), ' no address for market ;:[=] ');
@@ -1269,13 +1261,15 @@ contract CallitFactory is ERC20, Ownable {
         return tokensToMint;
     }
     // Option 1: Estimate the price using reserves
-    function _estimateLastPriceForTCK(address _pairAddress) private view returns (uint256 price) {
+    function _estimateLastPriceForTCK(address _pairAddress, address _pairStable) private view returns (uint64) {
         (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddress).getReserves();
         
         // Assuming token0 is the ERC20 token and token1 is the paired asset (e.g., ETH or a stablecoin)
-        price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
-        // LEFT OF HERE ... to check or account for differen stable decimals
-        return price;
+        uint256 price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
+        
+        // convert to contract '_usd_decimals()'
+        uint64 price_ret = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
+        return price_ret;
     }
 
     // function _calculateTokensToMint( // utilize 'getAmountsIn'
@@ -1322,6 +1316,9 @@ contract CallitFactory is ERC20, Ownable {
 
         // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
         uint64 amntConvert = _uint64_from_uint256(stableAmntOut);
+            // LEFT OFF HERE .. potential old bug (need to account for decimals of usdStable), potential fix ...
+            // uint64 amntConvert = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+
         ACCT_USD_BALANCES[msg.sender] += amntConvert;
         ACCOUNTS = _addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
 
