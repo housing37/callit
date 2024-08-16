@@ -970,7 +970,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
-    function _perc_total_supply_owned(address _token, address _account) external view returns (uint64) {
+    function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
         uint64 accountBalance = _uint64_from_uint256(IERC20(_token).balanceOf(_account));
         uint64 totalSupply = _uint64_from_uint256(IERC20(_token).totalSupply());
 
