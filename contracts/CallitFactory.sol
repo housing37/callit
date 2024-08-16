@@ -387,7 +387,7 @@ contract CallitFactory is ERC20, Ownable {
     uint16 RATIO_LP_TOK_PER_USD = 10000;
     uint32 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
     uint8 public RATIO_CALL_MINT_PER_LOSER = 1;
-    uint8 public PERC_OF_LOSER_SUPPLY_CALL_EARN = 2500 // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    uint8 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500 // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
 
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
@@ -398,6 +398,7 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
     mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (markets voted in) mapping
     mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (markets voted in) mapping
+    mapping(address => MARKET_REVIEW) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -408,6 +409,7 @@ contract CallitFactory is ERC20, Ownable {
     event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
+    event MarketReviewed(address _caller, bool _resultAgree, address _marketMaker, uint32 _marketNum, uint64 _agreeCnt, uint64 _disagreeCnt);
     
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
@@ -457,6 +459,14 @@ contract CallitFactory is ERC20, Ownable {
         address marketMaker;
         uint32 marketNum;
         bool paid;
+    }
+    struct MARKET_REVIEW { 
+        address caller;
+        bool resultAgree;
+        address marketMaker;
+        uint32 marketNum;
+        uint64 agreeCnt;
+        uint64 disagreeCnt;
     }
 
     /* -------------------------------------------------------- */
@@ -525,7 +535,7 @@ contract CallitFactory is ERC20, Ownable {
     function KEEPER_setReqCallMintPerLoser(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
         require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
         RATIO_CALL_MINT_PER_LOSER = _amount;
-        PERC_OF_LOSER_SUPPLY_CALL_EARN = _percSupplyReq;
+        PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
     }
     function KEEPER_setMinCallTickTargPrice(uint64 _usdMin) external onlyKeeper {
         // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
@@ -884,7 +894,7 @@ contract CallitFactory is ERC20, Ownable {
         // log $CALL votes earned w/ ...
         // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
     }
-    function claimTicketRewards(address _ticket) external {
+    function claimTicketRewards(address _ticket, bool _resultAgree) external {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{+} ');
         require(IERC20(_ticket).balanceOf(msg.sender) > 0, ' ticket !owned ;( ');
         // algorithmic logic...
@@ -893,6 +903,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - calc payout based on: _ticket.balanceOf(msg.sender) & mark.usdAmntPrizePool_net & _ticket.totalSupply();
         //  - send payout to msg.sender
         //  - burn IERC20(_ticket).balanceOf(msg.sender)
+        //  - log _resultAgree in MARKET_REVIEW
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
@@ -903,17 +914,20 @@ contract CallitFactory is ERC20, Ownable {
         bool is_winner = mark.winningVoteResultIdx == tickIdx;
         if (is_winner) {
             // calc payout based on: _ticket.balanceOf(msg.sender) & mark.usdAmntPrizePool_net & _ticket.totalSupply();
-            uint64 usdPerTicket = mark.usdAmntPrizePool_net / IERC20(_ticket).totalSupply();
-            uint64 usdPrizePoolShare = usdPerTicket * IERC20(_ticket).balanceOf(msg.sender);
+            uint64 usdPerTicket = _uint64_from_uint256(uint256(mark.usdAmntPrizePool_net) / IERC20(_ticket).totalSupply());
+            uint64 usdPrizePoolShare = _uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
 
             // send payout to msg.sender
             _payUsdReward(usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
             uint64 perc_supply_owned = _perc_total_supply_owned(_ticket, msg.sender);
-            if (perc_supply_owned >= PERC_OF_LOSER_SUPPLY_CALL_EARN) {
+            if (perc_supply_owned >= PERC_OF_LOSER_SUPPLY_EARN_CALL) {
                 // mint $CALL to loser msg.sender & log $CALL votes earned
                 _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER);
+
+                // NOTE: this action could open up a secondary OTC market for collecting loser tickets
+                //  ie. collecting losers = minting $CALL
             }
         }
 
@@ -921,6 +935,9 @@ contract CallitFactory is ERC20, Ownable {
         ICallitTicket cTicket = ICallitTicket(_ticket);
         cTicket.burnForWinClaim(msg.sender, cTicket.balanceOf(msg.sender));
 
+        // log caller's review of market results
+        _logMarketResultReview(mark, _resultAgree); // emits MarketReviewed
+        
         // LEFT OFF HERE .. emit even log        
     }
     function claimVoterRewards() external { // _deductVoterClaimFees from usdRewardOwed
@@ -964,6 +981,14 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
+    function _logMarketResultReview(MARKET _mark, bool _resultAgree) private {
+        uint64 agreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][ACCT_MARKET_REVIEWS[_mark.maker].length-1].agreeCnt;
+        uint64 disagreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][ACCT_MARKET_REVIEWS[_mark.maker].length-1].disagreeCnt;
+        agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
+        disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
+        ACCT_MARKET_REVIEWS[_mark.maker].push(MARKET_REVIEW(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt));
+        emit MarketReviewed(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt);
+    }
     function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
         uint256 accountBalance = IERC20(_token).balanceOf(_account);
         uint256 totalSupply = IERC20(_token).totalSupply();
