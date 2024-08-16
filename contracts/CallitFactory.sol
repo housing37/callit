@@ -714,13 +714,17 @@ contract CallitFactory is ERC20, Ownable {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
         uint64 /* ~18,000Q */ tokensToMint = _calculateTokensToMint(mark.resultTokenLPs[tickIdx], ticketTargetPriceUSD);
 
-        // verify msg.sender usd balance covers contract sale of minted discounted tokens
-        //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
-        //   'ticketTargetPriceUSD' price should be less usd then selling 'tokensToMint' @ current DEX price 
-        //   HENCE, usd profit = gross_stab_amnt_out - total_usd_cost
+        // calc price to charge msg.sender for minting tokensToMint
+        //  then deduct that amount from their account balance
         uint256 total_usd_cost = uint256(ticketTargetPriceUSD) * tokensToMint;
-        require(ACCT_USD_BALANCES[msg.sender] >= total_usd_cost, ' low balance :( ');
-        ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; // LEFT OFF HERE ... ticketTargetPriceUSD is uint256, but ACCT_USD_BALANCES is uint64
+        if (msg.sender != KEEPER) { // free for KEEPER
+            // verify msg.sender usd balance covers contract sale of minted discounted tokens
+            //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
+            //   'ticketTargetPriceUSD' price should be less usd then selling 'tokensToMint' @ current DEX price 
+            //   HENCE, usd profit = gross_stab_amnt_out - total_usd_cost
+            require(ACCT_USD_BALANCES[msg.sender] >= total_usd_cost, ' low balance :( ');
+            ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; // LEFT OFF HERE ... ticketTargetPriceUSD is uint256, but ACCT_USD_BALANCES is uint64
+        }
 
         // mint tokensToMint count to this factory and sell on DEX on behalf of msg.sender
         //  NOTE: receiver == address(this), NOT msg.sender (need to deduct fees before paying msg.sender)
