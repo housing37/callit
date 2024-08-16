@@ -628,7 +628,7 @@ contract CallitFactory is ERC20, Ownable {
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // potential exploitation preventions
@@ -689,11 +689,15 @@ contract CallitFactory is ERC20, Ownable {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // get target price for _ticket price parity 
-        uint256 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
+        int256 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket); // may return negative
+        require(ticketTargetPriceUSD > 0, ' bad target price w/ alt_sum > 1 ;=() ');
+            // LEFT OFF HERE ... can't just revert
+            //  NOTE: need alternate solution to bring down the high alt_sum
+            //  NOTE: this case doesn't always mean that a single alt ticket price > $1 
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
         uint64 /* ~18,000Q */ tokensToMint = _calculateTokensToMint(mark.resultTokenLPs[tickIdx], ticketTargetPriceUSD);
@@ -702,7 +706,7 @@ contract CallitFactory is ERC20, Ownable {
         //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
         //   'ticketTargetPriceUSD' price should be less usd then selling 'tokensToMint' @ current DEX price 
         //   HENCE, usd profit = gross_stab_amnt_out - total_usd_cost
-        uint256 total_usd_cost = ticketTargetPriceUSD * tokensToMint;
+        uint256 total_usd_cost = uint256(ticketTargetPriceUSD) * tokensToMint;
         require(ACCT_USD_BALANCES[msg.sender] >= total_usd_cost, ' low balance :( ');
         ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; // LEFT OFF HERE ... ticketTargetPriceUSD is uint256, but ACCT_USD_BALANCES is uint64
 
@@ -732,7 +736,7 @@ contract CallitFactory is ERC20, Ownable {
         //  loop through _ticket LP addresses and pull all liquidity
 
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
         require(mark.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
@@ -791,7 +795,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - 
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtResultVoteStart <= block.timestamp, ' market voting not started yet :p ');
         require(mark.dtResultVoteEnd > block.timestamp, ' market voting ended :p ');
 
@@ -822,7 +826,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - set market 'live' status = false;
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
 
         // getting winning result index to set mark.winningVoteResultIdx
@@ -866,7 +870,7 @@ contract CallitFactory is ERC20, Ownable {
         uint64 usdRewardOwed = 0;
         for (uint64 i = 0; i < ACCT_MARKET_VOTES[msg.sender].length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
             MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[msg.sender][i];
-            (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found
+            (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
 
             // skip live MARKETs
             if (mark.live) {
@@ -899,13 +903,23 @@ contract CallitFactory is ERC20, Ownable {
     }
     function claimWinnings(address _ticket) external {
         // algorithmic logic...
-        //  - 
+        //  - check if market voting ended & makr not live
+        //  - check if _ticket is a winner
+        //  - calc payout based on IERC20(_ticket).balanceOf(msg.sender) & mark.usdAmntPrizePool_net & IERC20(_ticket).totalSupply(); (maybe?)
+        //  - send payout to msg.sender
+        //  - burn IERC20(_ticket).balanceOf(msg.sender)
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
         require(!mark.live, ' market still live :o ' );
+        require(mark.winningVoteResultIdx == tickIdx, ' not a winner :( ');
+
+        uint64 usdPerTicket = mark.usdAmntPrizePool_net / IERC20(_ticket).totalSupply();
+        uint64 usdPrizePoolShare = usdPerTicket * IERC20(_ticket).balanceOf(msg.sender);
+
     }
+
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
@@ -992,7 +1006,7 @@ contract CallitFactory is ERC20, Ownable {
         }
         return false;
     }
-    function _getCallTicketUsdTargetPrice(MARKET _mark, address _ticket) private view returns(uint256) {
+    function _getCallTicketUsdTargetPrice(MARKET _mark, address _ticket) private view returns(int256) {
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
         //   -> _ticket price = 1 - SUM(all prices except _ticket)
@@ -1009,15 +1023,22 @@ contract CallitFactory is ERC20, Ownable {
             unchecked {i++;}
         }
 
-        return 1 - alt_sum;
+        // NOTE: returns negative if alt_sum is greater than 1
+        //  edge case should be handle in caller
+        return 1 - alt_sum; 
     }
     function _getMarketForTicket(address _maker, address _ticket) private view returns(MARKET, uint64) {
+        require(_maker != address (0) && _ticket != address(0), ' no address for market ;:[=] ');
+
         // NOTE: MAX_EOA_MARKETS is uint64
         MARKET[] markets = ACCT_MARKETS[_maker];
         for (uint64 i = 0; i < markets.length;) {
             MARKET storage mark = markets[i];
-            if (address(mark.resultOptionTokens) == address(_ticket))
-                return (mark, i);
+            for (uint16 x = 0; x < mark.resultOptionTokens.length;) {
+                if (mark.resultOptionTokens[x] == _ticket)
+                    return (mark, x);
+                unchecked {x++;}
+            }   
             unchecked {
                 i++;
             }
