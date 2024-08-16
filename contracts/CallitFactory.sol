@@ -387,7 +387,7 @@ contract CallitFactory is ERC20, Ownable {
     uint16 RATIO_LP_TOK_PER_USD = 10000;
     uint32 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
     uint8 public RATIO_CALL_MINT_PER_LOSER = 1;
-    uint8 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500 // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    uint8 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
 
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
@@ -534,7 +534,7 @@ contract CallitFactory is ERC20, Ownable {
     }
     function KEEPER_setReqCallMintPerLoser(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
         require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
-        RATIO_CALL_MINT_PER_LOSER = _amount;
+        RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
         PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
     }
     function KEEPER_setMinCallTickTargPrice(uint64 _usdMin) external onlyKeeper {
@@ -573,7 +573,7 @@ contract CallitFactory is ERC20, Ownable {
     /* PUBLIC - MUTATORS (CALLIT)
     /* -------------------------------------------------------- */
     function setMyAcctHandle(string _handle) external {
-        require(_hanlde.length >= MIN_HANDLE_SIZE && _hanlde.length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
+        require(bytes(_handle).length >= MIN_HANDLE_SIZE && bytes(_handle).length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
         require(bytes(_handle)[0] != 0x20, ' !_handle space start :+[ '); // 0x20 -> ASCII for ' ' (single space)
         if (_validNonWhiteSpaceString(_handle))
             ACCT_HANDLES[msg.sender] = _handle;
@@ -1189,24 +1189,38 @@ contract CallitFactory is ERC20, Ownable {
     }
     function _genTokenNameSymbol(address _maker, uint32 _markNum, uint16 _resultNum) private pure returns(string, string) {
         // Convert the address to a string
-        string memory addrStr = toAsciiString(_maker);
+        // string memory addrStr = toAsciiString(_maker);
 
-        // Extract the first 4 characters (excluding the "0x" prefix)
-        // string memory first4 = substring(addrStr, 2, 6);
+        // // Extract the first 4 characters (excluding the "0x" prefix)
+        // // string memory first4 = substring(addrStr, 2, 6);
         
-        // Extract the last 4 characters using length
-        // string memory last4 = substring(addrStr, 38, 42);
-        uint len = bytes(addrStr).length;
-        string memory last4 = substring(addrStr, len - 4, len);
+        // // Extract the last 4 characters using length
+        // // string memory last4 = substring(addrStr, 38, 42);
+        // uint len = bytes(addrStr).length;
+        // string memory last4 = substring(addrStr, len - 4, len);
 
         // Concatenate to form symbol & name
+        string memory last4 = _getLast4Chars(_maker);
+        string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, string(abi.encodePacked(_resultNum))));
+        string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, " ", last4, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
         // string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, Strings.toString(_resultNum)));
         // string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, last4, "-", _markNum, "-", Strings.toString(_resultNum)));
-        string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, string(abi.encode(_resultNum))));
-        string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, " ", last4, "-", _markNum, "-", string(abi.encode(_resultNum))));
 
         return (tokenName, tokenSymbol);
     }
+    function _getLast4Chars(address _addr) public pure returns (string memory) {
+        // Convert the last 2 bytes (4 characters) of the address to a string
+        bytes memory addrBytes = abi.encodePacked(_addr);
+        bytes memory last4 = new bytes(4);
+
+        last4[0] = addrBytes[18];
+        last4[1] = addrBytes[19];
+        last4[2] = addrBytes[20];
+        last4[3] = addrBytes[21];
+
+        return string(last4);
+    }
+
     // Assumed helper functions (implementations not shown)
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount) private returns (address) {
         // LEFT OFF HERE ... _usdStable & _usdAmount must check and convert to use correct decimals
