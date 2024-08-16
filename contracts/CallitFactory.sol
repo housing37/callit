@@ -788,6 +788,9 @@ contract CallitFactory is ERC20, Ownable {
         //  mint $CALL token reward to msg.sender
     }
     function castVoteForMarketTicket(address _ticket) external { // no fee
+        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
+        require(IERC20(_ticket).balanceOf(msg.sender) == 0, ' no self voting ;( ');
+
         // algorithmic logic...
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
@@ -818,6 +821,7 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE ... need emit event log
     }
     function closeMarketForTicket(address _ticket) external { // _deductMarketCloseFees from mark.usdAmntPrizePool
+        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{-} ');
         // algorithmic logic...
         //  - count votes in mark.resultTokenVotes 
         //  - set mark.winningVoteResultIdx accordingly
@@ -902,7 +906,9 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE ... need emit event log
         // emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
     }
-    function claimWinnings(address _ticket) external {
+    function claimTicketRewards(address _ticket) external {
+        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{+} ');
+        require(IERC20(_ticket).balanceOf(msg.sender) > 0, ' ticket !owned ;( ');
         // algorithmic logic...
         //  - check if market voting ended & makr not live
         //  - check if _ticket is a winner
