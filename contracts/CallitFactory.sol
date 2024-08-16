@@ -44,6 +44,7 @@ interface ISwapDelegate { // (legacy)
 
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
+    function burnForWinClaim(address _account, uint256 _amount) external;
 }
 
 // contract LUSDShareToken is ERC20, Ownable { // (legacy)
@@ -905,7 +906,7 @@ contract CallitFactory is ERC20, Ownable {
         // algorithmic logic...
         //  - check if market voting ended & makr not live
         //  - check if _ticket is a winner
-        //  - calc payout based on IERC20(_ticket).balanceOf(msg.sender) & mark.usdAmntPrizePool_net & IERC20(_ticket).totalSupply(); (maybe?)
+        //  - calc payout based on: _ticket.balanceOf(msg.sender) & mark.usdAmntPrizePool_net & _ticket.totalSupply();
         //  - send payout to msg.sender
         //  - burn IERC20(_ticket).balanceOf(msg.sender)
 
@@ -915,9 +916,18 @@ contract CallitFactory is ERC20, Ownable {
         require(!mark.live, ' market still live :o ' );
         require(mark.winningVoteResultIdx == tickIdx, ' not a winner :( ');
 
+        // calc payout based on: _ticket.balanceOf(msg.sender) & mark.usdAmntPrizePool_net & _ticket.totalSupply();
         uint64 usdPerTicket = mark.usdAmntPrizePool_net / IERC20(_ticket).totalSupply();
         uint64 usdPrizePoolShare = usdPerTicket * IERC20(_ticket).balanceOf(msg.sender);
 
+        // send payout to msg.sender
+        _payUsdReward(usdPrizePoolShare, msg.sender);
+
+        // burn IERC20(_ticket).balanceOf(msg.sender)
+        ICallitTicket cTicket = ICallitTicket(_ticket);
+        cTicket.burnForWinClaim(msg.sender, cTicket.balanceOf(msg.sender));
+
+        // LEFT OFF HERE .. emit even log        
     }
 
     /* -------------------------------------------------------- */
@@ -973,9 +983,9 @@ contract CallitFactory is ERC20, Ownable {
         else
             return 0; // return no valid votes
     }
-    function _payUsdReward(uint256 _usdReward, address _promotor) private {
+    function _payUsdReward(uint256 _usdReward, address _receiver) private {
         if (_usdReward == 0) {
-            emit AlertZeroReward(msg.sender, _usdReward, _promotor);
+            emit AlertZeroReward(msg.sender, _usdReward, _receiver);
             return;
         }
         // Get stable to work with ... (any stable that covers 'usdReward' is fine)
@@ -983,8 +993,8 @@ contract CallitFactory is ERC20, Ownable {
         address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
-        // pay promo.promotor their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_promotor, _usdReward);
+        // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
+        IERC20(lowStableHeld).transfer(_receiver, _usdReward);
             // LEFT OFF HERE ... need to validate decimals for lowStableHeld and usdReward
     }
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
