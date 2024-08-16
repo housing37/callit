@@ -698,12 +698,24 @@ contract CallitFactory is ERC20, Ownable {
         (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
-        // get target price for _ticket price parity 
-        int256 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket); // may return negative
-        require(ticketTargetPriceUSD > 0, ' bad target price w/ alt_sum > 1 ;=() ');
-            // LEFT OFF HERE ... can't just revert
-            //  NOTE: need alternate solution to bring down a high alt_sum
-            //  NOTE: need alternate solution to bring down a single alt ticket price > $1 
+        // init target price var & get last price estimate for _ticket
+        int256 ticketTargetPriceUSD;
+        uint256 amountsOutUSD = _estimateLastPriceForTCK(mark.resultTokenLPs[tickIdx]);
+
+        // check if arb parity attempt is for _ticket price > $1.00
+        if (amountsOutUSD > 1) {
+            // set target price to $1.00; NOTE: still conforms to requirements below
+            //  ie. 'ticketTargetPriceUSD' < 'tokensToMint' @ current DEX price 
+            ticketTargetPriceUSD = 1;
+                // LEFT OFF HERE ... need decimal precision for $1 (x2)
+        } else {
+            // arb parity attempt is NOT for _ticket price > $1.00
+            //  hence, set target price based on all of this market's other ticket prices
+            ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket); // may return negative
+            require(ticketTargetPriceUSD > 0, ' bad target price w/ alt_sum > 1 ;=() ');
+                // LEFT OFF HERE ... can't just revert
+                //  NOTE: need alternate solution to bring down a high alt_sum (where _ticket price < $1.00)
+        }
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
         uint64 /* ~18,000Q */ tokensToMint = _calculateTokensToMint(mark.resultTokenLPs[tickIdx], ticketTargetPriceUSD);
