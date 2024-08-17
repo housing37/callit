@@ -1549,16 +1549,17 @@ contract CallitFactory is ERC20, Ownable {
     }
     function _perc_of_uint64(uint32 _perc, uint64 _num) private pure returns (uint64) {
         require(_perc <= 10000, 'err: invalid percent');
-        return _perc_of_uint64_unchecked(_perc, _num);
+        // return _perc_of_uint64_unchecked(_perc, _num);
+        return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
     }
     function _perc_of_uint64_unchecked(uint32 _perc, uint64 _num) private pure returns (uint64) {
         // require(_perc <= 10000, 'err: invalid percent');
-        uint32 aux_perc = _perc * 100; // Multiply by 100 to accommodate decimals
-        uint64 result = (_num * uint64(aux_perc)) / 1000000; // chatGPT equation
-        return result; // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
+        // uint32 aux_perc = _perc * 100; // Multiply by 100 to accommodate decimals
+        // uint64 result = (_num * uint64(aux_perc)) / 1000000; // chatGPT equation
+        // return result; // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
 
         // NOTE: more efficient with no local vars allocated
-        // return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
+        return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
     }
     function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
         require(value <= type(uint64).max, "Value exceeds uint64 range");
