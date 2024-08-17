@@ -399,12 +399,12 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
     mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (markets voted in) mapping
     mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (markets voted in) mapping
-    mapping(address => MARKET_REVIEW) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    mapping(address => MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
-    event MarketCreated(address _maker, uint64 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 usdAmntPrizePool_init, uint64 _usdAmntPrizePool_net, uint64 _usdVoterRewardPool, uint64 _usdRewardPerVote, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, uint32[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
+    event MarketCreated(address _maker, uint64 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 usdAmntPrizePool_init, uint64 _usdAmntPrizePool_net, uint64 _usdVoterRewardPool, uint64 _usdRewardPerVote, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, uint64[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
     event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
@@ -446,7 +446,7 @@ contract CallitFactory is ERC20, Ownable {
         address[] resultTokenRouters;
         address[] resultTokenFactories;
         address[] resultTokenUsdStables;
-        uint32[] resultTokenVotes;
+        uint64[] resultTokenVotes;
         uint16 winningVoteResultIdx; // calc winning idx from resultTokenVotes 
         uint256 blockTimestamp; // sec timestamp this market was created
         uint256 blockNumber; // block number this market was created
@@ -610,7 +610,7 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory resultTokenRouters = new address[](_resultLabels.length);
         address[] memory resultTokenFactories = new address[](_resultLabels.length);
         address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
-        uint32 [] memory resultTokenVotes = new uint32[](_resultLabels.length);
+        uint64 [] memory resultTokenVotes = new uint64[](_resultLabels.length);
 
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
@@ -619,7 +619,7 @@ contract CallitFactory is ERC20, Ownable {
             address new_tick_tok = address (new CallitTicket(TOK_TICK_INIT_SUPPLY, tok_name, tok_symb));
             
             // Get amounts for initial LP & Create DEX LP for the token
-            (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _resultLabels.length);
+            (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _uint64_from_uint256(_resultLabels.length));
             address lpAddress = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
                             // _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount)
 
@@ -653,7 +653,7 @@ contract CallitFactory is ERC20, Ownable {
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET calldata mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET memory mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // potential exploitation preventions
@@ -717,7 +717,7 @@ contract CallitFactory is ERC20, Ownable {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET calldata mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET memory mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // calc target usd price for _ticket (in order to bring this market to price parity)
@@ -745,8 +745,11 @@ contract CallitFactory is ERC20, Ownable {
         ICallitTicket cTicket = ICallitTicket(_ticket);
         cTicket.mintForPriceParity(address(this), tokensToMint);
         require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
-        address[2] memory tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
-        uint256 gross_stab_amnt_out = _exeSwapTokForStable(tokensToMint, tok_stab_path, address(this), mark.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
+        // address[2] memory tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
+        address[] memory tok_stab_path = new address[](3);
+        tok_stab_path[0] = _ticket;
+        tok_stab_path[1] = mark.resultTokenUsdStables[tickIdx];
+        uint64 gross_stab_amnt_out = _uint64_from_uint256(_exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.resultTokenRouters[tickIdx])); // swap tick: use specific router tck:tick-stable
 
         // calc & send net profits to msg.sender
         //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
@@ -766,7 +769,7 @@ contract CallitFactory is ERC20, Ownable {
         //  loop through _ticket LP addresses and pull all liquidity
 
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET memory mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
         require(mark.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
@@ -791,6 +794,9 @@ contract CallitFactory is ERC20, Ownable {
             // check to make sure that token0 is the 'ticket' & token1 is the 'stable'
             require(mark.resultOptionTokens[i] == token0 && mark.resultTokenUsdStables[i] == token1, ' pair token mismatch w/ MARKET tck:usd :*() ');
 
+            // get OG stable balance, so we can verify later
+            uint256 OG_stable_bal = IERC20(mark.resultTokenUsdStables[i]).balanceOf(address(this));
+
             // Remove liquidity
             (uint256 amountToken0, uint256 amountToken1) = uniswapRouter.removeLiquidity(
                 token0,
@@ -806,11 +812,11 @@ contract CallitFactory is ERC20, Ownable {
                 i++;
             }
 
-            // semi-verify correct ticket token stable was pulled and recieved
-            require(IERC20(mark.resultTokenUsdStables[i]).balanceOf(address(this)) >= amountToken1, ' stab bal mismatch after liq pull :+( ');
+            // verify correct ticket token stable was pulled and recieved
+            require(IERC20(mark.resultTokenUsdStables[i]).balanceOf(address(this)) >= OG_stable_bal, ' stab bal mismatch after liq pull :+( ');
 
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
-            mark.usdAmntPrizePool += amountToken1; // LEFT OFF HERE ... need to account for usd decimal mismatch or whatever
+            mark.usdAmntPrizePool += _uint64_from_uint256(amountToken1); // NOTE: write to market
         }
 
         // LEFT OFF HERE ... need emit event log
@@ -828,7 +834,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - 
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET memory mark, uint16 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtResultVoteStart <= block.timestamp, ' market voting not started yet :p ');
         require(mark.dtResultVoteEnd > block.timestamp, ' market voting ended :p ');
 
@@ -842,7 +848,7 @@ contract CallitFactory is ERC20, Ownable {
         require(vote_cnt > 0, ' invalid voter :{=} ');
 
         //  - store vote in struct MARKET
-        mark.resultTokenVotes[tickIdx] += vote_cnt;
+        mark.resultTokenVotes[tickIdx] += vote_cnt; // NOTE: write to market
 
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
         ACCT_MARKET_VOTES[msg.sender].push(MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
@@ -860,22 +866,22 @@ contract CallitFactory is ERC20, Ownable {
         //  - set market 'live' status = false;
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET memory mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
 
         // getting winning result index to set mark.winningVoteResultIdx
         //  for voter fee claim algorithm (ie. only pay majority voters)
-        mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark);
+        mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
-        mark.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.usdAmntPrizePool);
+        mark.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.usdAmntPrizePool); // NOTE: write to market
 
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
-        mark.usdAmntPrizePool_net = mark.usdAmntPrizePool - mark.usdVoterRewardPool;
-        mark.usdAmntPrizePool_net = _deductMarketCloseFees(mark.usdAmntPrizePool, mark.usdAmntPrizePool_net);
+        mark.usdAmntPrizePool_net = mark.usdAmntPrizePool - mark.usdVoterRewardPool; // NOTE: write to market
+        mark.usdAmntPrizePool_net = _deductMarketCloseFees(mark.usdAmntPrizePool, mark.usdAmntPrizePool_net); // NOTE: write to market
 
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
-        mark.usdRewardPerVote = mark.usdVoterRewardPool / mark.resultTokenVotes[mark.winningVoteResultIdx];
+        mark.usdRewardPerVote = mark.usdVoterRewardPool / mark.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 
         // check if mark.maker earned $CALL tokens
         if (mark.usdAmntLP >= RATIO_LP_USD_PER_CALL_TOK) {
@@ -884,7 +890,7 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // close market
-        mark.live = false;
+        mark.live = false; // NOTE: write to market
 
         // LEFT OFF HERE ... need emit event log
         //  mint $CALL token reward to msg.sender
@@ -910,7 +916,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - log _resultAgree in MARKET_REVIEW
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET memory mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
         require(!mark.live, ' market still live :o ' );
         require(mark.winningVoteResultIdx == tickIdx, ' not a winner :( ');
@@ -950,7 +956,7 @@ contract CallitFactory is ERC20, Ownable {
         uint64 usdRewardOwed = 0;
         for (uint64 i = 0; i < ACCT_MARKET_VOTES[msg.sender].length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
             MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[msg.sender][i];
-            (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
+            (MARKET memory mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
 
             // skip live MARKETs
             if (mark.live) {
@@ -963,7 +969,7 @@ contract CallitFactory is ERC20, Ownable {
             //       AND ... this MARKET_VOTE has not been paid yet
             if (m_vote.voteResultIdx == mark.winningVoteResultIdx && !m_vote.paid) {
                 usdRewardOwed += mark.usdRewardPerVote * m_vote.voteResultCnt;
-                m_vote.paid = true; // set paid
+                m_vote.paid = true; // set paid // NOTE: write to market
             }
 
             // check for 'paid' MARKET_VOTE found in ACCT_MARKET_VOTES (& move to ACCT_MARKET_VOTES_PAID)
@@ -985,9 +991,15 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
-    function _logMarketResultReview(MARKET calldata _mark, bool _resultAgree) private {
-        uint64 agreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][ACCT_MARKET_REVIEWS[_mark.maker].length-1].agreeCnt;
-        uint64 disagreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][ACCT_MARKET_REVIEWS[_mark.maker].length-1].disagreeCnt;
+    function _logMarketResultReview(MARKET memory _mark, bool _resultAgree) private {
+        uint64 agreeCnt = 0;
+        uint64 disagreeCnt = 0;
+        uint64 reviewCnt = _uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
+        if (reviewCnt > 0) {
+            agreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].agreeCnt;
+            disagreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].disagreeCnt;
+        }
+
         agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
         disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
         ACCT_MARKET_REVIEWS[_mark.maker].push(MARKET_REVIEW(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt));
@@ -1001,11 +1013,11 @@ contract CallitFactory is ERC20, Ownable {
         require(totalSupply > 0, "Total supply must be greater than zero");
 
         // Calculate the percentage (in basis points, e.g., 1% = 100 basis points)
-        uint64 percentage = (accountBalance * 10000) / totalSupply;
+        uint256 percentage = (accountBalance * 10000) / totalSupply;
 
-        return percentage; // Returns the percentage in basis points (e.g., 500 = 5%)
+        return _uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
     }
-    function _moveMarketVoteIdxToPaid(MARKET_VOTE calldata _m_vote, uint64 _idxMove) private {
+    function _moveMarketVoteIdxToPaid(MARKET_VOTE storage _m_vote, uint64 _idxMove) private {
         // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
         ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
 
@@ -1017,7 +1029,7 @@ contract CallitFactory is ERC20, Ownable {
         }
         ACCT_MARKET_VOTES[msg.sender].pop(); // Remove the last element (now a duplicate)
     }
-    function _getWinningVoteIdxForMarket(MARKET calldata _mark) private returns(uint16) {
+    function _getWinningVoteIdxForMarket(MARKET memory _mark) private returns(uint16) {
         // travers mark.resultTokenVotes for winning idx
         //  NOTE: default winning index is 0 & ties will settle on lower index
         uint16 idxCurrHigh = 0;
@@ -1028,7 +1040,7 @@ contract CallitFactory is ERC20, Ownable {
         }
         return idxCurrHigh;
     }
-    function _addressIsMarketMakerOrCaller(address _addr, MARKET calldata _mark) private returns(bool,bool) {
+    function _addressIsMarketMakerOrCaller(address _addr, MARKET memory _mark) private returns(bool,bool) {
         bool is_maker = _mark.maker == msg.sender; // true = found maker
         bool is_caller = false;
         for (uint16 i = 0; i < _mark.resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
@@ -1044,18 +1056,18 @@ contract CallitFactory is ERC20, Ownable {
 
         // LEFT OFF HERE ... need emit even log
     }
-    function _validVoteCount(address _voter, MARKET calldata _mark) private returns(uint64) {
+    function _validVoteCount(address _voter, MARKET memory _mark) private returns(uint64) {
         // if indeed locked && locked before _mark start time, calc & return active vote count
         if (ACCT_CALL_VOTE_LOCK_TIME[msg.sender] > 0 && ACCT_CALL_VOTE_LOCK_TIME[msg.sender] <= _mark.blockTimestamp) {
             uint64 votes_earned = EARNED_CALL_VOTES[msg.sender]; // note: EARNED_CALL_VOTES stores uint64 type
-            uint64 votes_held = balanceOf(address(this)); // LEFT OFF HERE ... balanceOf might not be uint64
+            uint64 votes_held = _uint64_from_uint256(balanceOf(address(this)));
             uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
             return votes_active;
         }
         else
             return 0; // return no valid votes
     }
-    function _payUsdReward(uint256 _usdReward, address _receiver) private {
+    function _payUsdReward(uint64 _usdReward, address _receiver) private {
         if (_usdReward == 0) {
             emit AlertZeroReward(msg.sender, _usdReward, _receiver);
             return;
@@ -1076,7 +1088,10 @@ contract CallitFactory is ERC20, Ownable {
         require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // create path and perform stable-to-stable swap
-        address[2] memory stab_stab_path = [highStableHeld, _tickStable];
+        // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
+        address[] memory stab_stab_path = new address[](3);
+        stab_stab_path[0] = highStableHeld;
+        stab_stab_path[1] = _tickStable;
         uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
         return (stab_amnt_out,highStableHeld);
     }
@@ -1088,7 +1103,7 @@ contract CallitFactory is ERC20, Ownable {
         }
         return false;
     }
-    function _getCallTicketUsdTargetPrice(MARKET calldata _mark, address _ticket) private view returns(uint64) {
+    function _getCallTicketUsdTargetPrice(MARKET memory _mark, address _ticket) private view returns(uint64) {
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
         //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
@@ -1111,13 +1126,13 @@ contract CallitFactory is ERC20, Ownable {
         int64 target_price = 1 - int64(alt_sum);
         return target_price > 0 ? uint64(target_price) : MIN_USD_CALL_TICK_TARGET_PRICE; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
     }
-    function _getMarketForTicket(address _maker, address _ticket) private view returns(MARKET calldata, uint64) {
+    function _getMarketForTicket(address _maker, address _ticket) private view returns(MARKET storage, uint16) {
         require(_maker != address (0) && _ticket != address(0), ' no address for market ;:[=] ');
 
         // NOTE: MAX_EOA_MARKETS is uint64
-        MARKET[] memory markets = ACCT_MARKETS[_maker];
+        MARKET[] storage markets = ACCT_MARKETS[_maker];
         for (uint64 i = 0; i < markets.length;) {
-            MARKET memory mark = markets[i];
+            MARKET storage mark = markets[i];
             for (uint16 x = 0; x < mark.resultOptionTokens.length;) {
                 if (mark.resultOptionTokens[x] == _ticket)
                     return (mark, x);
@@ -1191,7 +1206,7 @@ contract CallitFactory is ERC20, Ownable {
         return net_usdAmnt;
         // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
     }
-    function _genTokenNameSymbol(address _maker, uint64 _markNum, uint16 _resultNum) private pure returns(string calldata, string calldata) {
+    function _genTokenNameSymbol(address _maker, uint64 _markNum, uint16 _resultNum) private pure returns(string memory, string memory) {
         // Convert the address to a string
         // string memory addrStr = toAsciiString(_maker);
 
@@ -1234,7 +1249,7 @@ contract CallitFactory is ERC20, Ownable {
         IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
         // Approve tokens for Uniswap Router
-        IERC20(_token).safeApprove(_uswapV2Router, _tokenAmount);
+        IERC20(_token).approve(_uswapV2Router, _tokenAmount);
         // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
             
         // Add liquidity to the pool
@@ -1263,7 +1278,7 @@ contract CallitFactory is ERC20, Ownable {
         //      similar to accessors that retrieve native and ERC20 tokens held by contract
     }
 
-    function _getAmountsForInitLP(uint64 _usdAmntLP, uint256 _resultOptionCnt) private returns(uint64, uint256) {
+    function _getAmountsForInitLP(uint64 _usdAmntLP, uint64 _resultOptionCnt) private returns(uint64, uint256) {
         require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
         // return (_usdAmntLP / _resultOptionCnt, _getInitDexTokSupplyForUsdAmnt(_usdAmntLP) / _resultOptionCnt);
         return (_usdAmntLP / _uint64_from_uint256(_resultOptionCnt), _getInitDexTokSupplyForUsdAmnt(_usdAmntLP / _resultOptionCnt));
@@ -1272,7 +1287,7 @@ contract CallitFactory is ERC20, Ownable {
         return uint256(_usdAmnt * RATIO_LP_TOK_PER_USD);
     }
     function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
-        for (uint8 i=0; i < _s.length;) {
+        for (uint8 i=0; i < bytes(_s).length;) {
             if (bytes(_s)[i] != 0x20) {
                 // Found a non-space character, return true
                 return true; 
@@ -1608,7 +1623,7 @@ contract CallitFactory is ERC20, Ownable {
         return stab_amnt_out;
     }
     // specify router to use
-    function _exeSwapTokForStable(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
+    function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
         require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
         uint256 tok_amnt_out = _swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
