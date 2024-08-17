@@ -33,14 +33,14 @@ import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol"
 // import "./SwapDelegate.sol";
 import "./CallitTicket.sol";
 
-interface ISwapDelegate { // (legacy)
-    function VERSION() external view returns (uint8);
-    function USER_INIT() external view returns (bool);
-    function USER() external view returns (address);
-    function USER_maintenance(uint256 _tokAmnt, address _token) external;
-    function USER_setUser(address _newUser) external;
-    function USER_burnToken(address _token, uint256 _tokAmnt) external;
-}
+// interface ISwapDelegate { // (legacy)
+//     function VERSION() external view returns (uint8);
+//     function USER_INIT() external view returns (bool);
+//     function USER() external view returns (address);
+//     function USER_maintenance(uint256 _tokAmnt, address _token) external;
+//     function USER_setUser(address _newUser) external;
+//     function USER_burnToken(address _token, uint256 _tokAmnt) external;
+// }
 
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
@@ -57,106 +57,106 @@ contract CallitFactory is ERC20, Ownable {
     //  SWAPD needed for LUSDst integration, in '_exeBstPayout', if 'ENABLE_MARKET_BUY'
     //  SWAPD also needed for delegate burning in '_exeTokBuyBurn', if '!_selAuxPay'
     //    (to leave opp available for native pLUSDT contract burning w/ totalSupply())
-    ISwapDelegate private SWAPD;
-    address private constant SWAP_DELEGATE_INIT = address(0xA8d96d0c328dEc068Db7A7Ba6BFCdd30DCe7C254); // v5 (052924)
-    address private SWAP_DELEGATE = SWAP_DELEGATE_INIT;
+    // ISwapDelegate private SWAPD;
+    // address private constant SWAP_DELEGATE_INIT = address(0xA8d96d0c328dEc068Db7A7Ba6BFCdd30DCe7C254); // v5 (052924)
+    // address private SWAP_DELEGATE = SWAP_DELEGATE_INIT;
 
     /* -------------------------------------------------------- */
     /* LUSDst additions (legacy)
     /* -------------------------------------------------------- */
-    bool public ENABLE_TOK_BURN_LOCK;
-    bool public ENABLE_BURN_DELEGATE;
-    bool public ENABLE_AUX_PAY;
-    address public TOK_BURN_LOCK;
-    address public TOK_pLUSD = address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0);
+    // bool public ENABLE_TOK_BURN_LOCK;
+    // bool public ENABLE_BURN_DELEGATE;
+    // bool public ENABLE_AUX_PAY;
+    // address public TOK_BURN_LOCK;
+    // address public TOK_pLUSD = address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0);
 
     /* -------------------------------------------------------- */
     /* GLOBALS (legacy)
     /* -------------------------------------------------------- */
     /* _ TOKEN INIT SUPPORT _ */
-    string public tVERSION = '1.1';
-    string private TOK_SYMB = string(abi.encodePacked("tLUSDst", tVERSION));
-    string private TOK_NAME = string(abi.encodePacked("tLUSDst_", tVERSION));
+    string public tVERSION = '0.1';
+    string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
+    string private TOK_NAME = string(abi.encodePacked("tCALL_", tVERSION));
 
     // TG @Nicoleoracle: "LUSDST for LUSD share token. We can start the token at  seven zero five. We can discuss this more"
-    // string private TOK_SYMB = "LUSDST";
-    // string private TOK_NAME = "LUSDShareToken";
+    // string private TOK_SYMB = "CALL";
+    // string private TOK_NAME = "CALL-IT";
 
     /* _ ADMIN SUPPORT _ */
     address public KEEPER;
-    uint256 private KEEPER_CHECK;
+    uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     // bool private ENABLE_MARKET_QUOTE; // set BST pay & burn val w/ market quote (else 1:1)
-    bool private ENABLE_MARKET_BUY; // cover BST pay & burn val w/ market buy (else use holdings & mint)
+    // bool private ENABLE_MARKET_BUY; // cover BST pay & burn val w/ market buy (else use holdings & mint)
     // bool private ENABLE_AUX_BURN;
-    uint32 private PERC_SERVICE_FEE; // 0 = 0.00%, 505 = 5.05%, 2505 = 25.05%, 10000 = 100.00%
+    // uint32 private PERC_SERVICE_FEE; // 0 = 0.00%, 505 = 5.05%, 2505 = 25.05%, 10000 = 100.00%
     // uint32 private PERC_BST_BURN;
-    uint32 private PERC_AUX_BURN;
+    // uint32 private PERC_AUX_BURN;
     // uint32 private PERC_BUY_BACK_FEE;
 
     // SUMMARY: controlling how much USD to payout (usdBuyBackVal), effecting profits & demand to trade-in
     // SUMMARY: controlling how much BST to payout (bstPayout), effecting profits & demand on the open market
-    uint32 private RATIO_BST_PAYOUT = 10000; // default 10000 _ ie. 100.00% (bstPayout:usdPayout -> 1:1 USD)
-    uint32 private RATIO_USD_PAYOUT = 10000; // default 10000 _ ie. 100.00% (usdBuyBackVal:_bstAmnt -> 1:1 BST)
+    // uint32 private RATIO_BST_PAYOUT = 10000; // default 10000 _ ie. 100.00% (bstPayout:usdPayout -> 1:1 USD)
+    // uint32 private RATIO_USD_PAYOUT = 10000; // default 10000 _ ie. 100.00% (usdBuyBackVal:_bstAmnt -> 1:1 BST)
     
     /* _ ACCOUNT SUPPORT _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     // NOTE: all USD bals & payouts stores uint precision to 6 decimals
     address[] private ACCOUNTS;
     mapping(address => uint64) public ACCT_USD_BALANCES; 
-    mapping(address => ACCT_PAYOUT[]) public ACCT_USD_PAYOUTS;
+    // mapping(address => ACCT_PAYOUT[]) public ACCT_USD_PAYOUTS;
 
     address[] public USWAP_V2_ROUTERS;
     address[] private WHITELIST_USD_STABLES;
     address[] private USD_STABLES_HISTORY;
     mapping(address => uint8) public USD_STABLE_DECIMALS;
-    mapping(address => address[]) private USD_BST_PATHS;
+    // mapping(address => address[]) private USD_BST_PATHS;
 
     /* -------------------------------------------------------- */
     /* STRUCTS (legacy)
     /* -------------------------------------------------------- */
-    struct ACCT_PAYOUT {
-        address receiver;
-        uint64 usdAmntDebit; // USD total ACCT deduction
-        uint64 usdPayout; // USD payout value
-        // uint64 bstPayout; // BST payout amount
-        uint256 bstPayout; // BST payout amount
-        uint64 usdFeeVal; // USD service fee amount
-        uint64 usdBurnValTot; // to USD value burned (BST + aux token)
-        uint64 usdBurnVal; // BST burned in USD value
-        uint256 auxUsdBurnVal; // aux token burned in USD val during payout
-        address auxTok; // aux token burned during payout
-        uint32 ratioBstPay; // rate at which BST was paid (1<:1 USD)
-        uint256 blockNumber; // current block number of this payout
-    }
+    // struct ACCT_PAYOUT {
+    //     address receiver;
+    //     uint64 usdAmntDebit; // USD total ACCT deduction
+    //     uint64 usdPayout; // USD payout value
+    //     // uint64 bstPayout; // BST payout amount
+    //     uint256 bstPayout; // BST payout amount
+    //     uint64 usdFeeVal; // USD service fee amount
+    //     uint64 usdBurnValTot; // to USD value burned (BST + aux token)
+    //     uint64 usdBurnVal; // BST burned in USD value
+    //     uint256 auxUsdBurnVal; // aux token burned in USD val during payout
+    //     address auxTok; // aux token burned during payout
+    //     uint32 ratioBstPay; // rate at which BST was paid (1<:1 USD)
+    //     uint256 blockNumber; // current block number of this payout
+    // }
 
     /* -------------------------------------------------------- */
     /* EVENTS - LUSDST (legacy)
     /* -------------------------------------------------------- */
-    event EnableLegacyUpdated(bool _prev, bool _new);
-    event SetTokenBurnLock(address _prev_tok, bool _prev_lock_stat, address _new_tok, bool _new_lock_stat);
-    event SetEnableBurnDelegate(bool _prev, bool _new);
-    event SetEnableAuxPay(bool _prev, bool _new);
+    // event EnableLegacyUpdated(bool _prev, bool _new);
+    // event SetTokenBurnLock(address _prev_tok, bool _prev_lock_stat, address _new_tok, bool _new_lock_stat);
+    // event SetEnableBurnDelegate(bool _prev, bool _new);
+    // event SetEnableAuxPay(bool _prev, bool _new);
 
     /* -------------------------------------------------------- */
     /* EVENTS (legacy)
     /* -------------------------------------------------------- */
     event KeeperTransfer(address _prev, address _new);
     event TokenNameSymbolUpdated(string TOK_NAME, string TOK_SYMB);
-    event SwapDelegateUpdated(address _prev, address _new);
-    event SwapDelegateUserUpdated(address _prev, address _new);
-    event TradeInFeePercUpdated(uint32 _prev, uint32 _new);
-    event PayoutPercsUpdated(uint32 _prev_0, uint32 _prev_1, uint32 _prev_2, uint32 _new_0, uint32 _new_1, uint32 _new_2);
-    event DexExecutionsUpdated(bool _prev_0, bool _prev_1, bool _prev_2, bool _new_0, bool _new_1, bool _new_2);
+    // event SwapDelegateUpdated(address _prev, address _new);
+    // event SwapDelegateUserUpdated(address _prev, address _new);
+    // event TradeInFeePercUpdated(uint32 _prev, uint32 _new);
+    // event PayoutPercsUpdated(uint32 _prev_0, uint32 _prev_1, uint32 _prev_2, uint32 _new_0, uint32 _new_1, uint32 _new_2);
+    // event DexExecutionsUpdated(bool _prev_0, bool _prev_1, bool _prev_2, bool _new_0, bool _new_1, bool _new_2);
     event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
     // event PayOutProcessed(address _from, address _to, uint64 _usdAmnt, uint64 _usdAmntPaid, uint64 _bstPayout, uint64 _usdFee, uint64 _usdBurnValTot, uint64 _usdBurnVal, uint64 _usdAuxBurnVal, address _auxToken, uint32 _ratioBstPay, uint256 _blockNumber);
-    event PayOutProcessed(address _from, address _to, uint64 _usdAmnt, uint64 _usdAmntPaid, uint256 _bstPayout, uint64 _usdFee, uint64 _usdBurnValTot, uint64 _usdBurnVal, uint64 _usdAuxBurnVal, address _auxToken, uint32 _ratioBstPay, uint256 _blockNumber);
-    event TradeInFailed(address _trader, uint64 _bstAmnt, uint64 _usdTradeVal);
-    event TradeInDenied(address _trader, uint64 _bstAmnt, uint64 _usdTradeVal);
-    event TradeInProcessed(address _trader, uint64 _bstAmnt, uint64 _usdTradeVal, uint64 _usdBuyBackVal, uint32 _ratioUsdPay, uint256 _blockNumber);
+    // event PayOutProcessed(address _from, address _to, uint64 _usdAmnt, uint64 _usdAmntPaid, uint256 _bstPayout, uint64 _usdFee, uint64 _usdBurnValTot, uint64 _usdBurnVal, uint64 _usdAuxBurnVal, address _auxToken, uint32 _ratioBstPay, uint256 _blockNumber);
+    // event TradeInFailed(address _trader, uint64 _bstAmnt, uint64 _usdTradeVal);
+    // event TradeInDenied(address _trader, uint64 _bstAmnt, uint64 _usdTradeVal);
+    // event TradeInProcessed(address _trader, uint64 _bstAmnt, uint64 _usdTradeVal, uint64 _usdBuyBackVal, uint32 _ratioUsdPay, uint256 _blockNumber);
     event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
     event DexRouterUpdated(address _router, bool _add);
-    event DexUsdBstPathUpdated(address _usdStable, address[] _path);
-    event BuyAndBurnExecuted(address _burnTok, uint256 _burnAmnt);
+    // event DexUsdBstPathUpdated(address _usdStable, address[] _path);
+    // event BuyAndBurnExecuted(address _burnTok, uint256 _burnAmnt);
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
@@ -164,22 +164,22 @@ contract CallitFactory is ERC20, Ownable {
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
     constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {
         // set default globals (LUSDst additions)
-        TOK_BURN_LOCK = address(TOK_pLUSD);
-        ENABLE_TOK_BURN_LOCK = true; // deploy w/ ENABLED burn lock to pLUSD
-        ENABLE_BURN_DELEGATE = true; // deploy w/ ENABLED using SWAPD to burn
-        ENABLE_AUX_PAY = false; // deploy w/ DISABLED option to payout instead of burn
+        // TOK_BURN_LOCK = address(TOK_pLUSD);
+        // ENABLE_TOK_BURN_LOCK = true; // deploy w/ ENABLED burn lock to pLUSD
+        // ENABLE_BURN_DELEGATE = true; // deploy w/ ENABLED using SWAPD to burn
+        // ENABLE_AUX_PAY = false; // deploy w/ DISABLED option to payout instead of burn
         
         // set default globals
-        ENABLE_MARKET_BUY = false;
-        PERC_SERVICE_FEE = 1000;  // 10.00% of _usdValue (in payOutBST) for service fee
-        PERC_AUX_BURN = 9000; // 90.00% of _usdValue (in payOutBST) for pLUSD buy&burn
+        // ENABLE_MARKET_BUY = false;
+        // PERC_SERVICE_FEE = 1000;  // 10.00% of _usdValue (in payOutBST) for service fee
+        // PERC_AUX_BURN = 9000; // 90.00% of _usdValue (in payOutBST) for pLUSD buy&burn
         KEEPER = msg.sender;
         KEEPER_CHECK = 0;
         _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
 
-        // init 'ISwapDelegate' & set 'SWAP_DELEGATE' & set SWAPD init USER
-        //  to fascilitate contract buying its own contract token
-        _setSwapDelegate(SWAP_DELEGATE_INIT);
+        // // init 'ISwapDelegate' & set 'SWAP_DELEGATE' & set SWAPD init USER
+        // //  to fascilitate contract buying its own contract token
+        // _setSwapDelegate(SWAP_DELEGATE_INIT);
 
         // add default routers: pulsex (x2)
         _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
@@ -198,7 +198,7 @@ contract CallitFactory is ERC20, Ownable {
         path[0] = usdStable_1;
         path[1] = TOK_WPLS;
         path[2] = address(this);
-        _setUsdBstPath(usdStable_1, path);
+        // _setUsdBstPath(usdStable_1, path);
         _editWhitelistStables(usdStable_1, 18, true); // weDAI, decs, true = add
         
             // KEEPER_setUsdBstPath(address _usdStable, address[] memory _path)
@@ -217,27 +217,27 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER SUPPORT (legacy)
     /* -------------------------------------------------------- */
-    function KEEPER_setEnableAuxPay(bool _enable) external onlyKeeper() {
-        bool prev = ENABLE_AUX_PAY;
-        ENABLE_AUX_PAY = _enable;
-        emit SetEnableAuxPay(prev, ENABLE_AUX_PAY);
-    }
-    function KEEPER_setEnableBurnDelegate(bool _enable) external onlyKeeper() {
-        bool prev = ENABLE_BURN_DELEGATE;
-        ENABLE_BURN_DELEGATE = _enable;
-        emit SetEnableBurnDelegate(prev, ENABLE_BURN_DELEGATE);
-    }
+    // function KEEPER_setEnableAuxPay(bool _enable) external onlyKeeper() {
+    //     bool prev = ENABLE_AUX_PAY;
+    //     ENABLE_AUX_PAY = _enable;
+    //     emit SetEnableAuxPay(prev, ENABLE_AUX_PAY);
+    // }
+    // function KEEPER_setEnableBurnDelegate(bool _enable) external onlyKeeper() {
+    //     bool prev = ENABLE_BURN_DELEGATE;
+    //     ENABLE_BURN_DELEGATE = _enable;
+    //     emit SetEnableBurnDelegate(prev, ENABLE_BURN_DELEGATE);
+    // }
     
-    // NOTE: if _lock = false, this means that ENABLE_TOK_BURN_LOCK
-    //  will ultimately be turned off and always use '_auxToken' in 'payOutBST'
-    function KEEPER_setTokenBurnLock(address _token, bool _lock) external onlyKeeper() {
-        require(_token != address(0), ' 0 address ');
-        address prev_tok = TOK_BURN_LOCK;
-        bool prev_lock = ENABLE_TOK_BURN_LOCK;
-        TOK_BURN_LOCK = _token;
-        ENABLE_TOK_BURN_LOCK = _lock;
-        emit SetTokenBurnLock(prev_tok, prev_lock, TOK_BURN_LOCK, ENABLE_TOK_BURN_LOCK);
-    }
+    // // NOTE: if _lock = false, this means that ENABLE_TOK_BURN_LOCK
+    // //  will ultimately be turned off and always use '_auxToken' in 'payOutBST'
+    // function KEEPER_setTokenBurnLock(address _token, bool _lock) external onlyKeeper() {
+    //     require(_token != address(0), ' 0 address ');
+    //     address prev_tok = TOK_BURN_LOCK;
+    //     bool prev_lock = ENABLE_TOK_BURN_LOCK;
+    //     TOK_BURN_LOCK = _token;
+    //     ENABLE_TOK_BURN_LOCK = _lock;
+    //     emit SetTokenBurnLock(prev_tok, prev_lock, TOK_BURN_LOCK, ENABLE_TOK_BURN_LOCK);
+    // }
     //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
     function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
         require(IERC20(_tokAddr).balanceOf(address(this)) >= _tokAmnt, ' not enough amount for token :O ');
@@ -264,39 +264,39 @@ contract CallitFactory is ERC20, Ownable {
         TOK_SYMB = _tok_symb;
         emit TokenNameSymbolUpdated(TOK_NAME, TOK_SYMB);
     }
-    function KEEPER_setSwapDelegate(address _swapd) external onlyKeeper() {
-        require(_swapd != address(0), ' 0 address ;0 ');
-        _setSwapDelegate(_swapd); // emits 'SwapDelegateUpdated'
-    }
-    function KEEPER_setSwapDelegateUser(address _newUser) external onlyKeeper() {
-        address prev = SWAPD.USER();
-        SWAPD.USER_setUser(_newUser);
-        emit SwapDelegateUserUpdated(prev, SWAPD.USER());
-    }
-    function KEEPER_setPayoutPercs(uint32 _servFee, uint32 _bstBurn, uint32 _auxBurn) external onlyKeeper() {
-        require(_servFee + _bstBurn + _auxBurn <= 10000, ' total percs > 100.00% ;) ');
-        uint32 prev_0 = PERC_SERVICE_FEE;
-        // uint32 prev_1 = PERC_BST_BURN;
-        uint32 prev_2 = PERC_AUX_BURN;
-        PERC_SERVICE_FEE = _servFee;
-        // PERC_BST_BURN = _bstBurn;
-        PERC_AUX_BURN = _auxBurn;
-        // emit PayoutPercsUpdated(prev_0, prev_1, prev_2, PERC_SERVICE_FEE, PERC_BST_BURN, PERC_AUX_BURN);
-        emit PayoutPercsUpdated(prev_0, 0, prev_2, PERC_SERVICE_FEE, 0, PERC_AUX_BURN);
-    }
-    function KEEPER_setDexOptions(bool _marketQuote, bool _marketBuy, bool _auxTokenBurn) external onlyKeeper() {
-        // NOTE: some functions still indeed get quotes from dexes without this being enabled
-        // require(_marketQuote || (!_marketBuy), ' invalid input combo :{=} ');
-        // bool prev_0 = ENABLE_MARKET_QUOTE;
-        bool prev_1 = ENABLE_MARKET_BUY;
-        // bool prev_2 = ENABLE_AUX_BURN;
+    // function KEEPER_setSwapDelegate(address _swapd) external onlyKeeper() {
+    //     require(_swapd != address(0), ' 0 address ;0 ');
+    //     _setSwapDelegate(_swapd); // emits 'SwapDelegateUpdated'
+    // }
+    // function KEEPER_setSwapDelegateUser(address _newUser) external onlyKeeper() {
+    //     address prev = SWAPD.USER();
+    //     SWAPD.USER_setUser(_newUser);
+    //     emit SwapDelegateUserUpdated(prev, SWAPD.USER());
+    // }
+    // function KEEPER_setPayoutPercs(uint32 _servFee, uint32 _bstBurn, uint32 _auxBurn) external onlyKeeper() {
+    //     require(_servFee + _bstBurn + _auxBurn <= 10000, ' total percs > 100.00% ;) ');
+    //     uint32 prev_0 = PERC_SERVICE_FEE;
+    //     // uint32 prev_1 = PERC_BST_BURN;
+    //     uint32 prev_2 = PERC_AUX_BURN;
+    //     PERC_SERVICE_FEE = _servFee;
+    //     // PERC_BST_BURN = _bstBurn;
+    //     PERC_AUX_BURN = _auxBurn;
+    //     // emit PayoutPercsUpdated(prev_0, prev_1, prev_2, PERC_SERVICE_FEE, PERC_BST_BURN, PERC_AUX_BURN);
+    //     emit PayoutPercsUpdated(prev_0, 0, prev_2, PERC_SERVICE_FEE, 0, PERC_AUX_BURN);
+    // }
+    // function KEEPER_setDexOptions(bool _marketQuote, bool _marketBuy, bool _auxTokenBurn) external onlyKeeper() {
+    //     // NOTE: some functions still indeed get quotes from dexes without this being enabled
+    //     // require(_marketQuote || (!_marketBuy), ' invalid input combo :{=} ');
+    //     // bool prev_0 = ENABLE_MARKET_QUOTE;
+    //     bool prev_1 = ENABLE_MARKET_BUY;
+    //     // bool prev_2 = ENABLE_AUX_BURN;
 
-        // ENABLE_MARKET_QUOTE = _marketQuote;    
-        ENABLE_MARKET_BUY = _marketBuy;
-        // ENABLE_AUX_BURN = _auxTokenBurn;
+    //     // ENABLE_MARKET_QUOTE = _marketQuote;    
+    //     ENABLE_MARKET_BUY = _marketBuy;
+    //     // ENABLE_AUX_BURN = _auxTokenBurn;
         
-        emit DexExecutionsUpdated(false, prev_1, false, false, ENABLE_MARKET_BUY, false);
-    }
+    //     emit DexExecutionsUpdated(false, prev_1, false, false, ENABLE_MARKET_BUY, false);
+    // }
     function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
         require(_usdStable != address(0), 'err: 0 address');
         _editWhitelistStables(_usdStable, _decimals, _add);
@@ -307,12 +307,12 @@ contract CallitFactory is ERC20, Ownable {
         _editDexRouters(_router, _add);
         emit DexRouterUpdated(_router, _add);
     }
-    function KEEPER_setUsdBstPath(address _usdStable, address[] memory _path) external onlyKeeper() {
-        require(_usdStable != address(0) && _path.length > 1, ' invalid inputs :{=} ');
-        require(_usdStable == _path[0], ' stable / entry path mismatch =)');
-        _setUsdBstPath(_usdStable, _path);
-        // NOTE: '_path' must be valid within all 'USWAP_V2_ROUTERS' addresses
-    }
+    // function KEEPER_setUsdBstPath(address _usdStable, address[] memory _path) external onlyKeeper() {
+    //     require(_usdStable != address(0) && _path.length > 1, ' invalid inputs :{=} ');
+    //     require(_usdStable == _path[0], ' stable / entry path mismatch =)');
+    //     _setUsdBstPath(_usdStable, _path);
+    //     // NOTE: '_path' must be valid within all 'USWAP_V2_ROUTERS' addresses
+    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER - ACCESSORS (legacy)
@@ -330,20 +330,20 @@ contract CallitFactory is ERC20, Ownable {
     function getAccounts() external view returns (address[] memory) {
         return ACCOUNTS;
     }
-    function getAccountPayouts(address _account) external view returns (ACCT_PAYOUT[] memory) {
-        require(_account != address(0), ' 0 address? ;[+] ');
-        return ACCT_USD_PAYOUTS[_account];
-    }
-    function getDexOptions() external view returns (bool, bool, bool) {
-        return (false, ENABLE_MARKET_BUY, false);
-    }
-    function getPayoutPercs() external view returns (uint32, uint32, uint32, uint32) {
-        // return (PERC_SERVICE_FEE, PERC_BST_BURN, PERC_AUX_BURN, PERC_BUY_BACK_FEE);
-        return (PERC_SERVICE_FEE, 0, PERC_AUX_BURN, 0);
-    }
-    function getUsdBstPath(address _usdStable) external view returns (address[] memory) {
-        return USD_BST_PATHS[_usdStable];
-    }    
+    // function getAccountPayouts(address _account) external view returns (ACCT_PAYOUT[] memory) {
+    //     require(_account != address(0), ' 0 address? ;[+] ');
+    //     return ACCT_USD_PAYOUTS[_account];
+    // }
+    // function getDexOptions() external view returns (bool, bool, bool) {
+    //     return (false, ENABLE_MARKET_BUY, false);
+    // }
+    // function getPayoutPercs() external view returns (uint32, uint32, uint32, uint32) {
+    //     // return (PERC_SERVICE_FEE, PERC_BST_BURN, PERC_AUX_BURN, PERC_BUY_BACK_FEE);
+    //     return (PERC_SERVICE_FEE, 0, PERC_AUX_BURN, 0);
+    // }
+    // function getUsdBstPath(address _usdStable) external view returns (address[] memory) {
+    //     return USD_BST_PATHS[_usdStable];
+    // }    
     function getUsdStablesHistory() external view returns (address[] memory) {
         return USD_STABLES_HISTORY;
     }    
@@ -353,9 +353,9 @@ contract CallitFactory is ERC20, Ownable {
     function getDexRouters() external view returns (address[] memory) {
         return USWAP_V2_ROUTERS;
     }
-    function getSwapDelegateInfo() external view returns (address, uint8, address) {
-        return (SWAP_DELEGATE, SWAPD.VERSION(), SWAPD.USER());
-    }
+    // function getSwapDelegateInfo() external view returns (address, uint8, address) {
+    //     return (SWAP_DELEGATE, SWAPD.VERSION(), SWAPD.USER());
+    // }
 
     /* -------------------------------------------------------- */
     /* GLOBALS (CALLIT)
@@ -1452,81 +1452,22 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (legacy)
     /* -------------------------------------------------------- */
-    function _setUsdBstPath(address _usdStable, address[] memory _path) private {
-        require(_usdStable != address(0) && _path.length > 1, ' invalid inputs ;{=} ');
-        require(_usdStable == _path[0], ' stable / entry path mismatch ;) ');
-        USD_BST_PATHS[_usdStable] = _path;
-        emit DexUsdBstPathUpdated(_usdStable, _path);
-        // NOTE: '_path' must be valid within all 'USWAP_V2_ROUTERS' addresses
-    }
-    function _setSwapDelegate(address _swapd) private {
-        require(_swapd != address(0), ' 0 address ;-( ');
-        address prev = address(SWAP_DELEGATE);
-        SWAP_DELEGATE = _swapd;
-        SWAPD = ISwapDelegate(SWAP_DELEGATE);
-        if (SWAPD.USER_INIT()) {
-            SWAPD.USER_setUser(address(this)); // first call to _setUser can set user w/o keeper
-        }
-        emit SwapDelegateUpdated(prev, SWAP_DELEGATE);
-    }
-
-    // function _exeBstPayout(address _payTo, uint256 _bstPayout, uint64 _usdPayout, address _usdStable) private {
-    //     /** ALGORITHMIC LOGIC ...
-    //          if ENABLE_MARKET_BUY, pay BST from market buy
-    //          else, pay with newly minted BST
-    //         *WARNING*:
-    //             if '_exeSwapStableForTok' keeps failing w/ tx reverting
-    //              then need to edit 'USWAP_V2_ROUTERS' &| 'USD_BST_PATHS' to debug
-    //              and hopefully not need to disable ENABLE_MARKET_BUY
-    //      */
-    //     bool stableHoldings_OK = _usdPayout > 0 && _stableHoldingsCovered(_usdPayout, _usdStable);
-    //     bool usdBstPath_OK = USD_BST_PATHS[_usdStable].length > 0;
-    //     if (ENABLE_MARKET_BUY && stableHoldings_OK && usdBstPath_OK) {
-    //         // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-    //         //  and sets receiver to SWAP_DELEGATE, then transfers tokens from SWAP_DELEGATE
-    //         uint256 bst_amnt_out = _exeSwapStableForTok(_usdPayout, USD_BST_PATHS[_usdStable]);
-    //         _transfer(address(this), _payTo, bst_amnt_out); // send bst payout
-    //     } else {
-    //         _mint(_payTo, _bstPayout); // mint bst payout
-    //     }
+    // function _setUsdBstPath(address _usdStable, address[] memory _path) private {
+    //     require(_usdStable != address(0) && _path.length > 1, ' invalid inputs ;{=} ');
+    //     require(_usdStable == _path[0], ' stable / entry path mismatch ;) ');
+    //     USD_BST_PATHS[_usdStable] = _path;
+    //     emit DexUsdBstPathUpdated(_usdStable, _path);
+    //     // NOTE: '_path' must be valid within all 'USWAP_V2_ROUTERS' addresses
     // }
-    // function _exeTokBuyBurn(uint64 _usdBurnVal, address[] memory _usdSwapPath, bool _selAuxPay, address _auxPayTo) private returns (uint64, uint256) {
-    //     // validate swap path and not burning 0 (uswap throws execption on 0 amount)
-    //     require(_usdBurnVal != 0 && _usdSwapPath.length > 1 && _usdSwapPath[0] != address(0), ' 0 burn | invalid swap path :{} '); 
-    //     // address usdStable = _usdSwapPath[0];
-    //     address burnToken = _usdSwapPath[_usdSwapPath.length-1];
-    //     require(burnToken != address(0), ' invalid swap path burnToken :[] ');
-    //     // bool stableHoldings_OK = _stableHoldingsCovered(_usdBurnVal, usdStable);
-    //     // bool usdSwapPath_OK = usdStable != address(0) && burnToken != address(0);
-    //     // require(stableHoldings_OK && usdSwapPath_OK, ' !stableHoldings_OK | !usdSwapPath_OK ');
-        
-    //     // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-    //     //  and sets receiver to SWAP_DELEGATE, then transfers tokens from SWAP_DELEGATE
-    //     uint256 burn_tok_amnt_out = _exeSwapStableForTok(_usdBurnVal, _usdSwapPath);
-    //     if (_selAuxPay && ENABLE_AUX_PAY) // check for aux pay (instead of burn)
-    //         IERC20(burnToken).transfer(_auxPayTo, burn_tok_amnt_out);
-    //     else if (ENABLE_BURN_DELEGATE) { // check for using burn delegate (instead of 0x0...369)
-    //         // NOTE: use SWAP_DELEGATE to burn (send to & burn from SWAPD)
-    //         //  allows for potential upgrade for native pLUSD burn solution
-    //         IERC20(burnToken).transfer(SWAP_DELEGATE, burn_tok_amnt_out);
-    //         SWAPD.USER_burnToken(burnToken, burn_tok_amnt_out);
+    // function _setSwapDelegate(address _swapd) private {
+    //     require(_swapd != address(0), ' 0 address ;-( ');
+    //     address prev = address(SWAP_DELEGATE);
+    //     SWAP_DELEGATE = _swapd;
+    //     SWAPD = ISwapDelegate(SWAP_DELEGATE);
+    //     if (SWAPD.USER_INIT()) {
+    //         SWAPD.USER_setUser(address(this)); // first call to _setUser can set user w/o keeper
     //     }
-    //     else {
-    //         // simply send to burn address (0x0...369)
-    //         IERC20(burnToken).transfer(BURN_ADDR, burn_tok_amnt_out);
-    //     }
-    //     emit BuyAndBurnExecuted(burnToken, burn_tok_amnt_out);
-    //     return (_usdBurnVal, burn_tok_amnt_out); // (uint64 usdBurnValAux, uint256 tokBurnAmnt)
-
-    //         /** ALGORITHMIC LOGIC ... (LEGACY)
-    //             if ENABLE_MARKET_BUY | ENABLE_AUX_BURN, burn token from market buy
-    //             else, nothing burned
-    //             *WARNING*: 
-    //                 if '_exeSwapStableForTok' keeps failing w/ tx reverting
-    //                 then need to edit 'USWAP_V2_ROUTERS' to debug
-    //                 or invoke payOutBST w/ _auxToken=0x0 (if isolated to a specific aux token)
-    //                 and hopefully not need to disable ENABLE_MARKET_BUY &| ENABLE_AUX_BURN 
-    //         */
+    //     emit SwapDelegateUpdated(prev, SWAP_DELEGATE);
     // }
     function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
         uint64 gross_bal = 0;
@@ -1659,14 +1600,17 @@ contract CallitFactory is ERC20, Ownable {
         // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
         //   and then get tok_amnt_out from delegate (USER_maintenance)
         // else, swap with BST address(this) as receiver 
-        if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
-            uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
-            SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
-            return tok_amnt_out;
-        } else {
-            uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
-            return tok_amnt_out;
-        }
+        // if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
+        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
+        //     SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
+        //     return tok_amnt_out;
+        // } else {
+        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+        //     return tok_amnt_out;
+        // }
+
+        uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+        return tok_amnt_out;
     }
     function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) private pure returns (address[] memory) {
         if (_addr == address(0)) { return _arr; }
