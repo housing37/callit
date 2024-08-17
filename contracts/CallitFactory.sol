@@ -367,6 +367,8 @@ contract CallitFactory is ERC20, Ownable {
     uint64 public TOK_TICK_INIT_SUPPLY = 1000000; // init supply used for new call ticket tokens (uint64 = ~18,000Q max)
     string public TOK_TICK_NAME_SEED = "TCK#";
     string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
+    // string private TOK_TICK_NAME_SEED = string(abi.encodePacked("TCK#"));
+    // string private TOK_TICK_SYMB_SEED = string(abi.encodePacked("CALL-TICKET"));
 
     uint256 SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
     bool USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
@@ -1056,10 +1058,10 @@ contract CallitFactory is ERC20, Ownable {
 
         // LEFT OFF HERE ... need emit even log
     }
-    function _validVoteCount(address _voter, MARKET memory _mark) private returns(uint64) {
+    function _validVoteCount(address _voter, MARKET memory _mark) private view returns(uint64) {
         // if indeed locked && locked before _mark start time, calc & return active vote count
-        if (ACCT_CALL_VOTE_LOCK_TIME[msg.sender] > 0 && ACCT_CALL_VOTE_LOCK_TIME[msg.sender] <= _mark.blockTimestamp) {
-            uint64 votes_earned = EARNED_CALL_VOTES[msg.sender]; // note: EARNED_CALL_VOTES stores uint64 type
+        if (ACCT_CALL_VOTE_LOCK_TIME[_voter] > 0 && ACCT_CALL_VOTE_LOCK_TIME[_voter] <= _mark.blockTimestamp) {
+            uint64 votes_earned = EARNED_CALL_VOTES[_voter]; // note: EARNED_CALL_VOTES stores uint64 type
             uint64 votes_held = _uint64_from_uint256(balanceOf(address(this)));
             uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
             return votes_active;
@@ -1206,7 +1208,7 @@ contract CallitFactory is ERC20, Ownable {
         return net_usdAmnt;
         // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
     }
-    function _genTokenNameSymbol(address _maker, uint64 _markNum, uint16 _resultNum) private pure returns(string memory, string memory) {
+    function _genTokenNameSymbol(address _maker, uint64 _markNum, uint16 _resultNum) private view returns(string memory, string memory) {
         // Convert the address to a string
         // string memory addrStr = toAsciiString(_maker);
 
@@ -1220,6 +1222,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // Concatenate to form symbol & name
         string memory last4 = _getLast4Chars(_maker);
+        // string memory tokenSymbol = append(TOK_TICK_NAME_SEED, last4, string(abi.encodePacked(_markNum)), string(abi.encodePacked(_resultNum)), 'heallo');
         string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, string(abi.encodePacked(_resultNum))));
         string memory tokenName = string(abi.encodePacked(TOK_TICK_SYMB_SEED, " ", last4, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
         // string memory tokenSymbol = string(abi.encodePacked(TOK_TICK_NAME_SEED, last4, _markNum, Strings.toString(_resultNum)));
@@ -1227,6 +1230,14 @@ contract CallitFactory is ERC20, Ownable {
 
         return (tokenName, tokenSymbol);
     }
+    // function _getSymbSeed() private returns(string memory) {
+    //     return TOK_TICK_SYMB_SEED;
+    // }
+    // function append(string memory a, string memory b, string memory c, string memory d, string memory e) internal view returns (string memory) {
+
+    //     return string(abi.encodePacked(a, b, c, d, e));
+
+    // }
     function _getLast4Chars(address _addr) public pure returns (string memory) {
         // Convert the last 2 bytes (4 characters) of the address to a string
         bytes memory addrBytes = abi.encodePacked(_addr);
