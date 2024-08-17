@@ -1278,12 +1278,12 @@ contract CallitFactory is ERC20, Ownable {
         //      similar to accessors that retrieve native and ERC20 tokens held by contract
     }
 
-    function _getAmountsForInitLP(uint64 _usdAmntLP, uint64 _resultOptionCnt) private returns(uint64, uint256) {
+    function _getAmountsForInitLP(uint64 _usdAmntLP, uint64 _resultOptionCnt) private view returns(uint64, uint256) {
         require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
         // return (_usdAmntLP / _resultOptionCnt, _getInitDexTokSupplyForUsdAmnt(_usdAmntLP) / _resultOptionCnt);
         return (_usdAmntLP / _uint64_from_uint256(_resultOptionCnt), _getInitDexTokSupplyForUsdAmnt(_usdAmntLP / _resultOptionCnt));
     }
-    function _getInitDexTokSupplyForUsdAmnt(uint64 _usdAmnt) private returns(uint256) {
+    function _getInitDexTokSupplyForUsdAmnt(uint64 _usdAmnt) private view returns(uint256) {
         return uint256(_usdAmnt * RATIO_LP_TOK_PER_USD);
     }
     function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
@@ -1388,55 +1388,55 @@ contract CallitFactory is ERC20, Ownable {
         emit DepositReceived(msg.sender, amntIn, amntConvert);
     }
     
-    // handle account payouts
-    //  NOTE: _usdValue must be in uint precision to address(this) '_usd_decimals()'
-    function payOutBST(uint64 _usdValue, address _payTo, address _auxToken, bool _selAuxPay) external {
-        // NOTE: payOutBST runs multiple loops embedded (not analyzed yet, but less than BST legacy)        
-        //  invokes _getStableHeldLowMarketValue -> _getStableTokenLowMarketValue -> _best_swap_v2_router_idx_quote
-        //  invokes _exeTokBuyBurn -> _exeSwapStableForTok -> _best_swap_v2_router_idx_quote
-        //  invokes _exeBstPayout -> _exeSwapStableForTok -> _best_swap_v2_router_idx_quote
+    // // handle account payouts
+    // //  NOTE: _usdValue must be in uint precision to address(this) '_usd_decimals()'
+    // function payOutBST(uint64 _usdValue, address _payTo, address _auxToken, bool _selAuxPay) external {
+    //     // NOTE: payOutBST runs multiple loops embedded (not analyzed yet, but less than BST legacy)        
+    //     //  invokes _getStableHeldLowMarketValue -> _getStableTokenLowMarketValue -> _best_swap_v2_router_idx_quote
+    //     //  invokes _exeTokBuyBurn -> _exeSwapStableForTok -> _best_swap_v2_router_idx_quote
+    //     //  invokes _exeBstPayout -> _exeSwapStableForTok -> _best_swap_v2_router_idx_quote
 
-        // ACCT_USD_BALANCES stores uint precision to 6 decimals
-        require(_usdValue > 0, ' 0 _usdValue :[] ');
-        require(ACCT_USD_BALANCES[msg.sender] >= _usdValue, ' low acct balance :{} ');
-        require(_payTo != address(0), ' _payTo 0 address :( ');
+    //     // ACCT_USD_BALANCES stores uint precision to 6 decimals
+    //     require(_usdValue > 0, ' 0 _usdValue :[] ');
+    //     require(ACCT_USD_BALANCES[msg.sender] >= _usdValue, ' low acct balance :{} ');
+    //     require(_payTo != address(0), ' _payTo 0 address :( ');
 
-        // calc & remove usd service fee value & pLUSD burn value (in usd)
-        uint64 usdFee = _perc_of_uint64(PERC_SERVICE_FEE, _usdValue);
-        uint64 usdAuxBurnVal = _perc_of_uint64(PERC_AUX_BURN, _usdValue);
-        uint64 usdPayout = _usdValue - usdFee - usdAuxBurnVal; 
-            // NOTE: usdPayout not used (ie. if usdPayout != 0, then that amount is simply left in the contract)
+    //     // calc & remove usd service fee value & pLUSD burn value (in usd)
+    //     uint64 usdFee = _perc_of_uint64(PERC_SERVICE_FEE, _usdValue);
+    //     uint64 usdAuxBurnVal = _perc_of_uint64(PERC_AUX_BURN, _usdValue);
+    //     uint64 usdPayout = _usdValue - usdFee - usdAuxBurnVal; 
+    //         // NOTE: usdPayout not used (ie. if usdPayout != 0, then that amount is simply left in the contract)
         
-        // NOTE: integration runs 3 embedded loops 
-        //  get whitelist stables with holdings that can cover usdPayout
-        //  then choose stable with lowest market value (ie. contract holds high market val stables)
-        // NOTE: lowStableHeld could possibly equal address(0x0)
-        //  this is indeed ok as '_exeBstPayout' & '_exeTokBuyBurn' checks for this (falls back to mint | reverts)
-        address lowStableHeld = _getStableHeldLowMarketValue(usdPayout, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        // address highStableHeld = _getStableHeldHighMarketValue(usdPayout, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+    //     // NOTE: integration runs 3 embedded loops 
+    //     //  get whitelist stables with holdings that can cover usdPayout
+    //     //  then choose stable with lowest market value (ie. contract holds high market val stables)
+    //     // NOTE: lowStableHeld could possibly equal address(0x0)
+    //     //  this is indeed ok as '_exeBstPayout' & '_exeTokBuyBurn' checks for this (falls back to mint | reverts)
+    //     address lowStableHeld = _getStableHeldLowMarketValue(usdPayout, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+    //     // address highStableHeld = _getStableHeldHighMarketValue(usdPayout, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
 
-        // exe buy & burn w/ burnToken
-        //  set burnToken to pLUSD or _auxToken (depends on ENABLE_TOK_BURN_LOCK)
-        //  generate swap path: USD->burnToken (go through WPLS required)
-        //  NOTE: _exeTokBuyBurn reverts if burnToken == address(0) in usd_tok_burn_path
-        address burnToken = ENABLE_TOK_BURN_LOCK ? TOK_BURN_LOCK : _auxToken;
-        address[] memory usd_tok_burn_path = new address[](3);
-        usd_tok_burn_path[0] = lowStableHeld;
-        usd_tok_burn_path[1] = TOK_WPLS;
-        usd_tok_burn_path[2] = burnToken;
-        (uint64 usdBurnValAux, uint256 LUSDstPayoutAmnt) = _exeTokBuyBurn(usdAuxBurnVal, usd_tok_burn_path, _selAuxPay, _payTo);
+    //     // exe buy & burn w/ burnToken
+    //     //  set burnToken to pLUSD or _auxToken (depends on ENABLE_TOK_BURN_LOCK)
+    //     //  generate swap path: USD->burnToken (go through WPLS required)
+    //     //  NOTE: _exeTokBuyBurn reverts if burnToken == address(0) in usd_tok_burn_path
+    //     address burnToken = ENABLE_TOK_BURN_LOCK ? TOK_BURN_LOCK : _auxToken;
+    //     address[] memory usd_tok_burn_path = new address[](3);
+    //     usd_tok_burn_path[0] = lowStableHeld;
+    //     usd_tok_burn_path[1] = TOK_WPLS;
+    //     usd_tok_burn_path[2] = burnToken;
+    //     (uint64 usdBurnValAux, uint256 LUSDstPayoutAmnt) = _exeTokBuyBurn(usdAuxBurnVal, usd_tok_burn_path, _selAuxPay, _payTo);
             
-        // mint exactly the 'burnAmnt' (for payout)
-        // if ENABLE_MARKET_BUY, pay from market buy
-        _exeBstPayout(_payTo, LUSDstPayoutAmnt, usdBurnValAux, lowStableHeld);
+    //     // mint exactly the 'burnAmnt' (for payout)
+    //     // if ENABLE_MARKET_BUY, pay from market buy
+    //     _exeBstPayout(_payTo, LUSDstPayoutAmnt, usdBurnValAux, lowStableHeld);
 
-        // update account balance, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        ACCT_USD_BALANCES[msg.sender] -= _usdValue; // _usdValue 'require' check above
+    //     // update account balance, ACCT_USD_BALANCES stores uint precision to 6 decimals
+    //     ACCT_USD_BALANCES[msg.sender] -= _usdValue; // _usdValue 'require' check above
 
-        // log this payout, ACCT_USD_PAYOUTS stores uint precision to 6 decimals
-        ACCT_USD_PAYOUTS[msg.sender].push(ACCT_PAYOUT(_payTo, _usdValue, usdPayout, LUSDstPayoutAmnt, usdFee, usdBurnValAux, 0, usdAuxBurnVal, burnToken, RATIO_BST_PAYOUT, block.number));
-        emit PayOutProcessed(msg.sender, _payTo, _usdValue, usdPayout, LUSDstPayoutAmnt, usdFee, usdBurnValAux, 0, usdAuxBurnVal, burnToken, RATIO_BST_PAYOUT, block.number);
-    }
+    //     // log this payout, ACCT_USD_PAYOUTS stores uint precision to 6 decimals
+    //     ACCT_USD_PAYOUTS[msg.sender].push(ACCT_PAYOUT(_payTo, _usdValue, usdPayout, LUSDstPayoutAmnt, usdFee, usdBurnValAux, 0, usdAuxBurnVal, burnToken, RATIO_BST_PAYOUT, block.number));
+    //     emit PayOutProcessed(msg.sender, _payTo, _usdValue, usdPayout, LUSDstPayoutAmnt, usdFee, usdBurnValAux, 0, usdAuxBurnVal, burnToken, RATIO_BST_PAYOUT, block.number);
+    // }
 
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (legacy)
@@ -1459,64 +1459,64 @@ contract CallitFactory is ERC20, Ownable {
         emit SwapDelegateUpdated(prev, SWAP_DELEGATE);
     }
 
-    function _exeBstPayout(address _payTo, uint256 _bstPayout, uint64 _usdPayout, address _usdStable) private {
-        /** ALGORITHMIC LOGIC ...
-             if ENABLE_MARKET_BUY, pay BST from market buy
-             else, pay with newly minted BST
-            *WARNING*:
-                if '_exeSwapStableForTok' keeps failing w/ tx reverting
-                 then need to edit 'USWAP_V2_ROUTERS' &| 'USD_BST_PATHS' to debug
-                 and hopefully not need to disable ENABLE_MARKET_BUY
-         */
-        bool stableHoldings_OK = _usdPayout > 0 && _stableHoldingsCovered(_usdPayout, _usdStable);
-        bool usdBstPath_OK = USD_BST_PATHS[_usdStable].length > 0;
-        if (ENABLE_MARKET_BUY && stableHoldings_OK && usdBstPath_OK) {
-            // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-            //  and sets receiver to SWAP_DELEGATE, then transfers tokens from SWAP_DELEGATE
-            uint256 bst_amnt_out = _exeSwapStableForTok(_usdPayout, USD_BST_PATHS[_usdStable]);
-            _transfer(address(this), _payTo, bst_amnt_out); // send bst payout
-        } else {
-            _mint(_payTo, _bstPayout); // mint bst payout
-        }
-    }
-    function _exeTokBuyBurn(uint64 _usdBurnVal, address[] memory _usdSwapPath, bool _selAuxPay, address _auxPayTo) private returns (uint64, uint256) {
-        // validate swap path and not burning 0 (uswap throws execption on 0 amount)
-        require(_usdBurnVal != 0 && _usdSwapPath.length > 1 && _usdSwapPath[0] != address(0), ' 0 burn | invalid swap path :{} '); 
-        // address usdStable = _usdSwapPath[0];
-        address burnToken = _usdSwapPath[_usdSwapPath.length-1];
-        require(burnToken != address(0), ' invalid swap path burnToken :[] ');
-        // bool stableHoldings_OK = _stableHoldingsCovered(_usdBurnVal, usdStable);
-        // bool usdSwapPath_OK = usdStable != address(0) && burnToken != address(0);
-        // require(stableHoldings_OK && usdSwapPath_OK, ' !stableHoldings_OK | !usdSwapPath_OK ');
+    // function _exeBstPayout(address _payTo, uint256 _bstPayout, uint64 _usdPayout, address _usdStable) private {
+    //     /** ALGORITHMIC LOGIC ...
+    //          if ENABLE_MARKET_BUY, pay BST from market buy
+    //          else, pay with newly minted BST
+    //         *WARNING*:
+    //             if '_exeSwapStableForTok' keeps failing w/ tx reverting
+    //              then need to edit 'USWAP_V2_ROUTERS' &| 'USD_BST_PATHS' to debug
+    //              and hopefully not need to disable ENABLE_MARKET_BUY
+    //      */
+    //     bool stableHoldings_OK = _usdPayout > 0 && _stableHoldingsCovered(_usdPayout, _usdStable);
+    //     bool usdBstPath_OK = USD_BST_PATHS[_usdStable].length > 0;
+    //     if (ENABLE_MARKET_BUY && stableHoldings_OK && usdBstPath_OK) {
+    //         // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
+    //         //  and sets receiver to SWAP_DELEGATE, then transfers tokens from SWAP_DELEGATE
+    //         uint256 bst_amnt_out = _exeSwapStableForTok(_usdPayout, USD_BST_PATHS[_usdStable]);
+    //         _transfer(address(this), _payTo, bst_amnt_out); // send bst payout
+    //     } else {
+    //         _mint(_payTo, _bstPayout); // mint bst payout
+    //     }
+    // }
+    // function _exeTokBuyBurn(uint64 _usdBurnVal, address[] memory _usdSwapPath, bool _selAuxPay, address _auxPayTo) private returns (uint64, uint256) {
+    //     // validate swap path and not burning 0 (uswap throws execption on 0 amount)
+    //     require(_usdBurnVal != 0 && _usdSwapPath.length > 1 && _usdSwapPath[0] != address(0), ' 0 burn | invalid swap path :{} '); 
+    //     // address usdStable = _usdSwapPath[0];
+    //     address burnToken = _usdSwapPath[_usdSwapPath.length-1];
+    //     require(burnToken != address(0), ' invalid swap path burnToken :[] ');
+    //     // bool stableHoldings_OK = _stableHoldingsCovered(_usdBurnVal, usdStable);
+    //     // bool usdSwapPath_OK = usdStable != address(0) && burnToken != address(0);
+    //     // require(stableHoldings_OK && usdSwapPath_OK, ' !stableHoldings_OK | !usdSwapPath_OK ');
         
-        // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-        //  and sets receiver to SWAP_DELEGATE, then transfers tokens from SWAP_DELEGATE
-        uint256 burn_tok_amnt_out = _exeSwapStableForTok(_usdBurnVal, _usdSwapPath);
-        if (_selAuxPay && ENABLE_AUX_PAY) // check for aux pay (instead of burn)
-            IERC20(burnToken).transfer(_auxPayTo, burn_tok_amnt_out);
-        else if (ENABLE_BURN_DELEGATE) { // check for using burn delegate (instead of 0x0...369)
-            // NOTE: use SWAP_DELEGATE to burn (send to & burn from SWAPD)
-            //  allows for potential upgrade for native pLUSD burn solution
-            IERC20(burnToken).transfer(SWAP_DELEGATE, burn_tok_amnt_out);
-            SWAPD.USER_burnToken(burnToken, burn_tok_amnt_out);
-        }
-        else {
-            // simply send to burn address (0x0...369)
-            IERC20(burnToken).transfer(BURN_ADDR, burn_tok_amnt_out);
-        }
-        emit BuyAndBurnExecuted(burnToken, burn_tok_amnt_out);
-        return (_usdBurnVal, burn_tok_amnt_out); // (uint64 usdBurnValAux, uint256 tokBurnAmnt)
+    //     // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
+    //     //  and sets receiver to SWAP_DELEGATE, then transfers tokens from SWAP_DELEGATE
+    //     uint256 burn_tok_amnt_out = _exeSwapStableForTok(_usdBurnVal, _usdSwapPath);
+    //     if (_selAuxPay && ENABLE_AUX_PAY) // check for aux pay (instead of burn)
+    //         IERC20(burnToken).transfer(_auxPayTo, burn_tok_amnt_out);
+    //     else if (ENABLE_BURN_DELEGATE) { // check for using burn delegate (instead of 0x0...369)
+    //         // NOTE: use SWAP_DELEGATE to burn (send to & burn from SWAPD)
+    //         //  allows for potential upgrade for native pLUSD burn solution
+    //         IERC20(burnToken).transfer(SWAP_DELEGATE, burn_tok_amnt_out);
+    //         SWAPD.USER_burnToken(burnToken, burn_tok_amnt_out);
+    //     }
+    //     else {
+    //         // simply send to burn address (0x0...369)
+    //         IERC20(burnToken).transfer(BURN_ADDR, burn_tok_amnt_out);
+    //     }
+    //     emit BuyAndBurnExecuted(burnToken, burn_tok_amnt_out);
+    //     return (_usdBurnVal, burn_tok_amnt_out); // (uint64 usdBurnValAux, uint256 tokBurnAmnt)
 
-            /** ALGORITHMIC LOGIC ... (LEGACY)
-                if ENABLE_MARKET_BUY | ENABLE_AUX_BURN, burn token from market buy
-                else, nothing burned
-                *WARNING*: 
-                    if '_exeSwapStableForTok' keeps failing w/ tx reverting
-                    then need to edit 'USWAP_V2_ROUTERS' to debug
-                    or invoke payOutBST w/ _auxToken=0x0 (if isolated to a specific aux token)
-                    and hopefully not need to disable ENABLE_MARKET_BUY &| ENABLE_AUX_BURN 
-            */
-    }
+    //         /** ALGORITHMIC LOGIC ... (LEGACY)
+    //             if ENABLE_MARKET_BUY | ENABLE_AUX_BURN, burn token from market buy
+    //             else, nothing burned
+    //             *WARNING*: 
+    //                 if '_exeSwapStableForTok' keeps failing w/ tx reverting
+    //                 then need to edit 'USWAP_V2_ROUTERS' to debug
+    //                 or invoke payOutBST w/ _auxToken=0x0 (if isolated to a specific aux token)
+    //                 and hopefully not need to disable ENABLE_MARKET_BUY &| ENABLE_AUX_BURN 
+    //         */
+    // }
     function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
         uint64 gross_bal = 0;
         for (uint8 i = 0; i < _stables.length;) {
@@ -1790,14 +1790,14 @@ contract CallitFactory is ERC20, Ownable {
 
         return (currHighIdx, currHigh);
     }
-    function _swap_v2_quote(address _dexRouter, address[] calldata _path, uint256 _amntIn) private view returns (uint256) {
+    function _swap_v2_quote(address[] memory _path, address _dexRouter, uint256 _amntIn) private view returns (uint256) {
         uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
         return amountsOut[amountsOut.length -1];
     }
     // uniwswap v2 protocol based: get quote and execute swap
-    function _swap_v2_wrap(address router, address[] memory path, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
+    function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
         require(path.length >= 2, 'err: path.length :/');
-        uint256 amntOutQuote = _swap_v2_quote(router, path, amntIn);
+        uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
         uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
                 
         // verifiy new balance of token received
@@ -1806,7 +1806,6 @@ contract CallitFactory is ERC20, Ownable {
         
         return amntOut;
     }
-    
     // v2: solidlycom, kyberswap, pancakeswap, sushiswap, uniswap v2, pulsex v1|v2, 9inch
     function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
         IUniswapV2Router02 swapRouter = IUniswapV2Router02(router);
