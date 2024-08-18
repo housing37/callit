@@ -738,7 +738,7 @@ contract CallitFactory is ERC20, Ownable {
             
             // address lpAddress = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
                             // _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount)
-            _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
+            _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
             address lpAddress = IUniswapV2Factory(NEW_TICK_UNISWAP_V2_FACTORY).getPair(new_tick_tok, NEW_TICK_USD_STABLE);
             // verify ERC20 & LP was created
             require(new_tick_tok != address(0) && lpAddress != address(0), ' err: gen tick tok | lp :( ');
@@ -942,7 +942,7 @@ contract CallitFactory is ERC20, Ownable {
         //  loop through _ticket LP addresses and pull all liquidity
 
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark,) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
         require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
@@ -971,7 +971,7 @@ contract CallitFactory is ERC20, Ownable {
             uint256 OG_stable_bal = IERC20(mark.marketResults.resultTokenUsdStables[i]).balanceOf(address(this));
 
             // Remove liquidity
-            (uint256 amountToken0, uint256 amountToken1) = uniswapRouter.removeLiquidity(
+            (, uint256 amountToken1) = uniswapRouter.removeLiquidity(
                 token0,
                 token1,
                 liquidity,
@@ -1039,7 +1039,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - set market 'live' status = false;
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark,) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
 
         // getting winning result index to set mark.winningVoteResultIdx
@@ -1129,7 +1129,7 @@ contract CallitFactory is ERC20, Ownable {
         uint64 usdRewardOwed = 0;
         for (uint64 i = 0; i < ACCT_MARKET_VOTES[msg.sender].length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
             MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[msg.sender][i];
-            (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
+            (MARKET storage mark,) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
 
             // skip live MARKETs
             if (mark.live) {
@@ -1441,7 +1441,7 @@ contract CallitFactory is ERC20, Ownable {
 
     // Assumed helper functions (implementations not shown)
     // function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private returns (address) {
-    function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private {
+    function _createDexLP(address _uswapV2Router, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private {
         // LEFT OFF HERE ... _usdStable & _usdAmount must check and convert to use correct decimals
         //          need to properly set & use: uniswapRouter & uniswapFactory
 
@@ -1734,7 +1734,7 @@ contract CallitFactory is ERC20, Ownable {
     }
     function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
         uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
-        (uint8 rtrIdx, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+        (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
         return tok_amnt; 
     }
     function _perc_of_uint64(uint32 _perc, uint64 _num) private pure returns (uint64) {
@@ -1760,7 +1760,7 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
         pls_stab_path[1] = _usdStable;
-        (uint8 rtrIdx, uint256 stab_amnt) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
+        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
         uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
         stab_amnt_out = _normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
         return stab_amnt_out;
@@ -1777,7 +1777,7 @@ contract CallitFactory is ERC20, Ownable {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
         require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
         
-        (uint8 rtrIdx, uint256 stable_amnt) = _best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
+        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
         uint256 stable_amnt_out = _swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
         return stable_amnt_out;
     }
@@ -1785,7 +1785,7 @@ contract CallitFactory is ERC20, Ownable {
     function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
         address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
         uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
-        (uint8 rtrIdx, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
 
         // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
         // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
@@ -1874,7 +1874,7 @@ contract CallitFactory is ERC20, Ownable {
             address[] memory wpls_stab_path = new address[](2);
             wpls_stab_path[0] = TOK_WPLS;
             wpls_stab_path[1] = stable_addr;
-            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            (, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
             if (tok_val >= curr_high_tok_val) {
                 curr_high_tok_val = tok_val;
                 curr_low_val_stable = stable_addr;
@@ -1903,7 +1903,7 @@ contract CallitFactory is ERC20, Ownable {
             address[] memory wpls_stab_path = new address[](2);
             wpls_stab_path[0] = TOK_WPLS;
             wpls_stab_path[1] = stable_addr;
-            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            (, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
             if (tok_val >= curr_low_tok_val) {
                 curr_low_tok_val = tok_val;
                 curr_high_val_stable = stable_addr;
