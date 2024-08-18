@@ -387,8 +387,8 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS (CALLIT)
     /* -------------------------------------------------------- */
-    uint32 PERC_MARKET_MAKER_FEE; // TODO: KEEPER setter
-    uint32 PERC_PROMO_BUY_FEE; // TODO: KEEPER setter
+    uint16 PERC_MARKET_MAKER_FEE; // TODO: KEEPER setter
+    uint16 PERC_PROMO_BUY_FEE; // TODO: KEEPER setter
     uint16 PERC_ARB_EXE_FEE; // TODO: KEEPER setter
     uint16 PERC_MARKET_CLOSE_FEE; // TODO: KEEPER setter
     uint16 PERC_VOTE_CLAIM_FEE; // TODO: KEEPER setter
@@ -442,8 +442,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
     /* -------------------------------------------------------- */
-    // event MarketCreated(address _maker, uint256 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 usdAmntPrizePool_init, uint64 _usdAmntPrizePool_net, uint64 _usdVoterRewardPool, uint64 _usdRewardPerVote, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, string[] _resultDescrs, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, uint64[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
-    event MarketCreated(address _maker, uint256 _markNum, string _name, string _category, string _rules, string _imgUrl, uint64 _usdAmntLP, uint64 usdAmntPrizePool_init, uint64 _usdAmntPrizePool_net, uint64 _usdVoterRewardPool, uint64 _usdRewardPerVote, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, address[] _resultOptionTokens, address[] _resultTokenLPs, address[] _resultTokenRouters, address[] _resultTokenFactories, address[] _resultTokenUsdStables, uint64[] _resultTokenVotes, uint16 _winningVoteResultIdx, uint256 _blockTime, uint256 _blockNumber, bool _live);
+    event MarketCreated(address _maker, uint256 _markNum, string _name, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, address[] _resultOptionTokens, uint256 _blockTime, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
     event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
@@ -467,10 +466,10 @@ contract CallitFactory is ERC20, Ownable {
         address maker; // EOA market maker
         uint256 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
         string name; // display name for this market (maybe auto-generate w/ )
-        MARKET_INFO marketInfo;
-        // string category;
-        // string rules;
-        // string imgUrl;
+        // MARKET_INFO marketInfo;
+        string category;
+        string rules;
+        string imgUrl;
         MARKET_USD_AMNTS marketUsdAmnts;
         // uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
         // uint64 usdAmntPrizePool; // default 0, until market voting ends
@@ -495,11 +494,11 @@ contract CallitFactory is ERC20, Ownable {
         uint256 blockNumber; // block number this market was created
         bool live;
     }
-    struct MARKET_INFO {
-        string category;
-        string rules;
-        string imgUrl;
-    }
+    // struct MARKET_INFO {
+    //     string category;
+    //     string rules;
+    //     string imgUrl;
+    // }
     struct MARKET_USD_AMNTS {
         uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
         uint64 usdAmntPrizePool; // default 0, until market voting ends
@@ -665,99 +664,61 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - USER INTERFACE (CALLIT)
     /* -------------------------------------------------------- */
+    function setMarketInfo(address _anyTicket, string calldata _category, string calldata _descr, string calldata _imgUrl) external {
+        // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
+        (MARKET storage mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
+        require(mark.maker == msg.sender, ' only market maker :( ');
+        mark.category = _category;
+        mark.rules = _descr;
+        mark.imgUrl = _imgUrl;
+    }
     function makeNewMarket(string calldata _name, 
-
                             // string calldata _category, 
                             // string calldata _rules, 
                             // string calldata _imgUrl, 
-
                             uint64 _usdAmntLP, 
                             uint256 _dtCallDeadline, 
                             uint256 _dtResultVoteStart, 
                             uint256 _dtResultVoteEnd, 
-                            string[] calldata _resultLabels 
-                            // string[] calldata _resultDescrs
+                            string[] calldata _resultLabels, 
+                            string[] calldata _resultDescrs
                             ) external { // _deductMarketMakerFees from _usdAmntLP
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
-        // require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
-        require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS, ' bad results count :( ');
+        require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
         require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // initilize/validate market number for struct MARKET tracking
-        // uint64 mark_num = _uint64_from_uint256(ACCT_MARKETS[msg.sender].length);
-        // uint256 mark_num = ACCT_MARKETS[msg.sender].length;
-        // require(mark_num <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
-        require(ACCT_MARKETS[msg.sender].length <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
+        uint256 mark_num = ACCT_MARKETS[msg.sender].length;
+        require(mark_num <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
+        // require(ACCT_MARKETS[msg.sender].length <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
 
         // deduct 'market maker fees' from _usdAmntLP
-        // uint64 net_usdAmntLP = _deductMarketMakerFees(_usdAmntLP, _usdAmntLP);
-        // uint64 net_usdAmntLP = _usdAmntLP;
+        uint64 net_usdAmntLP = _deductFeePerc(_usdAmntLP, PERC_MARKET_MAKER_FEE, _usdAmntLP);
 
         // check for admin defualt vote time, update _dtResultVoteEnd accordingly
         if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
 
-        // initilize arrays for struct MARKET updates
-        // address[] memory resultOptionTokens = new address[](_resultLabels.length);
-        // address[] memory resultTokenLPs = new address[](_resultLabels.length);
-        // address[] memory resultTokenRouters = new address[](_resultLabels.length);
-        // address[] memory resultTokenFactories = new address[](_resultLabels.length);
-        // address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
-        // uint64 [] memory resultTokenVotes = new uint64[](_resultLabels.length);
-
-        // MARKET_RESULTS memory marketResults = MARKET_RESULTS(_resultLabels, _resultDescrs, new address[](_resultLabels.length), new address[](_resultLabels.length), new address[](_resultLabels.length), new address[](_resultLabels.length), new address[](_resultLabels.length), new uint64[](_resultLabels.length));
-
-        // ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), MARKET_RESULTS(_resultLabels, _resultDescrs, new address[](_resultLabels.length), new address[](_resultLabels.length), new address[](_resultLabels.length), new address[](_resultLabels.length), new address[](_resultLabels.length), new uint64[](_resultLabels.length)), 0, block.timestamp, block.number, true)); // true = live
-        // MARKET storage mark = ACCT_MARKETS[msg.sender][ACCT_MARKETS[msg.sender].length -1];
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
             // Deploy a new ERC20 token for each result label
-            // (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            // (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            // (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, ACCT_MARKETS[msg.sender].length, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            string memory tok_name = 'hello';
-            string memory tok_symb = 'world';
+            (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
             address new_tick_tok = address (new CallitTicket(TOK_TICK_INIT_SUPPLY, tok_name, tok_symb));
             
             // Get amounts for initial LP & Create DEX LP for the token
-            // (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _resultLabels.length);
-            // (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(_usdAmntLP, _resultLabels.length);
-            // (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(_deductMarketMakerFees(_usdAmntLP, _usdAmntLP), _resultLabels.length);
-            // uint64 usdAmount = _uint64_from_uint256(net_usdAmntLP / _resultLabels.length);
+            (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
+            address pairAddr = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
 
-            // uint256 net_usdAmnt = _deductMarketMakerFees(_usdAmntLP, _usdAmntLP);
-            // uint256 net_usdAmnt = _deductMarketMakerFees(_usdAmntLP);
-            uint256 net_usdAmntLP = _usdAmntLP - _perc_of_uint64(PERC_MARKET_MAKER_FEE, _usdAmntLP);
-            uint256 usdAmount = net_usdAmntLP / _resultLabels.length;
-            uint256 tokenAmount = usdAmount * RATIO_LP_TOK_PER_USD;
-
-            // uint256 usdAmount = _usdAmntLP / _resultLabels.length;
-            // uint256 tokenAmount = (_usdAmntLP / _resultLabels.length) * RATIO_LP_TOK_PER_USD;
-
-            // return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), (_usdAmntLP / _resultOptionCnt) * RATIO_LP_TOK_PER_USD);
-            
-            // address lpAddress = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
-                            // _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount)
-            _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
-            address lpAddress = IUniswapV2Factory(NEW_TICK_UNISWAP_V2_FACTORY).getPair(new_tick_tok, NEW_TICK_USD_STABLE);
             // verify ERC20 & LP was created
-            require(new_tick_tok != address(0) && lpAddress != address(0), ' err: gen tick tok | lp :( ');
+            require(new_tick_tok != address(0) && pairAddr != address(0), ' err: gen tick tok | lp :( ');
 
             resultOptionTokens[i] = new_tick_tok;
-            resultTokenLPs[i] = lpAddress;
+            resultTokenLPs[i] = pairAddr;
 
             resultTokenRouters[i] = NEW_TICK_UNISWAP_V2_ROUTER;
             resultTokenFactories[i] = NEW_TICK_UNISWAP_V2_FACTORY;
             resultTokenUsdStables[i] = NEW_TICK_USD_STABLE;
             resultTokenVotes[i] = 0;
-
-            // mark.marketResults.resultOptionTokens[i] = new_tick_tok;
-            // mark.marketResults.resultTokenLPs[i] = lpAddress;
-
-            // mark.marketResults.resultTokenRouters[i] = NEW_TICK_UNISWAP_V2_ROUTER;
-            // mark.marketResults.resultTokenFactories[i] = NEW_TICK_UNISWAP_V2_FACTORY;
-            // mark.marketResults.resultTokenUsdStables[i] = NEW_TICK_USD_STABLE;
-            // mark.marketResults.resultTokenVotes[i] = 0;
 
             TICKET_MAKERS[new_tick_tok] = msg.sender;
             unchecked {i++;}
@@ -767,49 +728,32 @@ contract CallitFactory is ERC20, Ownable {
         ACCT_USD_BALANCES[msg.sender] -= _usdAmntLP;
 
         // save this market and emit log
-        // ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true)); // true = live
-        // ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), MARKET_RESULTS(_resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 0, block.timestamp, block.number, true)); // true = live
-        // emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
-
-        // ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, ACCT_MARKETS[msg.sender].length, _name, _category, _rules, _imgUrl, MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), MARKET_RESULTS(_resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 0, block.timestamp, block.number, true)); // true = live
-        // emit MarketCreated(msg.sender, ACCT_MARKETS[msg.sender].length, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
-        // MARKET_USD_AMNTS ;
-        // MARKET_DATETIMES ;
-        // MARKET_RESULTS ;
-        // uint16 ; // calc winning idx from resultTokenVotes 
-        // uint256 ; // sec timestamp this market was created
-        // uint256 ; // block number this market was created
-        // bool ;
-        // MARKET_USD_AMNTS marketUsdAmnts;
-        // MARKET_INFO storage mInfo;
         ACCT_MARKETS[msg.sender].push(MARKET({maker:msg.sender, 
-                                                marketNum:ACCT_MARKETS[msg.sender].length, 
+                                                marketNum:mark_num, 
                                                 name:_name,
-                                                marketInfo:MARKET_INFO("", "", ""),
-                                                // marketInfo:mInfo,
-                                                // category:_category,
-                                                // rules:_rules, 
-                                                // imgUrl:_imgUrl, 
+
+                                                // marketInfo:MARKET_INFO("", "", ""),
+                                                category:"",
+                                                rules:"", 
+                                                imgUrl:"", 
 
                                                 marketUsdAmnts:MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), 
                                                 marketDatetimes:MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), 
-                                                marketResults:MARKET_RESULTS(_resultLabels, new string[](_resultLabels.length), resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 
+                                                marketResults:MARKET_RESULTS(_resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 
                                                 winningVoteResultIdx:0, 
                                                 blockTimestamp:block.timestamp, 
                                                 blockNumber:block.number, 
                                                 live:true})); // true = live
-        // emit MarketCreated(msg.sender, ACCT_MARKETS[msg.sender].length, _name, "", "", "", _usdAmntLP, 0, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
+        emit MarketCreated(msg.sender, mark_num, _name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, resultOptionTokens, block.timestamp, true); // true = live
         
         // Step 4: Clear tempArray (optional)
-        // delete tempArray; // This won't affect `myStruct.addresses`
+        // delete tempArray; // This will NOT effect whats stored in ACCT_MARKETS
         delete resultOptionTokens;
         delete resultTokenLPs;
         delete resultTokenRouters;
         delete resultTokenFactories;
         delete resultTokenUsdStables;
         delete resultTokenVotes;
-        // ACCT_MARKETS[msg.sender].push(MARKET(msg.sender, mark_num, _name, _category, _rules, _imgUrl, MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), marketResults, 0, block.timestamp, block.number, true)); // true = live
-        // emit MarketCreated(msg.sender, mark_num, _name, _category, _rules, _imgUrl, _usdAmntLP, 0, 0, 0, 0, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenRouters, mark.marketResults.resultTokenFactories, mark.marketResults.resultTokenUsdStables, mark.marketResults.resultTokenVotes, 0, block.timestamp, block.number, true); // true = live
     }
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductPromoBuyFees from _usdAmnt
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
@@ -1323,10 +1267,10 @@ contract CallitFactory is ERC20, Ownable {
     //     mark.marketUsdAmnts.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, _usdAmnt);
     //     return _net_usdAmnt - _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, _usdAmnt);
     // }
-    // function _deductFeePerc(uint64 _usdAmnt, uint64 _net_usdAmnt, uint16 _feePerc) private pure returns(uint64) {
-    //     require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
-    //     return _net_usdAmnt - _perc_of_uint64(_feePerc, _usdAmnt);
-    // }
+    function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private pure returns(uint64) {
+        require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
+        return _net_usdAmnt - _perc_of_uint64(_feePerc, _usdAmnt);
+    }
     // function _deductVoterClaimFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private pure returns(uint64){
     //     // NOTE: no other deductions yet from _usdAmnt
     //     uint8 feePerc0; // = global
@@ -1350,8 +1294,8 @@ contract CallitFactory is ERC20, Ownable {
     //     return net_usdAmnt;
     //     // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
     // }
-    // // function _deductMarketMakerFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
-    // function _deductMarketMakerFees(uint64 _usdAmnt) private pure returns(uint64){
+    // function _deductMarketMakerFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
+    // // function _deductMarketMakerFees(uint64 _usdAmnt) private pure returns(uint64){
     //     // NOTE: no other deductions yet from _usdAmnt
     //     uint8 feePerc0; // = global
     //     // uint8 feePerc1; // = global
@@ -1440,20 +1384,20 @@ contract CallitFactory is ERC20, Ownable {
     // }
 
     // Assumed helper functions (implementations not shown)
-    // function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private returns (address) {
-    function _createDexLP(address _uswapV2Router, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private {
+    function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private returns (address) {
         // LEFT OFF HERE ... _usdStable & _usdAmount must check and convert to use correct decimals
         //          need to properly set & use: uniswapRouter & uniswapFactory
 
         IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
-        // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
+        IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
         // Approve tokens for Uniswap Router
         IERC20(_token).approve(_uswapV2Router, _tokenAmount);
         // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
             
         // Add liquidity to the pool
-        (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
+        // (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
+        uniswapRouter.addLiquidity(
             _token,                // Token address
             _usdStable,           // Assuming ETH as the second asset (or replace with another token address)
             _tokenAmount,          // Desired _token amount
@@ -1471,21 +1415,16 @@ contract CallitFactory is ERC20, Ownable {
         // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
         // For simplicity, we're returning a placeholder.
         // Retrieve the LP address
-        // address lpAddress = uniswapFactory.getPair(_token, _usdStable);
-        // return lpAddress;
+        address lpAddress = uniswapFactory.getPair(_token, _usdStable);
+        return lpAddress;
 
         // NOTE: LEFT OFF HERE ... may need external support functions for LP & LP token maintence, etc.
         //      similar to accessors that retrieve native and ERC20 tokens held by contract
     }
 
-    function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt) private view returns(uint64, uint256) {
-        require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
-        // return (_usdAmntLP / _resultOptionCnt, _getInitDexTokSupplyForUsdAmnt(_usdAmntLP) / _resultOptionCnt);
-        return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), (_usdAmntLP / _resultOptionCnt) * RATIO_LP_TOK_PER_USD);
-        // return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), _getInitDexTokSupplyForUsdAmnt(_usdAmntLP / _resultOptionCnt));
-    }
-    function _getInitDexTokSupplyForUsdAmnt(uint256 _usdAmnt) private view returns(uint256) {
-        return _usdAmnt * RATIO_LP_TOK_PER_USD;
+    function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) private pure returns(uint64, uint256) {
+        require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
+        return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
     }
     function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
         for (uint8 i=0; i < bytes(_s).length;) {
