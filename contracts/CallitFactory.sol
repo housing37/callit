@@ -203,25 +203,30 @@ contract CallitFactory is ERC20, Ownable {
         // //  to fascilitate contract buying its own contract token
         // _setSwapDelegate(SWAP_DELEGATE_INIT);
 
+        // add a whitelist stable
+        _editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
+
         // add default routers: pulsex (x2)
         _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
         // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
 
-        // add default stables & default USD_BST_PATHS (routing through WPLS required)
-        address[] memory path = new address[](3);
-        // address usdStable_0 = address(0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f); // weUSDT
-        // path[0] = usdStable_0;
+        
+
+        // // add default stables & default USD_BST_PATHS (routing through WPLS required)
+        // address[] memory path = new address[](3);
+        // // address usdStable_0 = address(0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f); // weUSDT
+        // // path[0] = usdStable_0;
+        // // path[1] = TOK_WPLS;
+        // // path[2] = address(this);
+        // // _editWhitelistStables(usdStable_0, 6, true); // weDAI, decs, true = add
+        // // _setUsdBstPath(usdStable_0, path);
+
+        // address usdStable_1 = address(0xefD766cCb38EaF1dfd701853BFCe31359239F305); // weDAI
+        // path[0] = usdStable_1;
         // path[1] = TOK_WPLS;
         // path[2] = address(this);
-        // _editWhitelistStables(usdStable_0, 6, true); // weDAI, decs, true = add
-        // _setUsdBstPath(usdStable_0, path);
-
-        address usdStable_1 = address(0xefD766cCb38EaF1dfd701853BFCe31359239F305); // weDAI
-        path[0] = usdStable_1;
-        path[1] = TOK_WPLS;
-        path[2] = address(this);
-        // _setUsdBstPath(usdStable_1, path);
-        _editWhitelistStables(usdStable_1, 18, true); // weDAI, decs, true = add
+        // // _setUsdBstPath(usdStable_1, path);
+        // _editWhitelistStables(usdStable_1, 18, true); // weDAI, decs, true = add
         
             // KEEPER_setUsdBstPath(address _usdStable, address[] memory _path)
             // > 0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f [0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f,0xA1077a294dDE1B09bB078844df40758a5D0f9a27,address(this)]
@@ -425,14 +430,14 @@ contract CallitFactory is ERC20, Ownable {
 
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
-    mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping
+    mapping(address => MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping
     mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
-    mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
+    mapping(address => PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
-    mapping(address => ICallitLib.MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (markets voted in) mapping
-    mapping(address => ICallitLib.MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (markets voted in) mapping
-    mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (markets voted in) mapping
+    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (markets voted in) mapping
+    mapping(address => MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     /* -------------------------------------------------------- */
     /* EVENTS (CALLIT)
@@ -446,94 +451,94 @@ contract CallitFactory is ERC20, Ownable {
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event MarketReviewed(address _caller, bool _resultAgree, address _marketMaker, uint256 _marketNum, uint64 _agreeCnt, uint64 _disagreeCnt);
     
-    // /* -------------------------------------------------------- */
-    // /* STRUCTS (CALLIT)
-    // /* -------------------------------------------------------- */
-    // struct PROMO {
-    //     address promotor; // influencer wallet this promo is for
-    //     string promoCode;
-    //     uint64 usdTarget; // usd amount this promo is good for
-    //     uint64 usdUsed; // usd amount this promo has used so far
-    //     uint8 percReward; // % of caller buys rewarded
-    //     address adminCreator; // admin who created this promo
-    //     uint256 blockNumber; // block number this promo was created
-    // }
-    // struct MARKET {
-    //     address maker; // EOA market maker
-    //     uint256 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
-    //     string name; // display name for this market (maybe auto-generate w/ )
-    //     MARKET_INFO marketInfo;
-    //     // string category;
-    //     // string rules;
-    //     // string imgUrl;
-    //     MARKET_USD_AMNTS marketUsdAmnts;
-    //     // uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
-    //     // uint64 usdAmntPrizePool; // default 0, until market voting ends
-    //     // uint64 usdAmntPrizePool_net; // default 0, until market voting ends
-    //     // uint64 usdVoterRewardPool; // default 0, until close market calc
-    //     // uint64 usdRewardPerVote; // default 0, until close mark calc
-    //     MARKET_DATETIMES marketDatetimes;
-    //     // uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
-    //     // uint256 dtResultVoteStart; // unix timestamp 1970, earned $CALL token EOAs may start voting
-    //     // uint256 dtResultVoteEnd; // unix timestamp 1970, earned $CALL token EOAs voting ends
-    //     MARKET_RESULTS marketResults;
-    //     // string[] resultLabels; // required: length == _resultDescrs
-    //     // string[] resultDescrs; // required: length == _resultLabels
-    //     // address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
-    //     // address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
-    //     // address[] resultTokenRouters;
-    //     // address[] resultTokenFactories;
-    //     // address[] resultTokenUsdStables;
-    //     // uint64[] resultTokenVotes;
-    //     uint16 winningVoteResultIdx; // calc winning idx from resultTokenVotes 
-    //     uint256 blockTimestamp; // sec timestamp this market was created
-    //     uint256 blockNumber; // block number this market was created
-    //     bool live;
-    // }
-    // struct MARKET_INFO {
-    //     string category;
-    //     string rules;
-    //     string imgUrl;
-    // }
-    // struct MARKET_USD_AMNTS {
-    //     uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
-    //     uint64 usdAmntPrizePool; // default 0, until market voting ends
-    //     uint64 usdAmntPrizePool_net; // default 0, until market voting ends
-    //     uint64 usdVoterRewardPool; // default 0, until close market calc
-    //     uint64 usdRewardPerVote; // default 0, until close mark calc
-    // }
-    // struct MARKET_DATETIMES {
-    //     uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
-    //     uint256 dtResultVoteStart; // unix timestamp 1970, earned $CALL token EOAs may start voting
-    //     uint256 dtResultVoteEnd; // unix timestamp 1970, earned $CALL token EOAs voting ends
-    // }
-    // struct MARKET_RESULTS {
-    //     string[] resultLabels; // required: length == _resultDescrs
-    //     string[] resultDescrs; // required: length == _resultLabels
-    //     address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
-    //     address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
-    //     address[] resultTokenRouters;
-    //     address[] resultTokenFactories;
-    //     address[] resultTokenUsdStables;
-    //     uint64[] resultTokenVotes;
-    // }
-    // struct MARKET_VOTE {
-    //     address voter;
-    //     address voteResultToken;
-    //     uint16 voteResultIdx;
-    //     uint64 voteResultCnt;
-    //     address marketMaker;
-    //     uint256 marketNum;
-    //     bool paid;
-    // }
-    // struct MARKET_REVIEW { 
-    //     address caller;
-    //     bool resultAgree;
-    //     address marketMaker;
-    //     uint256 marketNum;
-    //     uint64 agreeCnt;
-    //     uint64 disagreeCnt;
-    // }
+    /* -------------------------------------------------------- */
+    /* STRUCTS (CALLIT)
+    /* -------------------------------------------------------- */
+    struct PROMO {
+        address promotor; // influencer wallet this promo is for
+        string promoCode;
+        uint64 usdTarget; // usd amount this promo is good for
+        uint64 usdUsed; // usd amount this promo has used so far
+        uint8 percReward; // % of caller buys rewarded
+        address adminCreator; // admin who created this promo
+        uint256 blockNumber; // block number this promo was created
+    }
+    struct MARKET {
+        address maker; // EOA market maker
+        uint256 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
+        string name; // display name for this market (maybe auto-generate w/ )
+        MARKET_INFO marketInfo;
+        // string category;
+        // string rules;
+        // string imgUrl;
+        MARKET_USD_AMNTS marketUsdAmnts;
+        // uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
+        // uint64 usdAmntPrizePool; // default 0, until market voting ends
+        // uint64 usdAmntPrizePool_net; // default 0, until market voting ends
+        // uint64 usdVoterRewardPool; // default 0, until close market calc
+        // uint64 usdRewardPerVote; // default 0, until close mark calc
+        MARKET_DATETIMES marketDatetimes;
+        // uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
+        // uint256 dtResultVoteStart; // unix timestamp 1970, earned $CALL token EOAs may start voting
+        // uint256 dtResultVoteEnd; // unix timestamp 1970, earned $CALL token EOAs voting ends
+        MARKET_RESULTS marketResults;
+        // string[] resultLabels; // required: length == _resultDescrs
+        // string[] resultDescrs; // required: length == _resultLabels
+        // address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
+        // address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
+        // address[] resultTokenRouters;
+        // address[] resultTokenFactories;
+        // address[] resultTokenUsdStables;
+        // uint64[] resultTokenVotes;
+        uint16 winningVoteResultIdx; // calc winning idx from resultTokenVotes 
+        uint256 blockTimestamp; // sec timestamp this market was created
+        uint256 blockNumber; // block number this market was created
+        bool live;
+    }
+    struct MARKET_INFO {
+        string category;
+        string rules;
+        string imgUrl;
+    }
+    struct MARKET_USD_AMNTS {
+        uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
+        uint64 usdAmntPrizePool; // default 0, until market voting ends
+        uint64 usdAmntPrizePool_net; // default 0, until market voting ends
+        uint64 usdVoterRewardPool; // default 0, until close market calc
+        uint64 usdRewardPerVote; // default 0, until close mark calc
+    }
+    struct MARKET_DATETIMES {
+        uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
+        uint256 dtResultVoteStart; // unix timestamp 1970, earned $CALL token EOAs may start voting
+        uint256 dtResultVoteEnd; // unix timestamp 1970, earned $CALL token EOAs voting ends
+    }
+    struct MARKET_RESULTS {
+        string[] resultLabels; // required: length == _resultDescrs
+        string[] resultDescrs; // required: length == _resultLabels
+        address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
+        address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
+        address[] resultTokenRouters;
+        address[] resultTokenFactories;
+        address[] resultTokenUsdStables;
+        uint64[] resultTokenVotes;
+    }
+    struct MARKET_VOTE {
+        address voter;
+        address voteResultToken;
+        uint16 voteResultIdx;
+        uint64 voteResultCnt;
+        address marketMaker;
+        uint256 marketNum;
+        bool paid;
+    }
+    struct MARKET_REVIEW { 
+        address caller;
+        bool resultAgree;
+        address marketMaker;
+        uint256 marketNum;
+        uint64 agreeCnt;
+        uint64 disagreeCnt;
+    }
 
     /* -------------------------------------------------------- */
     /* MODIFIERS (CALLIT)
@@ -615,22 +620,22 @@ contract CallitFactory is ERC20, Ownable {
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
         require(_promotor != address(0) && CALLIT_LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
         address promoCodeHash = CALLIT_LIB._generateAddressHash(_promotor, _promoCode);
-        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
+        PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
         require(promo.promotor == address(0), ' promo already exists :-O ');
         // PROMO_CODE_HASHES[promoCodeHash].push(PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
-        PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
+        PROMO_CODE_HASHES[promoCodeHash] = PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS (CALLIT)
     /* -------------------------------------------------------- */
-    function getAccountMarkets(address _account) external view returns (ICallitLib.MARKET[] memory) {
+    function getAccountMarkets(address _account) external view returns (MARKET[] memory) {
         require(_account != address(0), ' 0 address? ;[+] ');
         return ACCT_MARKETS[_account];
     }
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
-        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
         return promo.usdTarget - promo.usdUsed;
     }
@@ -777,18 +782,18 @@ contract CallitFactory is ERC20, Ownable {
         // bool ;
         // MARKET_USD_AMNTS marketUsdAmnts;
         // MARKET_INFO storage mInfo;
-        ACCT_MARKETS[msg.sender].push(ICallitLib.MARKET({maker:msg.sender, 
+        ACCT_MARKETS[msg.sender].push(MARKET({maker:msg.sender, 
                                                 marketNum:ACCT_MARKETS[msg.sender].length, 
                                                 name:_name,
-                                                marketInfo:ICallitLib.MARKET_INFO("", "", ""),
+                                                marketInfo:MARKET_INFO("", "", ""),
                                                 // marketInfo:mInfo,
                                                 // category:_category,
                                                 // rules:_rules, 
                                                 // imgUrl:_imgUrl, 
 
-                                                marketUsdAmnts:ICallitLib.MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), 
-                                                marketDatetimes:ICallitLib.MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), 
-                                                marketResults:ICallitLib.MARKET_RESULTS(_resultLabels, new string[](_resultLabels.length), resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 
+                                                marketUsdAmnts:MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), 
+                                                marketDatetimes:MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), 
+                                                marketResults:MARKET_RESULTS(_resultLabels, new string[](_resultLabels.length), resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 
                                                 winningVoteResultIdx:0, 
                                                 blockTimestamp:block.timestamp, 
                                                 blockNumber:block.number, 
@@ -808,13 +813,13 @@ contract CallitFactory is ERC20, Ownable {
     }
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductPromoBuyFees from _usdAmnt
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
-        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // potential exploitation preventions
@@ -884,7 +889,7 @@ contract CallitFactory is ERC20, Ownable {
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // calc target usd price for _ticket (in order to bring this market to price parity)
@@ -937,7 +942,7 @@ contract CallitFactory is ERC20, Ownable {
         //  loop through _ticket LP addresses and pull all liquidity
 
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
         require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
@@ -1002,7 +1007,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - 
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET storage mark, uint16 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark, uint16 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp, ' market voting not started yet :p ');
         require(mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' market voting ended :p ');
 
@@ -1019,7 +1024,7 @@ contract CallitFactory is ERC20, Ownable {
         mark.marketResults.resultTokenVotes[tickIdx] += vote_cnt; // NOTE: write to market
 
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
-        ACCT_MARKET_VOTES[msg.sender].push(ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
+        ACCT_MARKET_VOTES[msg.sender].push(MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
 
         // LEFT OFF HERE ... need emit event log
     }
@@ -1034,7 +1039,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - set market 'live' status = false;
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
 
         // getting winning result index to set mark.winningVoteResultIdx
@@ -1084,7 +1089,7 @@ contract CallitFactory is ERC20, Ownable {
         //  - log _resultAgree in MARKET_REVIEW
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
         require(!mark.live, ' market still live :o ' );
         require(mark.winningVoteResultIdx == tickIdx, ' not a winner :( ');
@@ -1123,8 +1128,8 @@ contract CallitFactory is ERC20, Ownable {
         require(ACCT_MARKET_VOTES[msg.sender].length > 0, ' no un-paid market votes :) ');
         uint64 usdRewardOwed = 0;
         for (uint64 i = 0; i < ACCT_MARKET_VOTES[msg.sender].length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
-            ICallitLib.MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[msg.sender][i];
-            (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
+            MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[msg.sender][i];
+            (MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
 
             // skip live MARKETs
             if (mark.live) {
@@ -1160,7 +1165,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT)
     /* -------------------------------------------------------- */
-    function _logMarketResultReview(ICallitLib.MARKET storage _mark, bool _resultAgree) private {
+    function _logMarketResultReview(MARKET storage _mark, bool _resultAgree) private {
         uint64 agreeCnt = 0;
         uint64 disagreeCnt = 0;
         uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
@@ -1171,7 +1176,7 @@ contract CallitFactory is ERC20, Ownable {
 
         agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
         disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
-        ACCT_MARKET_REVIEWS[_mark.maker].push(ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt));
+        ACCT_MARKET_REVIEWS[_mark.maker].push(MARKET_REVIEW(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt));
         emit MarketReviewed(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt);
     }
     // function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
@@ -1186,7 +1191,7 @@ contract CallitFactory is ERC20, Ownable {
 
     //     return CALLIT_LIB._uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
     // }
-    function _moveMarketVoteIdxToPaid(ICallitLib.MARKET_VOTE storage _m_vote, uint64 _idxMove) private {
+    function _moveMarketVoteIdxToPaid(MARKET_VOTE storage _m_vote, uint64 _idxMove) private {
         // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
         ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
 
@@ -1198,7 +1203,7 @@ contract CallitFactory is ERC20, Ownable {
         }
         ACCT_MARKET_VOTES[msg.sender].pop(); // Remove the last element (now a duplicate)
     }
-    function _getWinningVoteIdxForMarket(ICallitLib.MARKET storage _mark) private view returns(uint16) { // should be 'view' not 'pure'?
+    function _getWinningVoteIdxForMarket(MARKET storage _mark) private view returns(uint16) { // should be 'view' not 'pure'?
         // travers mark.resultTokenVotes for winning idx
         //  NOTE: default winning index is 0 & ties will settle on lower index
         uint16 idxCurrHigh = 0;
@@ -1209,7 +1214,7 @@ contract CallitFactory is ERC20, Ownable {
         }
         return idxCurrHigh;
     }
-    function _addressIsMarketMakerOrCaller(address _addr, ICallitLib.MARKET storage _mark) private view returns(bool, bool) {
+    function _addressIsMarketMakerOrCaller(address _addr, MARKET storage _mark) private view returns(bool, bool) {
         bool is_maker = _mark.maker == msg.sender; // true = found maker
         bool is_caller = false;
         for (uint16 i = 0; i < _mark.marketResults.resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
@@ -1225,7 +1230,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // LEFT OFF HERE ... need emit even log
     }
-    function _validVoteCount(address _voter, ICallitLib.MARKET storage _mark) private view returns(uint64) {
+    function _validVoteCount(address _voter, MARKET storage _mark) private view returns(uint64) {
         // if indeed locked && locked before _mark start time, calc & return active vote count
         if (ACCT_CALL_VOTE_LOCK_TIME[_voter] > 0 && ACCT_CALL_VOTE_LOCK_TIME[_voter] <= _mark.blockTimestamp) {
             uint64 votes_earned = EARNED_CALL_VOTES[_voter]; // note: EARNED_CALL_VOTES stores uint64 type
@@ -1272,7 +1277,7 @@ contract CallitFactory is ERC20, Ownable {
     //     }
     //     return false;
     // }
-    function _getCallTicketUsdTargetPrice(ICallitLib.MARKET storage _mark, address _ticket) private view returns(uint64) {
+    function _getCallTicketUsdTargetPrice(MARKET storage _mark, address _ticket) private view returns(uint64) {
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
         //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
@@ -1295,13 +1300,13 @@ contract CallitFactory is ERC20, Ownable {
         int64 target_price = 1 - int64(alt_sum);
         return target_price > 0 ? uint64(target_price) : MIN_USD_CALL_TICK_TARGET_PRICE; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
     }
-    function _getMarketForTicket(address _maker, address _ticket) private view returns(ICallitLib.MARKET storage, uint16) {
+    function _getMarketForTicket(address _maker, address _ticket) private view returns(MARKET storage, uint16) {
         require(_maker != address (0) && _ticket != address(0), ' no address for market ;:[=] ');
 
         // NOTE: MAX_EOA_MARKETS is uint64
-        ICallitLib.MARKET[] storage markets = ACCT_MARKETS[_maker];
+        MARKET[] storage markets = ACCT_MARKETS[_maker];
         for (uint64 i = 0; i < markets.length;) {
-            ICallitLib.MARKET storage mark = markets[i];
+            MARKET storage mark = markets[i];
             for (uint16 x = 0; x < mark.marketResults.resultOptionTokens.length;) {
                 if (mark.marketResults.resultOptionTokens[x] == _ticket)
                     return (mark, x);
