@@ -202,6 +202,7 @@ contract CallitFactory is ERC20, Ownable {
     uint16 PERC_ARB_EXE_FEE; // TODO: KEEPER setter
     uint16 PERC_MARKET_CLOSE_FEE; // TODO: KEEPER setter
     uint16 PERC_VOTE_CLAIM_FEE; // TODO: KEEPER setter
+    uint16 PERC_CLAIM_WIN_FEE; // TODO: KEEPER setter
 
     // address public CALLIT_LIB_ADDR;
     // ICallitLib private CALLIT_LIB;
@@ -234,7 +235,7 @@ contract CallitFactory is ERC20, Ownable {
     uint64 RATIO_LP_USD_PER_CALL_TOK = 100; // init LP usd amount needed per $CALL earned by market maker
         // LEFT OFF HERE  ... may need decimal precision integration
     uint16 RATIO_LP_TOK_PER_USD = 10000;
-    uint32 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    uint16 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
     uint8 public RATIO_CALL_MINT_PER_LOSER = 1;
     uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
 
@@ -482,7 +483,7 @@ contract CallitFactory is ERC20, Ownable {
         mark.rules = _descr;
         mark.imgUrl = _imgUrl;
     }
-    function makeNewMarket(string calldata _name, 
+    function makeNewMarket(string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                             // string calldata _category, 
                             // string calldata _rules, 
                             // string calldata _imgUrl, 
@@ -492,7 +493,7 @@ contract CallitFactory is ERC20, Ownable {
                             uint256 _dtResultVoteEnd, 
                             string[] calldata _resultLabels, 
                             string[] calldata _resultDescrs
-                            ) external { // _deductMarketMakerFees from _usdAmntLP
+                            ) external { 
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
         require(ACCT_USD_BALANCES[msg.sender] >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
@@ -564,8 +565,10 @@ contract CallitFactory is ERC20, Ownable {
         delete resultTokenFactories;
         delete resultTokenUsdStables;
         delete resultTokenVotes;
+
+        // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }
-    function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductPromoBuyFees from _usdAmnt
+    function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
         PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
@@ -634,8 +637,10 @@ contract CallitFactory is ERC20, Ownable {
 
         // emit log
         emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
+        // LEFT OFF HERE ...
+        //  mint $CALL token reward to msg.sender
     }
-    function exeArbPriceParityForTicket(address _ticket) external { // _deductArbExeFees from arb profits
+    function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
@@ -676,14 +681,14 @@ contract CallitFactory is ERC20, Ownable {
         // calc & send net profits to msg.sender
         //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
         //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
-        // uint256 net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, gross_stab_amnt_out); // LEFT OFF HERE ... finish _deductArbExeFees integration
-        uint64 net_usd_profits = gross_stab_amnt_out - _perc_of_uint64(PERC_ARB_EXE_FEE, gross_stab_amnt_out);
+        uint64 net_usd_profits = _deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
         require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
         IERC20(mark.marketResults.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
 
         // LEFT OFF HERE ... need emit event log
+        //  mint $CALL token reward to msg.sender
     }
-    function closeMarketCallsForTicket(address _ticket) external { // no fee
+    function closeMarketCallsForTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
 
         // algorithmic logic...
@@ -745,7 +750,7 @@ contract CallitFactory is ERC20, Ownable {
         // LEFT OFF HERE ... need emit event log
         //  mint $CALL token reward to msg.sender
     }
-    function castVoteForMarketTicket(address _ticket) external { // no fee
+    function castVoteForMarketTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
         require(IERC20(_ticket).balanceOf(msg.sender) == 0, ' no self voting ;( ');
 
@@ -777,8 +782,9 @@ contract CallitFactory is ERC20, Ownable {
         ACCT_MARKET_VOTES[msg.sender].push(MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
 
         // LEFT OFF HERE ... need emit event log
+        //  mint $CALL token reward to msg.sender
     }
-    function closeMarketForTicket(address _ticket) external { // _deductMarketCloseFees from mark.marketUsdAmnts.usdAmntPrizePool
+    function closeMarketForTicket(address _ticket) external { // _deductFeePerc PERC_MARKET_CLOSE_FEE from mark.marketUsdAmnts.usdAmntPrizePool
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{-} ');
         // algorithmic logic...
         //  - count votes in mark.resultTokenVotes 
@@ -796,13 +802,16 @@ contract CallitFactory is ERC20, Ownable {
         //  for voter fee claim algorithm (ie. only pay majority voters)
         mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
 
+        // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
+        require(PERC_PRIZEPOOL_VOTERS + PERC_MARKET_CLOSE_FEE <= 10000, ' perc error ;( ');
+
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
         mark.marketUsdAmnts.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
 
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
         mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool; // NOTE: write to market
-        // mark.marketUsdAmnts.usdAmntPrizePool_net = _deductMarketCloseFees(mark.marketUsdAmnts.usdAmntPrizePool, mark.marketUsdAmnts.usdAmntPrizePool_net); // NOTE: write to market
-        mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool_net - _perc_of_uint64(PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool);
+        mark.marketUsdAmnts.usdAmntPrizePool_net = _deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 
@@ -827,7 +836,7 @@ contract CallitFactory is ERC20, Ownable {
         // log $CALL votes earned w/ ...
         // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
     }
-    function claimTicketRewards(address _ticket, bool _resultAgree) external {
+    function claimTicketRewards(address _ticket, bool _resultAgree) external { // _deductFeePerc PERC_CLAIM_WIN_FEE from usdPrizePoolShare
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{+} ');
         require(IERC20(_ticket).balanceOf(msg.sender) > 0, ' ticket !owned ;( ');
         // algorithmic logic...
@@ -851,6 +860,7 @@ contract CallitFactory is ERC20, Ownable {
             uint64 usdPrizePoolShare = _uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
 
             // send payout to msg.sender
+            usdPrizePoolShare = _deductFeePerc(usdPrizePoolShare, PERC_CLAIM_WIN_FEE, usdPrizePoolShare);
             _payUsdReward(usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
@@ -873,7 +883,7 @@ contract CallitFactory is ERC20, Ownable {
         
         // LEFT OFF HERE .. emit even log        
     }
-    function claimVoterRewards() external { // _deductVoterClaimFees from usdRewardOwed
+    function claimVoterRewards() external { // _deductFeePerc PERC_VOTE_CLAIM_FEE from usdRewardOwed
         // NOTE: loops through all non-piad msg.sender votes (including 'live' markets)
         require(ACCT_MARKET_VOTES[msg.sender].length > 0, ' no un-paid market votes :) ');
         uint64 usdRewardOwed = 0;
@@ -906,7 +916,7 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // usdRewardOwed = _deductVoterClaimFees(usdRewardOwed, usdRewardOwed);
-        usdRewardOwed = usdRewardOwed - _perc_of_uint64(PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        usdRewardOwed = _deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
         _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
         // LEFT OFF HERE ... need emit event log
         // emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
@@ -1069,72 +1079,10 @@ contract CallitFactory is ERC20, Ownable {
         
         revert(' market not found :( ');
     }
-    // function _deductPrizePoolVoterFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64) {
-    //     mark.marketUsdAmnts.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, _usdAmnt);
-    //     return _net_usdAmnt - _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, _usdAmnt);
-    // }
     function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private pure returns(uint64) {
         require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
         return _net_usdAmnt - _perc_of_uint64(_feePerc, _usdAmnt);
     }
-    // function _deductVoterClaimFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private pure returns(uint64){
-    //     // NOTE: no other deductions yet from _usdAmnt
-    //     uint8 feePerc0; // = global
-    //     uint8 feePerc1; // = global
-    //     uint8 feePerc2; // = global
-    //     uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
-    //     return net_usdAmnt;
-    //     // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
-    // }
-    // function _deductMarketCloseFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private pure returns(uint64){
-    //     // NOTE: PERC_PRIZEPOOL_VOTERS already deducted from _usdAmnt
-    //     // NOTE: for naming convention should use 'PERC_PRIZEPOOL_...' just like 'PERC_PRIZEPOOL_VOTERS'
-    //     uint8 feePerc0; // = global
-    //     uint8 feePerc1; // = global
-    //     uint8 feePerc2; // = global
-    //     uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
-    //     return net_usdAmnt;
-    //     // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
-    // }
-    // function _deductMarketMakerFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private returns(uint64){
-    // // function _deductMarketMakerFees(uint64 _usdAmnt) private pure returns(uint64){
-    //     // NOTE: no other deductions yet from _usdAmnt
-    //     uint8 feePerc0; // = global
-    //     // uint8 feePerc1; // = global
-    //     // uint8 feePerc2; // = global
-    //     // uint64 net_usdAmnt = _usdAmnt - (feePerc0 * _usdAmnt);
-    //     // net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
-    //     // net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
-    //     // return net_usdAmnt;
-    //     return _usdAmnt - (feePerc0 * _usdAmnt);
-    //     // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
-    // }
-    // function _deductArbExeFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private pure returns(uint64){
-    //     // NOTE: no other deductions yet from _usdAmnt
-    //     uint8 feePerc0; // = global
-    //     uint8 feePerc1; // = global
-    //     uint8 feePerc2; // = global
-    //     uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
-    //     return net_usdAmnt;
-    //     // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
-    // }
-    // function _deductPromoBuyFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private pure returns(uint64){
-    //     // NOTE: promo.percReward already deducted from _usdAmnt
-    //     uint8 feePerc0; // = global
-    //     uint8 feePerc1; // = global
-    //     uint8 feePerc2; // = global
-    //     uint64 net_usdAmnt = _net_usdAmnt - (feePerc0 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc1 * _usdAmnt);
-    //     net_usdAmnt = net_usdAmnt - (feePerc2 * _usdAmnt);
-    //     return net_usdAmnt;
-    //     // LEFT OFF HERE ... need globals for above and need decimal conversion consideration (maybe)
-    // }
     function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string storage _nameSeed, string storage _symbSeed) private pure returns(string memory, string memory) { 
         // Concatenate to form symbol & name
         // string memory last4 = _getLast4Chars(_maker);
