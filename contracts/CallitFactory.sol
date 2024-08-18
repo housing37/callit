@@ -638,8 +638,9 @@ contract CallitFactory is ERC20, Ownable {
         //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
         uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
 
-        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
-        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(_calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], ticketTargetPriceUSD));
+        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
+        uint256 _usdTickPrice = _normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[mark.marketResults.resultTokenUsdStables[tickIdx]]);
+        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(_calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], _usdTickPrice));
 
         // calc price to charge msg.sender for minting tokensToMint
         //  then deduct that amount from their account balance
@@ -650,7 +651,7 @@ contract CallitFactory is ERC20, Ownable {
             //   'ticketTargetPriceUSD' price should be less usd then selling 'tokensToMint' @ current DEX price 
             //   HENCE, usd profit = gross_stab_amnt_out - total_usd_cost
             require(ACCT_USD_BALANCES[msg.sender] >= total_usd_cost, ' low balance :( ');
-            ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; // LEFT OFF HERE ... ticketTargetPriceUSD is uint256, but ACCT_USD_BALANCES is uint64
+            ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; 
         }
 
         // mint tokensToMint count to this factory and sell on DEX on behalf of msg.sender
@@ -662,7 +663,8 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory tok_stab_path = new address[](3);
         tok_stab_path[0] = _ticket;
         tok_stab_path[1] = mark.marketResults.resultTokenUsdStables[tickIdx];
-        uint64 gross_stab_amnt_out = _uint64_from_uint256(_exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx])); // swap tick: use specific router tck:tick-stable
+        uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
+        uint64 gross_stab_amnt_out = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[mark.marketResults.resultTokenUsdStables[tickIdx]], usdAmntOut, _usd_decimals()));
 
         // calc & send net profits to msg.sender
         //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
@@ -998,8 +1000,7 @@ contract CallitFactory is ERC20, Ownable {
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_receiver, _usdReward);
-            // LEFT OFF HERE ... need to validate decimals for lowStableHeld and usdReward
+        IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
     }
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
         // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
@@ -1034,8 +1035,8 @@ contract CallitFactory is ERC20, Ownable {
         for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
             if (tickets[i] != _ticket) {
                 address pairAddress = _mark.marketResults.resultTokenLPs[i];
-                uint64 amountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]);
-                alt_sum += amountsOut; // LEFT OFF HERE ... may need to account for differnt stable deimcals
+                uint64 amountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
+                alt_sum += amountsOut;
             }
             
             unchecked {i++;}
@@ -1091,11 +1092,12 @@ contract CallitFactory is ERC20, Ownable {
 
     // Assumed helper functions (implementations not shown)
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private returns (address) {
-        // LEFT OFF HERE ... _usdStable & _usdAmount must check and convert to use correct decimals
-        //          need to properly set & use: uniswapRouter & uniswapFactory
-
+        // declare factory & router
         IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
         IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
+
+        // normalize decimals _usdStable token requirements
+        _usdAmount = _normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
 
         // Approve tokens for Uniswap Router
         IERC20(_token).approve(_uswapV2Router, _tokenAmount);
@@ -1154,18 +1156,17 @@ contract CallitFactory is ERC20, Ownable {
         address generatedAddress = address(uint160(uint256(hash)));
         return generatedAddress;
     }
-    function _calculateTokensToMint(address pairAddress, uint targetPrice) private view returns (uint256) {
+    function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) private view returns (uint256) {
+        // NOTE: _usdTargetPrice should already be normalized/matched to decimals of reserve1 in _pairAddress
+
         // Assuming reserve0 is token and reserve1 is USD
-        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(pairAddress).getReserves();
+        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddr).getReserves();
 
-        // LEFT OFF HERE ... may need to compensate for different stable decimals
-        //  *WARNING* need to consider this
-
-        uint256 currentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
-        require(targetPrice < currentPrice, "Target price must be less than current price.");
+        uint256 usdCurrentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
+        require(_usdTargetPrice < usdCurrentPrice, "Target price must be less than current price.");
 
         // Calculate the amount of tokens to mint
-        uint256 tokensToMint = (uint256(reserve1) * 1e18 / targetPrice) - uint256(reserve0);
+        uint256 tokensToMint = (uint256(reserve1) * 1e18 / _usdTargetPrice) - uint256(reserve0);
 
         return tokensToMint;
     }
@@ -1196,14 +1197,12 @@ contract CallitFactory is ERC20, Ownable {
         uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
 
         // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        uint64 amntConvert = _uint64_from_uint256(stableAmntOut);
-            // LEFT OFF HERE .. potential old bug (need to account for decimals of usdStable), potential fix ...
-            // uint64 amntConvert = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+        uint64 usdAmntConvert = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
 
-        ACCT_USD_BALANCES[msg.sender] += amntConvert;
+        ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
         ACCOUNTS = _addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
 
-        emit DepositReceived(msg.sender, amntIn, amntConvert);
+        emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
     }
 
     /* -------------------------------------------------------- */
