@@ -506,14 +506,17 @@ contract CallitFactory is ERC20, Ownable {
             // verify ERC20 & LP was created
             require(new_tick_tok != address(0) && pairAddr != address(0), ' err: gen tick tok | lp :( ');
 
-            resultOptionTokens[i] = new_tick_tok;
-            resultTokenLPs[i] = pairAddr;
+            // push this ticket option's settings to storage temp results array
+            //  temp array will be added to MARKET struct (then deleted on function return)
+            resultOptionTokens.push(new_tick_tok);
+            resultTokenLPs.push(pairAddr);
 
-            resultTokenRouters[i] = NEW_TICK_UNISWAP_V2_ROUTER;
-            resultTokenFactories[i] = NEW_TICK_UNISWAP_V2_FACTORY;
-            resultTokenUsdStables[i] = NEW_TICK_USD_STABLE;
-            resultTokenVotes[i] = 0;
+            resultTokenRouters.push(NEW_TICK_UNISWAP_V2_ROUTER);
+            resultTokenFactories.push(NEW_TICK_UNISWAP_V2_FACTORY);
+            resultTokenUsdStables.push(NEW_TICK_USD_STABLE);
+            resultTokenVotes.push(0);
 
+            // set ticket to maker mapping (additional access support)
             TICKET_MAKERS[new_tick_tok] = msg.sender;
             unchecked {i++;}
         }
