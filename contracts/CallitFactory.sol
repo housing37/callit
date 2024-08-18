@@ -782,19 +782,17 @@ contract CallitFactory is ERC20, Ownable {
             _mintCallToksEarned(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
         }
 
-        // verify perc calc/taking <= 100%
+        // verify perc calc/taking <= 100% of _usdAmnt
         require(promo.percReward + PERC_PROMO_BUY_FEE <= 10000, ' buy promo fee perc mismatch :o ');
 
         // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = _perc_of_uint64(promo.percReward, _usdAmnt);
-        uint64 usdPromoBuyFee = _perc_of_uint64(PERC_PROMO_BUY_FEE, _usdAmnt);
         _payUsdReward(usdReward, promo.promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
         emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
 
-        // deduct usdReward & additional fees from _usdAmnt
+        // deduct usdReward & promo buy fee _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
-        // net_usdAmnt = _deductPromoBuyFees(_usdAmnt, net_usdAmnt); // LEFT OFF HERE ... finish _deductPromoBuyFees integration
-        net_usdAmnt = net_usdAmnt - usdPromoBuyFee;
+        net_usdAmnt = _deductFeePerc(net_usdAmnt, PERC_PROMO_BUY_FEE, _usdAmnt);
 
         // verifiy contract holds enough tick_stable_tok for DEX buy
         //  if not, swap another contract held stable that can indeed cover
@@ -815,10 +813,8 @@ contract CallitFactory is ERC20, Ownable {
         // address[] memory usd_tick_path = [tick_stable_tok, _ticket]; // ref: https://ethereum.stackexchange.com/a/28048
         address[] memory usd_tick_path = new address[](2);
         usd_tick_path[0] = tick_stable_tok;
-        usd_tick_path[1] = _ticket;
+        usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
         uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
-            // NOTE: accounts for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-            //  auto-sets receiver to SWAP_DELEGATE & transfers tokens from SWAP_DELEGATE
 
         // deduct full OG input _usdAmnt from account balance
         ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
@@ -827,7 +823,7 @@ contract CallitFactory is ERC20, Ownable {
         promo.usdUsed += _usdAmnt;
 
         // emit log
-        // emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
+        emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
     }
     function exeArbPriceParityForTicket(address _ticket) external { // _deductArbExeFees from arb profits
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
