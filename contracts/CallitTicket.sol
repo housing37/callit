@@ -25,8 +25,9 @@ contract CallitTicket is ERC20, Ownable {
     event MintedForPriceParity(address _receiver, uint256 _amount);
     event BurnForWinClaim(address _account, uint256 _amount);
 
-    constructor(uint64 _initSupply, string memory _name, string memory _symbol) ERC20(_name, _symbol) Ownable(msg.sender) {
+    constructor(uint256 _initSupply, string memory _name, string memory _symbol) ERC20(_name, _symbol) Ownable(msg.sender) {
         // NOTE: uint64 = ~18,000Q max
+        _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
     }
 
     function mintForPriceParity(address _receiver, uint256 _amount) external onlyOwner() {

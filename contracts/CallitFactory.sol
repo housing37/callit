@@ -55,148 +55,36 @@ interface ICallitTicket {
     function balanceOf(address account) external returns(uint256);
 }
 
-// contract LUSDShareToken is ERC20, Ownable { // (legacy)
 contract CallitFactory is ERC20, Ownable {
+    /* -------------------------------------------------------- */
+    /* GLOBALS (STORAGE)
+    /* -------------------------------------------------------- */
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
 
-    /* -------------------------------------------------------- */
-    /* GLOBALS (legacy)
-    /* -------------------------------------------------------- */
-    /* _ TOKEN INIT SUPPORT _ */
+    /* _ ADMIN SUPPORT (legacy) _ */
+    address public KEEPER;
+    uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     string public tVERSION = '0.1';
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
     // string private TOK_NAME = "CALL-IT";
 
-    /* _ ADMIN SUPPORT _ */
-    address public KEEPER;
-    uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    
-    /* _ ACCOUNT SUPPORT _ */
+    /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     // NOTE: all USD bals & payouts stores uint precision to 6 decimals
     address[] private ACCOUNTS;
     mapping(address => uint64) public ACCT_USD_BALANCES; 
-
     address[] public USWAP_V2_ROUTERS;
     address[] private WHITELIST_USD_STABLES;
     address[] private USD_STABLES_HISTORY;
     mapping(address => uint8) public USD_STABLE_DECIMALS;
 
-    /* -------------------------------------------------------- */
-    /* STRUCTS (legacy)
-    /* -------------------------------------------------------- */
+    /* GLOBALS (CALLIT) */
+    // address public CALLIT_LIB_ADDR;
+    // ICallitLib private CALLIT_LIB;
 
-    /* -------------------------------------------------------- */
-    /* EVENTS (legacy)
-    /* -------------------------------------------------------- */
-    event KeeperTransfer(address _prev, address _new);
-    event TokenNameSymbolUpdated(string TOK_NAME, string TOK_SYMB);
-    event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
-    event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
-    event DexRouterUpdated(address _router, bool _add);
-
-    /* -------------------------------------------------------- */
-    /* CONSTRUCTOR (legacy)
-    /* -------------------------------------------------------- */
-    // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
-    // constructor(uint256 _initSupply, address _callit_lib) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-    constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-        // CALLIT_LIB_ADDR = _callit_lib;
-        // CALLIT_LIB = ICallitLib(_callit_lib);
-
-        // set default globals
-        KEEPER = msg.sender;
-        KEEPER_CHECK = 0;
-        _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
-
-        // add a whitelist stable
-        _editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
-
-        // add default routers: pulsex (x2)
-        _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
-        // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
-    }
-
-    /* -------------------------------------------------------- */
-    /* MODIFIERS (legacy)
-    /* -------------------------------------------------------- */
-    modifier onlyKeeper() {
-        require(msg.sender == KEEPER, "!keeper :p");
-        _;
-    }
-    
-    /* -------------------------------------------------------- */
-    /* PUBLIC - KEEPER SUPPORT (legacy)
-    /* -------------------------------------------------------- */
-    //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
-    function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
-        require(IERC20(_tokAddr).balanceOf(address(this)) >= _tokAmnt, ' not enough amount for token :O ');
-        IERC20(_tokAddr).transfer(KEEPER, _tokAmnt);
-        // emit KeeperMaintenance(_tokAddr, _tokAmnt);
-    }
-    function KEEPER_withdraw(uint256 _natAmnt) external onlyKeeper {
-        require(address(this).balance >= _natAmnt, " Insufficient native PLS balance :[ ");
-        payable(KEEPER).transfer(_natAmnt); // cast to a 'payable' address to receive ETH
-        // emit KeeperWithdrawel(_natAmnt);
-    }
-    function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
-        require(_newKeeper != address(0), 'err: 0 address');
-        address prev = address(KEEPER);
-        KEEPER = _newKeeper;
-        emit KeeperTransfer(prev, KEEPER);
-    }
-    function KEEPER_setKeeperCheck(uint256 _keeperCheck) external onlyKeeper {
-        KEEPER_CHECK = _keeperCheck;
-    }
-    function KEEPER_setTokNameSymb(string memory _tok_name, string memory _tok_symb) external onlyKeeper() {
-        require(bytes(_tok_name).length > 0 && bytes(_tok_symb).length > 0, ' invalid input  :<> ');
-        TOK_NAME = _tok_name;
-        TOK_SYMB = _tok_symb;
-        emit TokenNameSymbolUpdated(TOK_NAME, TOK_SYMB);
-    }
-    function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
-        require(_usdStable != address(0), 'err: 0 address');
-        _editWhitelistStables(_usdStable, _decimals, _add);
-        emit WhitelistStableUpdated(_usdStable, _decimals, _add);
-    }
-    function KEEPER_editDexRouters(address _router, bool _add) external onlyKeeper {
-        require(_router != address(0x0), "0 address");
-        _editDexRouters(_router, _add);
-        emit DexRouterUpdated(_router, _add);
-    }
-
-    /* -------------------------------------------------------- */
-    /* PUBLIC - KEEPER - ACCESSORS (legacy)
-    /* -------------------------------------------------------- */
-    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
-        require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
-        if (_history)
-            return _collectiveStableBalances(USD_STABLES_HISTORY);
-        return _collectiveStableBalances(WHITELIST_USD_STABLES);
-    }
-
-    /* -------------------------------------------------------- */
-    /* PUBLIC - ACCESSORS (legacy)
-    /* -------------------------------------------------------- */
-    function getAccounts() external view returns (address[] memory) {
-        return ACCOUNTS;
-    }
-    function getUsdStablesHistory() external view returns (address[] memory) {
-        return USD_STABLES_HISTORY;
-    }    
-    function getWhitelistStables() external view returns (address[] memory) {
-        return WHITELIST_USD_STABLES;
-    }
-    function getDexRouters() external view returns (address[] memory) {
-        return USWAP_V2_ROUTERS;
-    }
-
-    /* -------------------------------------------------------- */
-    /* GLOBALS (CALLIT)
-    /* -------------------------------------------------------- */
     uint16 PERC_MARKET_MAKER_FEE; // TODO: KEEPER setter
     uint16 PERC_PROMO_BUY_FEE; // TODO: KEEPER setter
     uint16 PERC_ARB_EXE_FEE; // TODO: KEEPER setter
@@ -204,41 +92,46 @@ contract CallitFactory is ERC20, Ownable {
     uint16 PERC_VOTE_CLAIM_FEE; // TODO: KEEPER setter
     uint16 PERC_CLAIM_WIN_FEE; // TODO: KEEPER setter
 
-    // address public CALLIT_LIB_ADDR;
-    // ICallitLib private CALLIT_LIB;
-
-    address NEW_TICK_UNISWAP_V2_ROUTER;
-    address NEW_TICK_UNISWAP_V2_FACTORY;
-    address NEW_TICK_USD_STABLE;
-
-    uint64 public TOK_TICK_INIT_SUPPLY = 1000000; // init supply used for new call ticket tokens (uint64 = ~18,000Q max)
+    // call ticket token settings
+    address public NEW_TICK_UNISWAP_V2_ROUTER;
+    address public NEW_TICK_UNISWAP_V2_FACTORY;
+    address public NEW_TICK_USD_STABLE;
+    // uint64 public TOK_TICK_INIT_SUPPLY = 1000000; // init supply used for new call ticket tokens (uint64 = ~18,000Q max)
     string public TOK_TICK_NAME_SEED = "TCK#";
     string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
-    // string private TOK_TICK_NAME_SEED = string(abi.encodePacked("TCK#"));
-    // string private TOK_TICK_SYMB_SEED = string(abi.encodePacked("CALL-TICKET"));
 
-    uint256 SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    bool USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    
-    uint64 public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+    // account settings
+    uint8  public MIN_HANDLE_SIZE = 1; // min # of chars for account handles
+    uint8  public MAX_HANDLE_SIZE = 25; // max # of chars for account handles
+
+    // promo settings
+    uint64 public MIN_USD_PROMO_TARGET = 100; // min $ target for creating promo codes
+
+    // arb algorithm settings
+    uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+
+    // market settings
+    bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
+    uint16  public MIN_USD_MARK_LIQ = 10; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    uint16  public MAX_RESULTS = 100; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
+    uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
         // NOTE: additional launch security: caps EOA $CALL earned to 255
         //  but also limits the EOA following (KEEPER setter available; should raise after launch)
 
-    uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-    uint16 MIN_USD_MARK_LIQ = 10; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
-    uint16 MAX_RESULTS = 100; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
-    uint8 MIN_HANDLE_SIZE = 1; // min # of chars for account handles
-    uint8 MAX_HANDLE_SIZE = 25; // max # of chars for account handles
-    uint64 MIN_USD_PROMO_TARGET = 100; // min $ target for creating promo codes
-    uint64 RATIO_PROMO_USD_PER_CALL_TOK = 100; // usd amount buy needed per $CALL earned in promo (note: global across all promos to avoid exploitations)
-        // LEFT OFF HERE  ... may need decimal precision integration
-    uint64 RATIO_LP_USD_PER_CALL_TOK = 100; // init LP usd amount needed per $CALL earned by market maker
-        // LEFT OFF HERE  ... may need decimal precision integration
-    uint16 RATIO_LP_TOK_PER_USD = 10000;
-    uint16 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
-    uint8 public RATIO_CALL_MINT_PER_LOSER = 1;
-    uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    // lp settings
+    uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
 
+    // $CALL reward & usd earn settings
+    uint16 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
+    uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    uint8  public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
+    uint64 public RATIO_PROMO_USD_PER_CALL_TOK = 100000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
+    uint64 public RATIO_LP_USD_PER_CALL_TOK = 100000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
+        // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
+        //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)
+    
+    /* MAPPINGS (CALLIT) */
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
     mapping(address => MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping
@@ -257,10 +150,18 @@ contract CallitFactory is ERC20, Ownable {
     address[] private resultTokenFactories;
     address[] private resultTokenUsdStables;
     uint64 [] private resultTokenVotes;
+    
+    /* -------------------------------------------------------- */
+    /* EVENTS
+    /* -------------------------------------------------------- */
+    // legacy
+    event KeeperTransfer(address _prev, address _new);
+    event TokenNameSymbolUpdated(string TOK_NAME, string TOK_SYMB);
+    event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
+    event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
+    event DexRouterUpdated(address _router, bool _add);
 
-    /* -------------------------------------------------------- */
-    /* EVENTS (CALLIT)
-    /* -------------------------------------------------------- */
+    // callit
     event MarketCreated(address _maker, uint256 _markNum, string _name, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, address[] _resultOptionTokens, uint256 _blockTime, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
@@ -290,24 +191,8 @@ contract CallitFactory is ERC20, Ownable {
         string rules;
         string imgUrl;
         MARKET_USD_AMNTS marketUsdAmnts;
-        // uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
-        // uint64 usdAmntPrizePool; // default 0, until market voting ends
-        // uint64 usdAmntPrizePool_net; // default 0, until market voting ends
-        // uint64 usdVoterRewardPool; // default 0, until close market calc
-        // uint64 usdRewardPerVote; // default 0, until close mark calc
         MARKET_DATETIMES marketDatetimes;
-        // uint256 dtCallDeadline; // unix timestamp 1970, no more bets, pull liquidity from all DEX LPs generated
-        // uint256 dtResultVoteStart; // unix timestamp 1970, earned $CALL token EOAs may start voting
-        // uint256 dtResultVoteEnd; // unix timestamp 1970, earned $CALL token EOAs voting ends
         MARKET_RESULTS marketResults;
-        // string[] resultLabels; // required: length == _resultDescrs
-        // string[] resultDescrs; // required: length == _resultLabels
-        // address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
-        // address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
-        // address[] resultTokenRouters;
-        // address[] resultTokenFactories;
-        // address[] resultTokenUsdStables;
-        // uint64[] resultTokenVotes;
         uint16 winningVoteResultIdx; // calc winning idx from resultTokenVotes 
         uint256 blockTimestamp; // sec timestamp this market was created
         uint256 blockNumber; // block number this market was created
@@ -359,16 +244,89 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* MODIFIERS (CALLIT)
+    /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
+    // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
+    // constructor(uint256 _initSupply, address _callit_lib) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
+    constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
+        // CALLIT_LIB_ADDR = _callit_lib;
+        // CALLIT_LIB = ICallitLib(_callit_lib);
+
+        // set default globals
+        KEEPER = msg.sender;
+        KEEPER_CHECK = 0;
+        _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
+
+        // add a whitelist stable
+        _editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
+
+        // add default routers: pulsex (x2)
+        _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
+        // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
+    }
+
+    /* -------------------------------------------------------- */
+    /* MODIFIERS
+    /* -------------------------------------------------------- */
+    modifier onlyKeeper() {
+        require(msg.sender == KEEPER, "!keeper :p");
+        _;
+    }
     modifier onlyAdmin() {
         require(msg.sender == KEEPER || ADMINS[msg.sender] == true, " !admin :p");
         _;
     }
+    
+    /* -------------------------------------------------------- */
+    /* PUBLIC - KEEPER setters
+    /* -------------------------------------------------------- */
+    // legacy
+    function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
+        //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
+        require(IERC20(_tokAddr).balanceOf(address(this)) >= _tokAmnt, ' not enough amount for token :O ');
+        IERC20(_tokAddr).transfer(KEEPER, _tokAmnt);
+        // emit KeeperMaintenance(_tokAddr, _tokAmnt);
+    }
+    function KEEPER_withdraw(uint256 _natAmnt) external onlyKeeper {
+        require(address(this).balance >= _natAmnt, " Insufficient native PLS balance :[ ");
+        payable(KEEPER).transfer(_natAmnt); // cast to a 'payable' address to receive ETH
+        // emit KeeperWithdrawel(_natAmnt);
+    }
+    function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
+        require(_newKeeper != address(0), 'err: 0 address');
+        address prev = address(KEEPER);
+        KEEPER = _newKeeper;
+        emit KeeperTransfer(prev, KEEPER);
+    }
+    function KEEPER_setKeeperCheck(uint256 _keeperCheck) external onlyKeeper {
+        KEEPER_CHECK = _keeperCheck;
+    }
+    function KEEPER_setTokNameSymb(string memory _tok_name, string memory _tok_symb) external onlyKeeper() {
+        require(bytes(_tok_name).length > 0 && bytes(_tok_symb).length > 0, ' invalid input  :<> ');
+        TOK_NAME = _tok_name;
+        TOK_SYMB = _tok_symb;
+        emit TokenNameSymbolUpdated(TOK_NAME, TOK_SYMB);
+    }
+    function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
+        require(_usdStable != address(0), 'err: 0 address');
+        _editWhitelistStables(_usdStable, _decimals, _add);
+        emit WhitelistStableUpdated(_usdStable, _decimals, _add);
+    }
+    function KEEPER_editDexRouters(address _router, bool _add) external onlyKeeper {
+        require(_router != address(0x0), "0 address");
+        _editDexRouters(_router, _add);
+        emit DexRouterUpdated(_router, _add);
+    }
 
-    /* -------------------------------------------------------- */
-    /* PUBLIC - KEEPER MUTATORS (CALLIT)
-    /* -------------------------------------------------------- */
+    // CALLIT
+    function KEEPER_withdrawTicketLP(address _ticket, bool _all) external view onlyKeeper {
+        require(_ticket != address(0), ' !_ticket indy :) ' );
+        if (_all) { // LEFT OFF HERE ...
+            // loop through market for _ticket and withdraw all LP
+        } else {
+            // withdraw LP from just _ticket (this might not be logical)
+        }
+    }
     function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
@@ -396,9 +354,9 @@ contract CallitFactory is ERC20, Ownable {
         TOK_TICK_NAME_SEED = _nameSeed;
         TOK_TICK_SYMB_SEED = _symbSeed;
     }
-    function KEEPER_setTokTickInitSupply(uint64 _initSupply) external onlyKeeper {
-        TOK_TICK_INIT_SUPPLY = _initSupply; // NOTE: uint64 max = ~18,000Q
-    }
+    // function KEEPER_setTokTickInitSupply(uint64 _initSupply) external onlyKeeper {
+    //     TOK_TICK_INIT_SUPPLY = _initSupply; // NOTE: uint64 max = ~18,000Q
+    // }
     function KEEPER_setMaxEoaMarkets(uint64 _max) external onlyKeeper { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
         MAX_EOA_MARKETS = _max;
     }
@@ -431,9 +389,7 @@ contract CallitFactory is ERC20, Ownable {
         MIN_USD_CALL_TICK_TARGET_PRICE = _usdMin;
     }
 
-    /* -------------------------------------------------------- */
-    /* PUBLIC - ADMIN MUTATORS (CALLIT)
-    /* -------------------------------------------------------- */
+    // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
         require(_promotor != address(0) && _validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
         address promoCodeHash = _generateAddressHash(_promotor, _promoCode);
@@ -445,8 +401,33 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - ACCESSORS (CALLIT)
+    /* PUBLIC - KEEPER - ACCESSORS (legacy)
     /* -------------------------------------------------------- */
+    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
+        require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
+        if (_history)
+            return _collectiveStableBalances(USD_STABLES_HISTORY);
+        return _collectiveStableBalances(WHITELIST_USD_STABLES);
+    }
+
+    /* -------------------------------------------------------- */
+    /* PUBLIC - ACCESSORS
+    /* -------------------------------------------------------- */
+    // legacy
+    function getAccounts() external view returns (address[] memory) {
+        return ACCOUNTS;
+    }
+    function getUsdStablesHistory() external view returns (address[] memory) {
+        return USD_STABLES_HISTORY;
+    }    
+    function getWhitelistStables() external view returns (address[] memory) {
+        return WHITELIST_USD_STABLES;
+    }
+    function getDexRouters() external view returns (address[] memory) {
+        return USWAP_V2_ROUTERS;
+    }
+
+    // CALLIT
     function getAccountMarkets(address _account) external view returns (MARKET[] memory) {
         require(_account != address(0), ' 0 address? ;[+] ');
         return ACCT_MARKETS[_account];
@@ -511,13 +492,15 @@ contract CallitFactory is ERC20, Ownable {
         if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
 
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
-        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
-            // Deploy a new ERC20 token for each result label
-            (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            address new_tick_tok = address (new CallitTicket(TOK_TICK_INIT_SUPPLY, tok_name, tok_symb));
-            
-            // Get amounts for initial LP & Create DEX LP for the token
+        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
+            // Get/calc amounts for initial LP (usd and token amounts)
             (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
+
+            // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to this contract)
+            (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
+            address new_tick_tok = address (new CallitTicket(tokenAmount, tok_name, tok_symb));
+            
+            // Create DEX LP for new ticket token
             address pairAddr = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
 
             // verify ERC20 & LP was created
