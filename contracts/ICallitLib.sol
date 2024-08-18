@@ -89,19 +89,19 @@ interface ICallitLib {
     //     uint64 agreeCnt;
     //     uint64 disagreeCnt;
     // }
-    function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
-    function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
-    function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) external view returns (uint8, uint256);
-    function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) external returns (uint256);
+    // function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
+    // function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
+    // function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) external view returns (uint8, uint256);
+    // function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) external returns (uint256);
 
-    function _perc_total_supply_owned(address _token, address _account) external view returns (uint64);
-    function _isAddressInArray(address _addr, address[] memory _addrArr) external pure returns(bool);
-    // function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory);
-    function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool);
-    function _generateAddressHash(address host, string memory uid) external pure returns (address);
-    function _perc_of_uint64(uint32 _perc, uint64 _num) external pure returns (uint64);
-    function _uint64_from_uint256(uint256 value) external pure returns (uint64);
-    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
-    function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
-    function _remAddressFromArray(address _addr, address[] memory _arr) external pure returns (address[] memory);
+    // function _perc_total_supply_owned(address _token, address _account) external view returns (uint64);
+    // function _isAddressInArray(address _addr, address[] memory _addrArr) external pure returns(bool);
+    // // function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory);
+    // function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool);
+    // function _generateAddressHash(address host, string memory uid) external pure returns (address);
+    // function _perc_of_uint64(uint32 _perc, uint64 _num) external pure returns (uint64);
+    // function _uint64_from_uint256(uint256 value) external pure returns (uint64);
+    // function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
+    // function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
+    // function _remAddressFromArray(address _addr, address[] memory _arr) external pure returns (address[] memory);
 }

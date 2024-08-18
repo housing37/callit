@@ -32,7 +32,7 @@ import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol"
 
 // import "./SwapDelegate.sol";
 import "./CallitTicket.sol";
-import "./ICallitLib.sol";
+// import "./ICallitLib.sol";
 
 // interface ISwapDelegate { // (legacy)
 //     function VERSION() external view returns (uint8);
@@ -181,9 +181,9 @@ contract CallitFactory is ERC20, Ownable {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
-    constructor(uint256 _initSupply, address _callit_lib) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {
-        CALLIT_LIB_ADDR = _callit_lib;
-        CALLIT_LIB = ICallitLib(_callit_lib);
+    constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {
+        // CALLIT_LIB_ADDR = _callit_lib;
+        // CALLIT_LIB = ICallitLib(_callit_lib);
 
         // set default globals (LUSDst additions)
         // TOK_BURN_LOCK = address(TOK_pLUSD);
@@ -393,8 +393,8 @@ contract CallitFactory is ERC20, Ownable {
     uint16 PERC_MARKET_CLOSE_FEE; // TODO: KEEPER setter
     uint16 PERC_VOTE_CLAIM_FEE; // TODO: KEEPER setter
 
-    address public CALLIT_LIB_ADDR;
-    ICallitLib private CALLIT_LIB;
+    // address public CALLIT_LIB_ADDR;
+    // ICallitLib private CALLIT_LIB;
 
     address NEW_TICK_UNISWAP_V2_ROUTER;
     address NEW_TICK_UNISWAP_V2_FACTORY;
@@ -589,7 +589,7 @@ contract CallitFactory is ERC20, Ownable {
     }
     function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable) external onlyKeeper {
         // max array size = 255 (uint8 loop)
-        require(CALLIT_LIB._isAddressInArray(_router, USWAP_V2_ROUTERS) && CALLIT_LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist router|stable :() ');
+        require(_isAddressInArray(_router, USWAP_V2_ROUTERS) && _isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist router|stable :() ');
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_UNISWAP_V2_FACTORY = _factory;
         NEW_TICK_USD_STABLE = _usdStable;
@@ -618,8 +618,8 @@ contract CallitFactory is ERC20, Ownable {
     /* PUBLIC - ADMIN MUTATORS (CALLIT)
     /* -------------------------------------------------------- */
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
-        require(_promotor != address(0) && CALLIT_LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
-        address promoCodeHash = CALLIT_LIB._generateAddressHash(_promotor, _promoCode);
+        require(_promotor != address(0) && _validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
+        address promoCodeHash = _generateAddressHash(_promotor, _promoCode);
         PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
         require(promo.promotor == address(0), ' promo already exists :-O ');
         // PROMO_CODE_HASHES[promoCodeHash].push(PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
@@ -646,7 +646,7 @@ contract CallitFactory is ERC20, Ownable {
     function setMyAcctHandle(string calldata _handle) external {
         require(bytes(_handle).length >= MIN_HANDLE_SIZE && bytes(_handle).length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
         require(bytes(_handle)[0] != 0x20, ' !_handle space start :+[ '); // 0x20 -> ASCII for ' ' (single space)
-        if (CALLIT_LIB._validNonWhiteSpaceString(_handle))
+        if (_validNonWhiteSpaceString(_handle))
             ACCT_HANDLES[msg.sender] = _handle;
         else
             revert(' !blank space handles :-[=] ');        
@@ -685,7 +685,7 @@ contract CallitFactory is ERC20, Ownable {
         require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // initilize/validate market number for struct MARKET tracking
-        // uint64 mark_num = CALLIT_LIB._uint64_from_uint256(ACCT_MARKETS[msg.sender].length);
+        // uint64 mark_num = _uint64_from_uint256(ACCT_MARKETS[msg.sender].length);
         // uint256 mark_num = ACCT_MARKETS[msg.sender].length;
         // require(mark_num <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
         require(ACCT_MARKETS[msg.sender].length <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
@@ -712,7 +712,7 @@ contract CallitFactory is ERC20, Ownable {
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
             // Deploy a new ERC20 token for each result label
-            // (string memory tok_name, string memory tok_symb) = CALLIT_LIB._genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
+            // (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
             // (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
             // (string memory tok_name, string memory tok_symb) = _genTokenNameSymbol(msg.sender, ACCT_MARKETS[msg.sender].length, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
             string memory tok_name = 'hello';
@@ -723,18 +723,18 @@ contract CallitFactory is ERC20, Ownable {
             // (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _resultLabels.length);
             // (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(_usdAmntLP, _resultLabels.length);
             // (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(_deductMarketMakerFees(_usdAmntLP, _usdAmntLP), _resultLabels.length);
-            // uint64 usdAmount = CALLIT_LIB._uint64_from_uint256(net_usdAmntLP / _resultLabels.length);
+            // uint64 usdAmount = _uint64_from_uint256(net_usdAmntLP / _resultLabels.length);
 
             // uint256 net_usdAmnt = _deductMarketMakerFees(_usdAmntLP, _usdAmntLP);
             // uint256 net_usdAmnt = _deductMarketMakerFees(_usdAmntLP);
-            uint256 net_usdAmntLP = _usdAmntLP - CALLIT_LIB._perc_of_uint64(PERC_MARKET_MAKER_FEE, _usdAmntLP);
+            uint256 net_usdAmntLP = _usdAmntLP - _perc_of_uint64(PERC_MARKET_MAKER_FEE, _usdAmntLP);
             uint256 usdAmount = net_usdAmntLP / _resultLabels.length;
             uint256 tokenAmount = usdAmount * RATIO_LP_TOK_PER_USD;
 
             // uint256 usdAmount = _usdAmntLP / _resultLabels.length;
             // uint256 tokenAmount = (_usdAmntLP / _resultLabels.length) * RATIO_LP_TOK_PER_USD;
 
-            // return (CALLIT_LIB._uint64_from_uint256(_usdAmntLP / _resultOptionCnt), (_usdAmntLP / _resultOptionCnt) * RATIO_LP_TOK_PER_USD);
+            // return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), (_usdAmntLP / _resultOptionCnt) * RATIO_LP_TOK_PER_USD);
             
             // address lpAddress = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
                             // _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint64 _usdAmount)
@@ -842,8 +842,8 @@ contract CallitFactory is ERC20, Ownable {
         require(promo.percReward + PERC_PROMO_BUY_FEE <= 10000, ' buy promo fee perc mismatch :o ');
 
         // calc influencer reward from _usdAmnt to send to promo.promotor
-        uint64 usdReward = CALLIT_LIB._perc_of_uint64(promo.percReward, _usdAmnt);
-        uint64 usdPromoBuyFee = CALLIT_LIB._perc_of_uint64(PERC_PROMO_BUY_FEE, _usdAmnt);
+        uint64 usdReward = _perc_of_uint64(promo.percReward, _usdAmnt);
+        uint64 usdPromoBuyFee = _perc_of_uint64(PERC_PROMO_BUY_FEE, _usdAmnt);
         _payUsdReward(usdReward, promo.promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
         emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
 
@@ -858,7 +858,7 @@ contract CallitFactory is ERC20, Ownable {
         address tick_stable_tok = mark.marketResults.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
         uint256 contr_stab_bal = IERC20(tick_stable_tok).balanceOf(address(this)); 
         if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
-            uint64 net_usdAmnt_needed = net_usdAmnt - CALLIT_LIB._uint64_from_uint256(contr_stab_bal);
+            uint64 net_usdAmnt_needed = net_usdAmnt - _uint64_from_uint256(contr_stab_bal);
             (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, tick_stable_tok);
             emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
@@ -898,7 +898,7 @@ contract CallitFactory is ERC20, Ownable {
         uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity)
-        uint64 /* ~18,000Q */ tokensToMint = CALLIT_LIB._uint64_from_uint256(_calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], ticketTargetPriceUSD));
+        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(_calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], ticketTargetPriceUSD));
 
         // calc price to charge msg.sender for minting tokensToMint
         //  then deduct that amount from their account balance
@@ -921,13 +921,13 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory tok_stab_path = new address[](3);
         tok_stab_path[0] = _ticket;
         tok_stab_path[1] = mark.marketResults.resultTokenUsdStables[tickIdx];
-        uint64 gross_stab_amnt_out = CALLIT_LIB._uint64_from_uint256(_exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx])); // swap tick: use specific router tck:tick-stable
+        uint64 gross_stab_amnt_out = _uint64_from_uint256(_exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx])); // swap tick: use specific router tck:tick-stable
 
         // calc & send net profits to msg.sender
         //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
         //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
         // uint256 net_usd_profits = _deductArbExeFees(gross_stab_amnt_out, gross_stab_amnt_out); // LEFT OFF HERE ... finish _deductArbExeFees integration
-        uint64 net_usd_profits = gross_stab_amnt_out - CALLIT_LIB._perc_of_uint64(PERC_ARB_EXE_FEE, gross_stab_amnt_out);
+        uint64 net_usd_profits = gross_stab_amnt_out - _perc_of_uint64(PERC_ARB_EXE_FEE, gross_stab_amnt_out);
         require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
         IERC20(mark.marketResults.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
 
@@ -989,7 +989,7 @@ contract CallitFactory is ERC20, Ownable {
             require(IERC20(mark.marketResults.resultTokenUsdStables[i]).balanceOf(address(this)) >= OG_stable_bal, ' stab bal mismatch after liq pull :+( ');
 
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
-            mark.marketUsdAmnts.usdAmntPrizePool += CALLIT_LIB._uint64_from_uint256(amountToken1); // NOTE: write to market
+            mark.marketUsdAmnts.usdAmntPrizePool += _uint64_from_uint256(amountToken1); // NOTE: write to market
         }
 
         // LEFT OFF HERE ... need emit event log
@@ -1047,12 +1047,12 @@ contract CallitFactory is ERC20, Ownable {
         mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
-        mark.marketUsdAmnts.usdVoterRewardPool = CALLIT_LIB._perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdVoterRewardPool = _perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
 
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
         mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool; // NOTE: write to market
         // mark.marketUsdAmnts.usdAmntPrizePool_net = _deductMarketCloseFees(mark.marketUsdAmnts.usdAmntPrizePool, mark.marketUsdAmnts.usdAmntPrizePool_net); // NOTE: write to market
-        mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool_net - CALLIT_LIB._perc_of_uint64(PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool);
+        mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool_net - _perc_of_uint64(PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool);
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 
@@ -1097,14 +1097,14 @@ contract CallitFactory is ERC20, Ownable {
         bool is_winner = mark.winningVoteResultIdx == tickIdx;
         if (is_winner) {
             // calc payout based on: _ticket.balanceOf(msg.sender) & mark.marketUsdAmnts.usdAmntPrizePool_net & _ticket.totalSupply();
-            uint64 usdPerTicket = CALLIT_LIB._uint64_from_uint256(uint256(mark.marketUsdAmnts.usdAmntPrizePool_net) / IERC20(_ticket).totalSupply());
-            uint64 usdPrizePoolShare = CALLIT_LIB._uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
+            uint64 usdPerTicket = _uint64_from_uint256(uint256(mark.marketUsdAmnts.usdAmntPrizePool_net) / IERC20(_ticket).totalSupply());
+            uint64 usdPrizePoolShare = _uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
 
             // send payout to msg.sender
             _payUsdReward(usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
-            uint64 perc_supply_owned = CALLIT_LIB._perc_total_supply_owned(_ticket, msg.sender);
+            uint64 perc_supply_owned = _perc_total_supply_owned(_ticket, msg.sender);
             if (perc_supply_owned >= PERC_OF_LOSER_SUPPLY_EARN_CALL) {
                 // mint $CALL to loser msg.sender & log $CALL votes earned
                 _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER);
@@ -1156,7 +1156,7 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // usdRewardOwed = _deductVoterClaimFees(usdRewardOwed, usdRewardOwed);
-        usdRewardOwed = usdRewardOwed - CALLIT_LIB._perc_of_uint64(PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        usdRewardOwed = usdRewardOwed - _perc_of_uint64(PERC_VOTE_CLAIM_FEE, usdRewardOwed);
         _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
         // LEFT OFF HERE ... need emit event log
         // emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
@@ -1168,7 +1168,7 @@ contract CallitFactory is ERC20, Ownable {
     function _logMarketResultReview(MARKET storage _mark, bool _resultAgree) private {
         uint64 agreeCnt = 0;
         uint64 disagreeCnt = 0;
-        uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
+        uint64 reviewCnt = _uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
         if (reviewCnt > 0) {
             agreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].agreeCnt;
             disagreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].disagreeCnt;
@@ -1179,18 +1179,18 @@ contract CallitFactory is ERC20, Ownable {
         ACCT_MARKET_REVIEWS[_mark.maker].push(MARKET_REVIEW(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt));
         emit MarketReviewed(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt);
     }
-    // function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
-    //     uint256 accountBalance = IERC20(_token).balanceOf(_account);
-    //     uint256 totalSupply = IERC20(_token).totalSupply();
+    function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
+        uint256 accountBalance = IERC20(_token).balanceOf(_account);
+        uint256 totalSupply = IERC20(_token).totalSupply();
 
-    //     // Prevent division by zero by checking if totalSupply is greater than zero
-    //     require(totalSupply > 0, "Total supply must be greater than zero");
+        // Prevent division by zero by checking if totalSupply is greater than zero
+        require(totalSupply > 0, "Total supply must be greater than zero");
 
-    //     // Calculate the percentage (in basis points, e.g., 1% = 100 basis points)
-    //     uint256 percentage = (accountBalance * 10000) / totalSupply;
+        // Calculate the percentage (in basis points, e.g., 1% = 100 basis points)
+        uint256 percentage = (accountBalance * 10000) / totalSupply;
 
-    //     return CALLIT_LIB._uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
-    // }
+        return _uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
+    }
     function _moveMarketVoteIdxToPaid(MARKET_VOTE storage _m_vote, uint64 _idxMove) private {
         // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
         ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
@@ -1234,7 +1234,7 @@ contract CallitFactory is ERC20, Ownable {
         // if indeed locked && locked before _mark start time, calc & return active vote count
         if (ACCT_CALL_VOTE_LOCK_TIME[_voter] > 0 && ACCT_CALL_VOTE_LOCK_TIME[_voter] <= _mark.blockTimestamp) {
             uint64 votes_earned = EARNED_CALL_VOTES[_voter]; // note: EARNED_CALL_VOTES stores uint64 type
-            uint64 votes_held = CALLIT_LIB._uint64_from_uint256(balanceOf(address(this)));
+            uint64 votes_held = _uint64_from_uint256(balanceOf(address(this)));
             uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
             return votes_active;
         }
@@ -1269,14 +1269,14 @@ contract CallitFactory is ERC20, Ownable {
         uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
         return (stab_amnt_out,highStableHeld);
     }
-    // function CALLIT_LIB._isAddressInArray(address _addr, address[] memory _addrArr) private pure returns(bool) {
-    //     for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
-    //         if (_addrArr[i] == _addr)
-    //             return true;
-    //         unchecked {i++;}
-    //     }
-    //     return false;
-    // }
+    function _isAddressInArray(address _addr, address[] memory _addrArr) private pure returns(bool) {
+        for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
+            if (_addrArr[i] == _addr)
+                return true;
+            unchecked {i++;}
+        }
+        return false;
+    }
     function _getCallTicketUsdTargetPrice(MARKET storage _mark, address _ticket) private view returns(uint64) {
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
@@ -1325,7 +1325,7 @@ contract CallitFactory is ERC20, Ownable {
     // }
     // function _deductFeePerc(uint64 _usdAmnt, uint64 _net_usdAmnt, uint16 _feePerc) private pure returns(uint64) {
     //     require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
-    //     return _net_usdAmnt - CALLIT_LIB._perc_of_uint64(_feePerc, _usdAmnt);
+    //     return _net_usdAmnt - _perc_of_uint64(_feePerc, _usdAmnt);
     // }
     // function _deductVoterClaimFees(uint64 _usdAmnt, uint64 _net_usdAmnt) private pure returns(uint64){
     //     // NOTE: no other deductions yet from _usdAmnt
@@ -1481,34 +1481,34 @@ contract CallitFactory is ERC20, Ownable {
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt) private view returns(uint64, uint256) {
         require (_usdAmntLP > 0 && _resultOptionCnt > 0, ' uint == 0 :{} ');
         // return (_usdAmntLP / _resultOptionCnt, _getInitDexTokSupplyForUsdAmnt(_usdAmntLP) / _resultOptionCnt);
-        return (CALLIT_LIB._uint64_from_uint256(_usdAmntLP / _resultOptionCnt), (_usdAmntLP / _resultOptionCnt) * RATIO_LP_TOK_PER_USD);
-        // return (CALLIT_LIB._uint64_from_uint256(_usdAmntLP / _resultOptionCnt), _getInitDexTokSupplyForUsdAmnt(_usdAmntLP / _resultOptionCnt));
+        return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), (_usdAmntLP / _resultOptionCnt) * RATIO_LP_TOK_PER_USD);
+        // return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), _getInitDexTokSupplyForUsdAmnt(_usdAmntLP / _resultOptionCnt));
     }
     function _getInitDexTokSupplyForUsdAmnt(uint256 _usdAmnt) private view returns(uint256) {
         return _usdAmnt * RATIO_LP_TOK_PER_USD;
     }
-    // function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
-    //     for (uint8 i=0; i < bytes(_s).length;) {
-    //         if (bytes(_s)[i] != 0x20) {
-    //             // Found a non-space character, return true
-    //             return true; 
-    //         }
-    //         unchecked {
-    //             i++;
-    //         }
-    //     }
+    function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) {
+        for (uint8 i=0; i < bytes(_s).length;) {
+            if (bytes(_s)[i] != 0x20) {
+                // Found a non-space character, return true
+                return true; 
+            }
+            unchecked {
+                i++;
+            }
+        }
 
-    //     // found string with all whitespaces as chars
-    //     return false;
-    // }
-    // function _generateAddressHash(address host, string memory uid) private pure returns (address) {
-    //     // Concatenate the address and the string, and then hash the result
-    //     bytes32 hash = keccak256(abi.encodePacked(host, uid));
+        // found string with all whitespaces as chars
+        return false;
+    }
+    function _generateAddressHash(address host, string memory uid) private pure returns (address) {
+        // Concatenate the address and the string, and then hash the result
+        bytes32 hash = keccak256(abi.encodePacked(host, uid));
 
-    //     // LEFT OFF HERE ... is this a bug? 'uint160' ? shoudl be uint16? 
-    //     address generatedAddress = address(uint160(uint256(hash)));
-    //     return generatedAddress;
-    // }
+        // LEFT OFF HERE ... is this a bug? 'uint160' ? shoudl be uint16? 
+        address generatedAddress = address(uint160(uint256(hash)));
+        return generatedAddress;
+    }
     function _calculateTokensToMint(address pairAddress, uint targetPrice) private view returns (uint256) {
         // Assuming reserve0 is token and reserve1 is USD
         (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(pairAddress).getReserves();
@@ -1532,7 +1532,7 @@ contract CallitFactory is ERC20, Ownable {
         uint256 price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
         
         // convert to contract '_usd_decimals()'
-        uint64 price_ret = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
+        uint64 price_ret = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
         return price_ret;
     }
 
@@ -1573,18 +1573,18 @@ contract CallitFactory is ERC20, Ownable {
         uint256 amntIn = msg.value; 
 
         // get whitelisted stable with lowest market value (ie. receive most stable for swap)
-        address usdStable = CALLIT_LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
+        address usdStable = _getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
 
         // perform swap from PLS to stable
-        uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // CALLIT_LIB._normalizeStableAmnt
+        uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
 
         // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        uint64 amntConvert = CALLIT_LIB._uint64_from_uint256(stableAmntOut);
+        uint64 amntConvert = _uint64_from_uint256(stableAmntOut);
             // LEFT OFF HERE .. potential old bug (need to account for decimals of usdStable), potential fix ...
-            // uint64 amntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+            // uint64 amntConvert = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
 
         ACCT_USD_BALANCES[msg.sender] += amntConvert;
-        ACCOUNTS = CALLIT_LIB._addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
+        ACCOUNTS = _addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
 
         emit DepositReceived(msg.sender, amntIn, amntConvert);
     }
@@ -1593,9 +1593,9 @@ contract CallitFactory is ERC20, Ownable {
     // //  NOTE: _usdValue must be in uint precision to address(this) '_usd_decimals()'
     // function payOutBST(uint64 _usdValue, address _payTo, address _auxToken, bool _selAuxPay) external {
     //     // NOTE: payOutBST runs multiple loops embedded (not analyzed yet, but less than BST legacy)        
-    //     //  invokes _getStableHeldLowMarketValue -> CALLIT_LIB._getStableTokenLowMarketValue -> CALLIT_LIB._best_swap_v2_router_idx_quote
-    //     //  invokes _exeTokBuyBurn -> _exeSwapStableForTok -> CALLIT_LIB._best_swap_v2_router_idx_quote
-    //     //  invokes _exeBstPayout -> _exeSwapStableForTok -> CALLIT_LIB._best_swap_v2_router_idx_quote
+    //     //  invokes _getStableHeldLowMarketValue -> _getStableTokenLowMarketValue -> _best_swap_v2_router_idx_quote
+    //     //  invokes _exeTokBuyBurn -> _exeSwapStableForTok -> _best_swap_v2_router_idx_quote
+    //     //  invokes _exeBstPayout -> _exeSwapStableForTok -> _best_swap_v2_router_idx_quote
 
     //     // ACCT_USD_BALANCES stores uint precision to 6 decimals
     //     require(_usdValue > 0, ' 0 _usdValue :[] ');
@@ -1664,7 +1664,7 @@ contract CallitFactory is ERC20, Ownable {
         for (uint8 i = 0; i < _stables.length;) {
             // NOTE: more efficient algorithm taking up less stack space with local vars
             require(USD_STABLE_DECIMALS[_stables[i]] > 0, ' found stable with invalid decimals :/ ');
-            gross_bal += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_stables[i]], IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
+            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_stables[i]], IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
             unchecked {i++;}
         }
         return gross_bal;
@@ -1685,19 +1685,19 @@ contract CallitFactory is ERC20, Ownable {
     }
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
         if (_add) {
-            WHITELIST_USD_STABLES = CALLIT_LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
-            USD_STABLES_HISTORY = CALLIT_LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
+            WHITELIST_USD_STABLES = _addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
+            USD_STABLES_HISTORY = _addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
             USD_STABLE_DECIMALS[_usdStable] = _decimals;
         } else {
-            WHITELIST_USD_STABLES = CALLIT_LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
+            WHITELIST_USD_STABLES = _remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
         }
     }
     function _editDexRouters(address _router, bool _add) private {
         require(_router != address(0x0), "0 address");
         if (_add) {
-            USWAP_V2_ROUTERS = CALLIT_LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
+            USWAP_V2_ROUTERS = _addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
         } else {
-            USWAP_V2_ROUTERS = CALLIT_LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
+            USWAP_V2_ROUTERS = _remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
         }
     }
     function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
@@ -1705,71 +1705,71 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory _stablesHeld;
         for (uint8 i=0; i < _stables.length;) {
             if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-                _stablesHeld = CALLIT_LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+                _stablesHeld = _addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
 
             unchecked {
                 i++;
             }
         }
-        return CALLIT_LIB._getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+        return _getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
     }
     function _getStableHeldLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
         // NOTE: if nothing in _stables can cover _usdAmntReq, then returns address(0x0)
         address[] memory _stablesHeld;
         for (uint8 i=0; i < _stables.length;) {
             if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-                _stablesHeld = CALLIT_LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+                _stablesHeld = _addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
 
             unchecked {
                 i++;
             }
         }
-        return CALLIT_LIB._getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+        return _getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
     }
     function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
         if (_usdStable == address(0x0)) 
             return false;
-        uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
         return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
     }
     function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
-        uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
-        (uint8 rtrIdx, uint256 tok_amnt) = CALLIT_LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+        (uint8 rtrIdx, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
         return tok_amnt; 
     }
-    // function _perc_of_uint64(uint32 _perc, uint64 _num) private pure returns (uint64) {
-    //     require(_perc <= 10000, 'err: invalid percent');
-    //     // return _perc_of_uint64_unchecked(_perc, _num);
-    //     return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
-    // }
-    // function _perc_of_uint64_unchecked(uint32 _perc, uint64 _num) private pure returns (uint64) {
-    //     // require(_perc <= 10000, 'err: invalid percent');
-    //     // uint32 aux_perc = _perc * 100; // Multiply by 100 to accommodate decimals
-    //     // uint64 result = (_num * uint64(aux_perc)) / 1000000; // chatGPT equation
-    //     // return result; // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
+    function _perc_of_uint64(uint32 _perc, uint64 _num) private pure returns (uint64) {
+        require(_perc <= 10000, 'err: invalid percent');
+        // return _perc_of_uint64_unchecked(_perc, _num);
+        return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
+    }
+    function _perc_of_uint64_unchecked(uint32 _perc, uint64 _num) private pure returns (uint64) {
+        // require(_perc <= 10000, 'err: invalid percent');
+        // uint32 aux_perc = _perc * 100; // Multiply by 100 to accommodate decimals
+        // uint64 result = (_num * uint64(aux_perc)) / 1000000; // chatGPT equation
+        // return result; // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
 
-    //     // NOTE: more efficient with no local vars allocated
-    //     return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
-    // }
-    // function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
-    //     require(value <= type(uint64).max, "Value exceeds uint64 range");
-    //     uint64 convertedValue = uint64(value);
-    //     return convertedValue;
-    // }
+        // NOTE: more efficient with no local vars allocated
+        return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
+    }
+    function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
+        require(value <= type(uint64).max, "Value exceeds uint64 range");
+        uint64 convertedValue = uint64(value);
+        return convertedValue;
+    }
     function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
         pls_stab_path[1] = _usdStable;
-        (uint8 rtrIdx, uint256 stab_amnt) = CALLIT_LIB._best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
-        uint256 stab_amnt_out = CALLIT_LIB._swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
-        stab_amnt_out = CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
+        (uint8 rtrIdx, uint256 stab_amnt) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
+        uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
+        stab_amnt_out = _normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
         return stab_amnt_out;
     }
     // specify router to use
     function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
         require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
-        uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
+        uint256 tok_amnt_out = _swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
         return tok_amnt_out;
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
@@ -1777,77 +1777,77 @@ contract CallitFactory is ERC20, Ownable {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
         require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
         
-        (uint8 rtrIdx, uint256 stable_amnt) = CALLIT_LIB._best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
-        uint256 stable_amnt_out = CALLIT_LIB._swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
+        (uint8 rtrIdx, uint256 stable_amnt) = _best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
+        uint256 stable_amnt_out = _swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
         return stable_amnt_out;
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
     function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
         address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
-        uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
-        (uint8 rtrIdx, uint256 tok_amnt) = CALLIT_LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
+        (uint8 rtrIdx, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
 
         // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
         // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
         //   and then get tok_amnt_out from delegate (USER_maintenance)
         // else, swap with BST address(this) as receiver 
         // if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
-        //     uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
+        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
         //     SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
         //     return tok_amnt_out;
         // } else {
-        //     uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
         //     return tok_amnt_out;
         // }
 
-        uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+        uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
         return tok_amnt_out;
     }
-    // function CALLIT_LIB._addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) private pure returns (address[] memory) {
-    //     if (_addr == address(0)) { return _arr; }
+    function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) private pure returns (address[] memory) {
+        if (_addr == address(0)) { return _arr; }
 
-    //     // safe = remove first (no duplicates)
-    //     if (_safe) { _arr = CALLIT_LIB._remAddressFromArray(_addr, _arr); }
+        // safe = remove first (no duplicates)
+        if (_safe) { _arr = _remAddressFromArray(_addr, _arr); }
 
-    //     // perform add to memory array type w/ static size
-    //     address[] memory _ret = new address[](_arr.length+1);
-    //     for (uint i=0; i < _arr.length;) { _ret[i] = _arr[i]; unchecked {i++;}}
-    //     _ret[_ret.length-1] = _addr;
-    //     return _ret;
-    // }
-    // function CALLIT_LIB._remAddressFromArray(address _addr, address[] memory _arr) private pure returns (address[] memory) {
-    //     if (_addr == address(0) || _arr.length == 0) { return _arr; }
+        // perform add to memory array type w/ static size
+        address[] memory _ret = new address[](_arr.length+1);
+        for (uint i=0; i < _arr.length;) { _ret[i] = _arr[i]; unchecked {i++;}}
+        _ret[_ret.length-1] = _addr;
+        return _ret;
+    }
+    function _remAddressFromArray(address _addr, address[] memory _arr) private pure returns (address[] memory) {
+        if (_addr == address(0) || _arr.length == 0) { return _arr; }
         
-    //     // NOTE: remove algorithm does NOT maintain order & only removes first occurance
-    //     for (uint i = 0; i < _arr.length;) {
-    //         if (_addr == _arr[i]) {
-    //             _arr[i] = _arr[_arr.length - 1];
-    //             assembly { // reduce memory _arr length by 1 (simulate pop)
-    //                 mstore(_arr, sub(mload(_arr), 1))
-    //             }
-    //             return _arr;
-    //         }
+        // NOTE: remove algorithm does NOT maintain order & only removes first occurance
+        for (uint i = 0; i < _arr.length;) {
+            if (_addr == _arr[i]) {
+                _arr[i] = _arr[_arr.length - 1];
+                assembly { // reduce memory _arr length by 1 (simulate pop)
+                    mstore(_arr, sub(mload(_arr), 1))
+                }
+                return _arr;
+            }
 
-    //         unchecked {i++;}
-    //     }
-    //     return _arr;
-    // }
-    // function CALLIT_LIB._normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) private pure returns (uint256) {
-    //     require(_fromDecimals > 0 && _toDecimals > 0, 'err: invalid _from|toDecimals');
-    //     if (_usdAmnt == 0) return _usdAmnt; // fix to allow 0 _usdAmnt (ie. no need to normalize)
-    //     if (_fromDecimals == _toDecimals) {
-    //         return _usdAmnt;
-    //     } else {
-    //         if (_fromDecimals > _toDecimals) { // _fromDecimals has more 0's
-    //             uint256 scalingFactor = 10 ** (_fromDecimals - _toDecimals); // get the diff
-    //             return _usdAmnt / scalingFactor; // decrease # of 0's in _usdAmnt
-    //         }
-    //         else { // _fromDecimals has less 0's
-    //             uint256 scalingFactor = 10 ** (_toDecimals - _fromDecimals); // get the diff
-    //             return _usdAmnt * scalingFactor; // increase # of 0's in _usdAmnt
-    //         }
-    //     }
-    // }
+            unchecked {i++;}
+        }
+        return _arr;
+    }
+    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) private pure returns (uint256) {
+        require(_fromDecimals > 0 && _toDecimals > 0, 'err: invalid _from|toDecimals');
+        if (_usdAmnt == 0) return _usdAmnt; // fix to allow 0 _usdAmnt (ie. no need to normalize)
+        if (_fromDecimals == _toDecimals) {
+            return _usdAmnt;
+        } else {
+            if (_fromDecimals > _toDecimals) { // _fromDecimals has more 0's
+                uint256 scalingFactor = 10 ** (_fromDecimals - _toDecimals); // get the diff
+                return _usdAmnt / scalingFactor; // decrease # of 0's in _usdAmnt
+            }
+            else { // _fromDecimals has less 0's
+                uint256 scalingFactor = 10 ** (_toDecimals - _fromDecimals); // get the diff
+                return _usdAmnt * scalingFactor; // increase # of 0's in _usdAmnt
+            }
+        }
+    }
     function _usd_decimals() private pure returns (uint8) {
         return 6; // (6 decimals) 
             // * min USD = 0.000001 (6 decimals) 
@@ -1856,127 +1856,127 @@ contract CallitFactory is ERC20, Ownable {
             // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     }
 
-    // /* -------------------------------------------------------- */
-    // /* PUBLIC - DEX QUOTE SUPPORT                                    
-    // /* -------------------------------------------------------- */
-    // // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
-    // function CALLIT_LIB._getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
-    //     // traverse _stables & select stable w/ the lowest market value
-    //     uint256 curr_high_tok_val = 0;
-    //     address curr_low_val_stable = address(0x0);
-    //     for (uint8 i=0; i < _stables.length;) {
-    //         address stable_addr = _stables[i];
-    //         if (stable_addr == address(0)) { continue; }
+    /* -------------------------------------------------------- */
+    /* PUBLIC - DEX QUOTE SUPPORT                                    
+    /* -------------------------------------------------------- */
+    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
+        // traverse _stables & select stable w/ the lowest market value
+        uint256 curr_high_tok_val = 0;
+        address curr_low_val_stable = address(0x0);
+        for (uint8 i=0; i < _stables.length;) {
+            address stable_addr = _stables[i];
+            if (stable_addr == address(0)) { continue; }
 
-    //         // get quote for this stable (traverses 'uswapV2routers')
-    //         //  looking for the stable that returns the most when swapped 'from' WPLS
-    //         //  the more USD stable received for 1 WPLS ~= the less overall market value that stable has
-    //         address[] memory wpls_stab_path = new address[](2);
-    //         wpls_stab_path[0] = TOK_WPLS;
-    //         wpls_stab_path[1] = stable_addr;
-    //         (uint8 rtrIdx, uint256 tok_val) = CALLIT_LIB._best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
-    //         if (tok_val >= curr_high_tok_val) {
-    //             curr_high_tok_val = tok_val;
-    //             curr_low_val_stable = stable_addr;
-    //         }
+            // get quote for this stable (traverses 'uswapV2routers')
+            //  looking for the stable that returns the most when swapped 'from' WPLS
+            //  the more USD stable received for 1 WPLS ~= the less overall market value that stable has
+            address[] memory wpls_stab_path = new address[](2);
+            wpls_stab_path[0] = TOK_WPLS;
+            wpls_stab_path[1] = stable_addr;
+            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            if (tok_val >= curr_high_tok_val) {
+                curr_high_tok_val = tok_val;
+                curr_low_val_stable = stable_addr;
+            }
 
-    //         // NOTE: unchecked, never more than 255 (_stables)
-    //         unchecked {
-    //             i++;
-    //         }
-    //     }
-    //     return curr_low_val_stable;
-    // }
+            // NOTE: unchecked, never more than 255 (_stables)
+            unchecked {
+                i++;
+            }
+        }
+        return curr_low_val_stable;
+    }
     
-    // // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
-    // function CALLIT_LIB._getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
-    //     // traverse _stables & select stable w/ the highest market value
-    //     uint256 curr_low_tok_val = 0;
-    //     address curr_high_val_stable = address(0x0);
-    //     for (uint8 i=0; i < _stables.length;) {
-    //         address stable_addr = _stables[i];
-    //         if (stable_addr == address(0)) { continue; }
+    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
+        // traverse _stables & select stable w/ the highest market value
+        uint256 curr_low_tok_val = 0;
+        address curr_high_val_stable = address(0x0);
+        for (uint8 i=0; i < _stables.length;) {
+            address stable_addr = _stables[i];
+            if (stable_addr == address(0)) { continue; }
 
-    //         // get quote for this stable (traverses 'uswapV2routers')
-    //         //  looking for the stable that returns the least when swapped 'from' WPLS
-    //         //  the less USD stable received for 1 WPLS ~= the more overall market value that stable has
-    //         address[] memory wpls_stab_path = new address[](2);
-    //         wpls_stab_path[0] = TOK_WPLS;
-    //         wpls_stab_path[1] = stable_addr;
-    //         (uint8 rtrIdx, uint256 tok_val) = CALLIT_LIB._best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
-    //         if (tok_val >= curr_low_tok_val) {
-    //             curr_low_tok_val = tok_val;
-    //             curr_high_val_stable = stable_addr;
-    //         }
+            // get quote for this stable (traverses 'uswapV2routers')
+            //  looking for the stable that returns the least when swapped 'from' WPLS
+            //  the less USD stable received for 1 WPLS ~= the more overall market value that stable has
+            address[] memory wpls_stab_path = new address[](2);
+            wpls_stab_path[0] = TOK_WPLS;
+            wpls_stab_path[1] = stable_addr;
+            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            if (tok_val >= curr_low_tok_val) {
+                curr_low_tok_val = tok_val;
+                curr_high_val_stable = stable_addr;
+            }
 
-    //         // NOTE: unchecked, never more than 255 (_stables)
-    //         unchecked {
-    //             i++;
-    //         }
-    //     }
-    //     return curr_high_val_stable;
-    // }
+            // NOTE: unchecked, never more than 255 (_stables)
+            unchecked {
+                i++;
+            }
+        }
+        return curr_high_val_stable;
+    }
 
-    // // uniswap v2 protocol based: get router w/ best quote in 'uswapV2routers'
-    // function CALLIT_LIB._best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) private view returns (uint8, uint256) {
-    //     uint8 currHighIdx = 37;
-    //     uint256 currHigh = 0;
-    //     for (uint8 i = 0; i < _routers.length;) {
-    //         uint256[] memory amountsOut = IUniswapV2Router02(_routers[i]).getAmountsOut(amount, path); // quote swap
-    //         if (amountsOut[amountsOut.length-1] > currHigh) {
-    //             currHigh = amountsOut[amountsOut.length-1];
-    //             currHighIdx = i;
-    //         }
+    // uniswap v2 protocol based: get router w/ best quote in 'uswapV2routers'
+    function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) private view returns (uint8, uint256) {
+        uint8 currHighIdx = 37;
+        uint256 currHigh = 0;
+        for (uint8 i = 0; i < _routers.length;) {
+            uint256[] memory amountsOut = IUniswapV2Router02(_routers[i]).getAmountsOut(amount, path); // quote swap
+            if (amountsOut[amountsOut.length-1] > currHigh) {
+                currHigh = amountsOut[amountsOut.length-1];
+                currHighIdx = i;
+            }
 
-    //         // NOTE: unchecked, never more than 255 (_routers)
-    //         unchecked {
-    //             i++;
-    //         }
-    //     }
+            // NOTE: unchecked, never more than 255 (_routers)
+            unchecked {
+                i++;
+            }
+        }
 
-    //     return (currHighIdx, currHigh);
-    // }
-    // function _swap_v2_quote(address[] memory _path, address _dexRouter, uint256 _amntIn) private view returns (uint256) {
-    //     uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
-    //     return amountsOut[amountsOut.length -1];
-    // }
-    // // uniwswap v2 protocol based: get quote and execute swap
-    // function CALLIT_LIB._swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
-    //     require(path.length >= 2, 'err: path.length :/');
-    //     uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
-    //     uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
+        return (currHighIdx, currHigh);
+    }
+    function _swap_v2_quote(address[] memory _path, address _dexRouter, uint256 _amntIn) private view returns (uint256) {
+        uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
+        return amountsOut[amountsOut.length -1];
+    }
+    // uniwswap v2 protocol based: get quote and execute swap
+    function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
+        require(path.length >= 2, 'err: path.length :/');
+        uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
+        uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
                 
-    //     // verifiy new balance of token received
-    //     uint256 new_bal = IERC20(path[path.length -1]).balanceOf(outReceiver);
-    //     require(new_bal >= amntOut, " _swap: receiver bal too low :{ ");
+        // verifiy new balance of token received
+        uint256 new_bal = IERC20(path[path.length -1]).balanceOf(outReceiver);
+        require(new_bal >= amntOut, " _swap: receiver bal too low :{ ");
         
-    //     return amntOut;
-    // }
-    // // v2: solidlycom, kyberswap, pancakeswap, sushiswap, uniswap v2, pulsex v1|v2, 9inch
-    // function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
-    //     IUniswapV2Router02 swapRouter = IUniswapV2Router02(router);
+        return amntOut;
+    }
+    // v2: solidlycom, kyberswap, pancakeswap, sushiswap, uniswap v2, pulsex v1|v2, 9inch
+    function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
+        IUniswapV2Router02 swapRouter = IUniswapV2Router02(router);
         
-    //     IERC20(address(path[0])).approve(address(swapRouter), amntIn);
-    //     uint deadline = block.timestamp + 300;
-    //     uint[] memory amntOut;
-    //     if (fromETH) {
-    //         amntOut = swapRouter.swapExactETHForTokens{value: amntIn}(
-    //                         amntOutMin,
-    //                         path, //address[] calldata path,
-    //                         outReceiver, // to
-    //                         deadline
-    //                     );
-    //     } else {
-    //         amntOut = swapRouter.swapExactTokensForTokens(
-    //                         amntIn,
-    //                         amntOutMin,
-    //                         path, //address[] calldata path,
-    //                         outReceiver, //  The address that will receive the output tokens after the swap. 
-    //                         deadline
-    //                     );
-    //     }
-    //     return uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
-    // }
+        IERC20(address(path[0])).approve(address(swapRouter), amntIn);
+        uint deadline = block.timestamp + 300;
+        uint[] memory amntOut;
+        if (fromETH) {
+            amntOut = swapRouter.swapExactETHForTokens{value: amntIn}(
+                            amntOutMin,
+                            path, //address[] calldata path,
+                            outReceiver, // to
+                            deadline
+                        );
+        } else {
+            amntOut = swapRouter.swapExactTokensForTokens(
+                            amntIn,
+                            amntOutMin,
+                            path, //address[] calldata path,
+                            outReceiver, //  The address that will receive the output tokens after the swap. 
+                            deadline
+                        );
+        }
+        return uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
+    }
 
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
