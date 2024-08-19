@@ -502,7 +502,7 @@ contract CallitFactory is ERC20, Ownable {
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
             // Get/calc amounts for initial LP (usd and token amounts)
-            (uint64 usdAmount, uint256 tokenAmount) = _getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
+            (uint64 usdAmount, uint256 tokenAmount) = CALLIT_LIB._getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
 
             // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to this contract)
             (string memory tok_name, string memory tok_symb) = CALLIT_LIB._genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
@@ -645,7 +645,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         uint256 _usdTickTargPrice = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[mark.marketResults.resultTokenUsdStables[tickIdx]]);
-        uint64 /* ~18,000Q */ tokensToMint = CALLIT_LIB._uint64_from_uint256(_calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], _usdTickTargPrice));
+        uint64 /* ~18,000Q */ tokensToMint = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], _usdTickTargPrice));
 
         // calc price to charge msg.sender for minting tokensToMint
         //  then deduct that amount from their account balance
@@ -668,7 +668,7 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory tok_stab_path = new address[](3);
         tok_stab_path[0] = _ticket;
         tok_stab_path[1] = mark.marketResults.resultTokenUsdStables[tickIdx];
-        uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
+        uint256 usdAmntOut = CALLIT_LIB._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
         uint64 gross_stab_amnt_out = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[mark.marketResults.resultTokenUsdStables[tickIdx]], usdAmntOut, _usd_decimals()));
 
         // calc & send net profits to msg.sender
@@ -1061,8 +1061,11 @@ contract CallitFactory is ERC20, Ownable {
         for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
             if (tickets[i] != _ticket) {
                 address pairAddress = _mark.marketResults.resultTokenLPs[i];
-                uint64 amountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
-                alt_sum += amountsOut;
+                // uint256 usdAmountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
+                // alt_sum += usdAmountsOut;
+
+                uint256 usdAmountsOut = CALLIT_LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
+                alt_sum += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_mark.marketResults.resultTokenUsdStables[i]], usdAmountsOut, _usd_decimals()));
             }
             
             unchecked {i++;}
@@ -1136,36 +1139,6 @@ contract CallitFactory is ERC20, Ownable {
         //      similar to accessors that retrieve native and ERC20 tokens held by contract
         //      maybe a function to trasnfer LP to an EOA
         //      maybe a function to manually pull all LP into this contract (or a specific receiver)
-    }
-
-    function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) private view returns(uint64, uint256) {
-        require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
-        return (CALLIT_LIB._uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
-    }
-    function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) private view returns (uint256) {
-        // NOTE: _usdTargetPrice should already be normalized/matched to decimals of reserve1 in _pairAddress
-
-        // Assuming reserve0 is token and reserve1 is USD
-        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddr).getReserves();
-
-        uint256 usdCurrentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
-        require(_usdTargetPrice < usdCurrentPrice, "Target price must be less than current price.");
-
-        // Calculate the amount of tokens to mint
-        uint256 tokensToMint = (uint256(reserve1) * 1e18 / _usdTargetPrice) - uint256(reserve0);
-
-        return tokensToMint;
-    }
-    // Option 1: Estimate the price using reserves
-    function _estimateLastPriceForTCK(address _pairAddress, address _pairStable) private view returns (uint64) {
-        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddress).getReserves();
-        
-        // Assuming token0 is the ERC20 token and token1 is the paired asset (e.g., ETH or a stablecoin)
-        uint256 price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
-        
-        // convert to contract '_usd_decimals()'
-        uint64 price_ret = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
-        return price_ret;
     }
 
     /* -------------------------------------------------------- */
@@ -1272,15 +1245,6 @@ contract CallitFactory is ERC20, Ownable {
         (, uint256 tok_amnt) = CALLIT_LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
         return tok_amnt; 
     }
-    function _perc_of_uint64_unchecked(uint32 _perc, uint64 _num) private pure returns (uint64) {
-        // require(_perc <= 10000, 'err: invalid percent');
-        // uint32 aux_perc = _perc * 100; // Multiply by 100 to accommodate decimals
-        // uint64 result = (_num * uint64(aux_perc)) / 1000000; // chatGPT equation
-        // return result; // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
-
-        // NOTE: more efficient with no local vars allocated
-        return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
-    }
     function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
@@ -1289,13 +1253,6 @@ contract CallitFactory is ERC20, Ownable {
         uint256 stab_amnt_out = CALLIT_LIB._swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
         stab_amnt_out = CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
         return stab_amnt_out;
-    }
-    // specify router to use
-    function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
-        // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
-        require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
-        uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
-        return tok_amnt_out;
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
     function _exeSwapTokForStable(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver) private returns (uint256) {
@@ -1431,6 +1388,15 @@ contract CallitFactory is ERC20, Ownable {
     //     // return _perc_of_uint64_unchecked(_perc, _num);
     //     return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
     // }
+    // function _perc_of_uint64_unchecked(uint32 _perc, uint64 _num) private pure returns (uint64) {
+    //     // require(_perc <= 10000, 'err: invalid percent');
+    //     // uint32 aux_perc = _perc * 100; // Multiply by 100 to accommodate decimals
+    //     // uint64 result = (_num * uint64(aux_perc)) / 1000000; // chatGPT equation
+    //     // return result; // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
+
+    //     // NOTE: more efficient with no local vars allocated
+    //     return (_num * uint64(uint32(_perc) * 100)) / 1000000; // chatGPT equation
+    // }
     // function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
     //     require(value <= type(uint64).max, "Value exceeds uint64 range");
     //     uint64 convertedValue = uint64(value);
@@ -1485,6 +1451,44 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // /* PUBLIC - DEX QUOTE SUPPORT (ICallitLib)
     // /* -------------------------------------------------------- */
+    // function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) private view returns(uint64, uint256) {
+    //     require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
+    //     return (CALLIT_LIB._uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
+    // }
+    // function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) private view returns (uint256) {
+    //     // NOTE: _usdTargetPrice should already be normalized/matched to decimals of reserve1 in _pairAddress
+
+    //     // Assuming reserve0 is token and reserve1 is USD
+    //     (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddr).getReserves();
+
+    //     uint256 usdCurrentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
+    //     require(_usdTargetPrice < usdCurrentPrice, "Target price must be less than current price.");
+
+    //     // Calculate the amount of tokens to mint
+    //     uint256 tokensToMint = (uint256(reserve1) * 1e18 / _usdTargetPrice) - uint256(reserve0);
+
+    //     return tokensToMint;
+    // }
+    // // Option 1: Estimate the price using reserves
+    // // function _estimateLastPriceForTCK(address _pairAddress, address _pairStable) private view returns (uint256) {
+    // function _estimateLastPriceForTCK(address _pairAddress) private view returns (uint256) {
+    //     (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddress).getReserves();
+        
+    //     // Assuming token0 is the ERC20 token and token1 is the paired asset (e.g., ETH or a stablecoin)
+    //     uint256 price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
+        
+    //     // convert to contract '_usd_decimals()'
+    //     // uint64 price_ret = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
+    //     // return price_ret;
+    //     return price;
+    // }
+    // // specify router to use
+    // function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
+    //     // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
+    //     require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
+    //     uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
+    //     return tok_amnt_out;
+    // }
     // // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
     // function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
     //     // traverse _stables & select stable w/ the lowest market value

@@ -2,144 +2,51 @@
 // inherited contracts
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 // import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
+// import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 pragma solidity ^0.8.20;
 library CallitLib {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - DEX QUOTE SUPPORT                                    
-    /* -------------------------------------------------------- */
-    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
-    function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address) {
-        // traverse _stables & select stable w/ the lowest market value
-        uint256 curr_high_tok_val = 0;
-        address curr_low_val_stable = address(0x0);
-        for (uint8 i=0; i < _stables.length;) {
-            address stable_addr = _stables[i];
-            if (stable_addr == address(0)) { continue; }
-
-            // get quote for this stable (traverses 'uswapV2routers')
-            //  looking for the stable that returns the most when swapped 'from' WPLS
-            //  the more USD stable received for 1 WPLS ~= the less overall market value that stable has
-            address[] memory wpls_stab_path = new address[](2);
-            wpls_stab_path[0] = TOK_WPLS;
-            wpls_stab_path[1] = stable_addr;
-            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
-            if (tok_val >= curr_high_tok_val) {
-                curr_high_tok_val = tok_val;
-                curr_low_val_stable = stable_addr;
-            }
-
-            // NOTE: unchecked, never more than 255 (_stables)
-            unchecked {
-                i++;
-            }
-        }
-        return curr_low_val_stable;
-    }
-    
-    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
-    function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address) {
-        // traverse _stables & select stable w/ the highest market value
-        uint256 curr_low_tok_val = 0;
-        address curr_high_val_stable = address(0x0);
-        for (uint8 i=0; i < _stables.length;) {
-            address stable_addr = _stables[i];
-            if (stable_addr == address(0)) { continue; }
-
-            // get quote for this stable (traverses 'uswapV2routers')
-            //  looking for the stable that returns the least when swapped 'from' WPLS
-            //  the less USD stable received for 1 WPLS ~= the more overall market value that stable has
-            address[] memory wpls_stab_path = new address[](2);
-            wpls_stab_path[0] = TOK_WPLS;
-            wpls_stab_path[1] = stable_addr;
-            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
-            if (tok_val >= curr_low_tok_val) {
-                curr_low_tok_val = tok_val;
-                curr_high_val_stable = stable_addr;
-            }
-
-            // NOTE: unchecked, never more than 255 (_stables)
-            unchecked {
-                i++;
-            }
-        }
-        return curr_high_val_stable;
-    }
-
-    // uniswap v2 protocol based: get router w/ best quote in 'uswapV2routers'
-    function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) public view returns (uint8, uint256) {
-        uint8 currHighIdx = 37;
-        uint256 currHigh = 0;
-        for (uint8 i = 0; i < _routers.length;) {
-            uint256[] memory amountsOut = IUniswapV2Router02(_routers[i]).getAmountsOut(amount, path); // quote swap
-            if (amountsOut[amountsOut.length-1] > currHigh) {
-                currHigh = amountsOut[amountsOut.length-1];
-                currHighIdx = i;
-            }
-
-            // NOTE: unchecked, never more than 255 (_routers)
-            unchecked {
-                i++;
-            }
-        }
-
-        return (currHighIdx, currHigh);
-    }
-    // uniwswap v2 protocol based: get quote and execute swap
-    function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) external returns (uint256) {
-        require(path.length >= 2, 'err: path.length :/');
-        uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
-        uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
-                
-        // verifiy new balance of token received
-        uint256 new_bal = IERC20(path[path.length -1]).balanceOf(outReceiver);
-        require(new_bal >= amntOut, " _swap: receiver bal too low :{ ");
-        
-        return amntOut;
-    }
-
-    /* -------------------------------------------------------- */
-    /* PRIVATE - DEX QUOTE SUPPORT                                    
-    /* -------------------------------------------------------- */
-    function _swap_v2_quote(address[] memory _path, address _dexRouter, uint256 _amntIn) private view returns (uint256) {
-        uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
-        return amountsOut[amountsOut.length -1];
-    }
-    // v2: solidlycom, kyberswap, pancakeswap, sushiswap, uniswap v2, pulsex v1|v2, 9inch
-    function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
-        IUniswapV2Router02 swapRouter = IUniswapV2Router02(router);
-        
-        IERC20(address(path[0])).approve(address(swapRouter), amntIn);
-        uint deadline = block.timestamp + 300;
-        uint[] memory amntOut;
-        if (fromETH) {
-            amntOut = swapRouter.swapExactETHForTokens{value: amntIn}(
-                            amntOutMin,
-                            path, //address[] calldata path,
-                            outReceiver, // to
-                            deadline
-                        );
-        } else {
-            amntOut = swapRouter.swapExactTokensForTokens(
-                            amntIn,
-                            amntOutMin,
-                            path, //address[] calldata path,
-                            outReceiver, //  The address that will receive the output tokens after the swap. 
-                            deadline
-                        );
-        }
-        return uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
-    }
-
-    /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
+    function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external pure returns(uint64, uint256) {
+        require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
+        return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
+    }
+    function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256) {
+        // NOTE: _usdTargetPrice should already be normalized/matched to decimals of reserve1 in _pairAddress
+
+        // Assuming reserve0 is token and reserve1 is USD
+        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddr).getReserves();
+
+        uint256 usdCurrentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
+        require(_usdTargetPrice < usdCurrentPrice, "Target price must be less than current price.");
+
+        // Calculate the amount of tokens to mint
+        uint256 tokensToMint = (uint256(reserve1) * 1e18 / _usdTargetPrice) - uint256(reserve0);
+
+        return tokensToMint;
+    }
+    // Option 1: Estimate the price using reserves
+    // function _estimateLastPriceForTCK(address _pairAddress, address _pairStable) private view returns (uint256) {
+    function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256) {
+        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddress).getReserves();
+        
+        // Assuming token0 is the ERC20 token and token1 is the paired asset (e.g., ETH or a stablecoin)
+        uint256 price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
+        
+        // convert to contract '_usd_decimals()'
+        // uint64 price_ret = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
+        // return price_ret;
+        return price;
+    }
     function _perc_total_supply_owned(address _token, address _account) external view returns (uint64) {
         uint256 accountBalance = IERC20(_token).balanceOf(_account);
         uint256 totalSupply = IERC20(_token).totalSupply();
@@ -243,6 +150,106 @@ library CallitLib {
         return _remAddressFromArray_p(_addr, _arr);
     }
 
+/* -------------------------------------------------------- */
+    /* PUBLIC - DEX QUOTE SUPPORT                                    
+    /* -------------------------------------------------------- */
+    // specify router to use
+    function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) external returns (uint256) {
+        // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
+        require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
+        uint256 tok_amnt_out = _swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
+        return tok_amnt_out;
+    }
+    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address) {
+        // traverse _stables & select stable w/ the lowest market value
+        uint256 curr_high_tok_val = 0;
+        address curr_low_val_stable = address(0x0);
+        for (uint8 i=0; i < _stables.length;) {
+            address stable_addr = _stables[i];
+            if (stable_addr == address(0)) { continue; }
+
+            // get quote for this stable (traverses 'uswapV2routers')
+            //  looking for the stable that returns the most when swapped 'from' WPLS
+            //  the more USD stable received for 1 WPLS ~= the less overall market value that stable has
+            address[] memory wpls_stab_path = new address[](2);
+            wpls_stab_path[0] = TOK_WPLS;
+            wpls_stab_path[1] = stable_addr;
+            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            if (tok_val >= curr_high_tok_val) {
+                curr_high_tok_val = tok_val;
+                curr_low_val_stable = stable_addr;
+            }
+
+            // NOTE: unchecked, never more than 255 (_stables)
+            unchecked {
+                i++;
+            }
+        }
+        return curr_low_val_stable;
+    }
+    
+    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address) {
+        // traverse _stables & select stable w/ the highest market value
+        uint256 curr_low_tok_val = 0;
+        address curr_high_val_stable = address(0x0);
+        for (uint8 i=0; i < _stables.length;) {
+            address stable_addr = _stables[i];
+            if (stable_addr == address(0)) { continue; }
+
+            // get quote for this stable (traverses 'uswapV2routers')
+            //  looking for the stable that returns the least when swapped 'from' WPLS
+            //  the less USD stable received for 1 WPLS ~= the more overall market value that stable has
+            address[] memory wpls_stab_path = new address[](2);
+            wpls_stab_path[0] = TOK_WPLS;
+            wpls_stab_path[1] = stable_addr;
+            (uint8 rtrIdx, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            if (tok_val >= curr_low_tok_val) {
+                curr_low_tok_val = tok_val;
+                curr_high_val_stable = stable_addr;
+            }
+
+            // NOTE: unchecked, never more than 255 (_stables)
+            unchecked {
+                i++;
+            }
+        }
+        return curr_high_val_stable;
+    }
+
+    // uniswap v2 protocol based: get router w/ best quote in 'uswapV2routers'
+    function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) public view returns (uint8, uint256) {
+        uint8 currHighIdx = 37;
+        uint256 currHigh = 0;
+        for (uint8 i = 0; i < _routers.length;) {
+            uint256[] memory amountsOut = IUniswapV2Router02(_routers[i]).getAmountsOut(amount, path); // quote swap
+            if (amountsOut[amountsOut.length-1] > currHigh) {
+                currHigh = amountsOut[amountsOut.length-1];
+                currHighIdx = i;
+            }
+
+            // NOTE: unchecked, never more than 255 (_routers)
+            unchecked {
+                i++;
+            }
+        }
+
+        return (currHighIdx, currHigh);
+    }
+    // uniwswap v2 protocol based: get quote and execute swap
+    function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) public returns (uint256) {
+        require(path.length >= 2, 'err: path.length :/');
+        uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
+        uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
+                
+        // verifiy new balance of token received
+        uint256 new_bal = IERC20(path[path.length -1]).balanceOf(outReceiver);
+        require(new_bal >= amntOut, " _swap: receiver bal too low :{ ");
+        
+        return amntOut;
+    }
+
     /* -------------------------------------------------------- */
     /* PRIVATE
     /* -------------------------------------------------------- */
@@ -286,5 +293,38 @@ library CallitLib {
             unchecked {i++;}
         }
         return _arr;
+    }
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE - DEX QUOTE SUPPORT                                    
+    /* -------------------------------------------------------- */
+    function _swap_v2_quote(address[] memory _path, address _dexRouter, uint256 _amntIn) private view returns (uint256) {
+        uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
+        return amountsOut[amountsOut.length -1];
+    }
+    // v2: solidlycom, kyberswap, pancakeswap, sushiswap, uniswap v2, pulsex v1|v2, 9inch
+    function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
+        IUniswapV2Router02 swapRouter = IUniswapV2Router02(router);
+        
+        IERC20(address(path[0])).approve(address(swapRouter), amntIn);
+        uint deadline = block.timestamp + 300;
+        uint[] memory amntOut;
+        if (fromETH) {
+            amntOut = swapRouter.swapExactETHForTokens{value: amntIn}(
+                            amntOutMin,
+                            path, //address[] calldata path,
+                            outReceiver, // to
+                            deadline
+                        );
+        } else {
+            amntOut = swapRouter.swapExactTokensForTokens(
+                            amntIn,
+                            amntOutMin,
+                            path, //address[] calldata path,
+                            outReceiver, //  The address that will receive the output tokens after the swap. 
+                            deadline
+                        );
+        }
+        return uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
     }
 }
