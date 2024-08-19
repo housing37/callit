@@ -141,16 +141,21 @@ contract CallitFactory is ERC20, Ownable {
         //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)
     
     /* MAPPINGS (CALLIT) */
+    // used externals only
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
-    mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping
     mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
     mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
-    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
-    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
-    mapping(address => ICallitLib.MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & private until market close; live = false)
-    mapping(address => ICallitLib.MARKET_VOTE[]) public  ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false)
     mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
+
+    // used externals & private
+    mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
+    mapping(address => ICallitLib.MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & private until market close; live = false) ***
+    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+    
+    // used private only
+    mapping(address => ICallitLib.MARKET_VOTE[]) public  ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
 
     // temp-arrays for 'makeNewMarket' support
     address[] private resultOptionTokens;
@@ -660,7 +665,8 @@ contract CallitFactory is ERC20, Ownable {
         // calc target usd price for _ticket (in order to bring this market to price parity)
         //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
         //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
-        uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
+        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
+        uint64 ticketTargetPriceUSD = CALLIT_VAULT._getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         uint256 _usdTickTargPrice = CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT._usd_decimals(), ticketTargetPriceUSD, CALLIT_VAULT.USD_STABLE_DECIMALS(mark.marketResults.resultTokenUsdStables[tickIdx]));
@@ -786,12 +792,14 @@ contract CallitFactory is ERC20, Ownable {
         require(mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' market voting ended :p ');
 
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
-        (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
+        // (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
+        (bool is_maker, bool is_caller) = CALLIT_VAULT._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
         require(!is_maker && !is_caller, ' no self-voting :o ');
 
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
-        uint64 vote_cnt = _validVoteCount(msg.sender, mark);
+        // uint64 vote_cnt = _validVoteCount(msg.sender, mark);
+        uint64 vote_cnt = CALLIT_VAULT._validVoteCount(balanceOf(msg.sender), EARNED_CALL_VOTES[msg.sender], ACCT_CALL_VOTE_LOCK_TIME[msg.sender], mark.blockTimestamp);
         require(vote_cnt > 0, ' invalid voter :{=} ');
 
         //  - store vote in struct MARKET
@@ -823,7 +831,8 @@ contract CallitFactory is ERC20, Ownable {
 
         // getting winning result index to set mark.winningVoteResultIdx
         //  for voter fee claim algorithm (ie. only pay majority voters)
-        mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
+        // mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
+        mark.winningVoteResultIdx = CALLIT_VAULT._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
 
         // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
         require(PERC_PRIZEPOOL_VOTERS + PERC_MARKET_CLOSE_FEE <= 10000, ' perc error ;( ');
@@ -890,7 +899,7 @@ contract CallitFactory is ERC20, Ownable {
             CALLIT_VAULT._payUsdReward(usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
-            uint64 perc_supply_owned = _perc_total_supply_owned(_ticket, msg.sender);
+            uint64 perc_supply_owned = CALLIT_LIB._perc_total_supply_owned(_ticket, msg.sender);
             if (perc_supply_owned >= PERC_OF_LOSER_SUPPLY_EARN_CALL) {
                 // mint $CALL to loser msg.sender & log $CALL votes earned
                 _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER); // emit CallTokensEarned
@@ -905,7 +914,10 @@ contract CallitFactory is ERC20, Ownable {
         cTicket.burnForWinLoseClaim(msg.sender, cTicket.balanceOf(msg.sender));
 
         // log caller's review of market results
-        _logMarketResultReview(mark, _resultAgree); // emits MarketReviewed
+        // _logMarketResultReview(mark, _resultAgree); // emits MarketReviewed
+        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = CALLIT_VAULT._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
+        ACCT_MARKET_REVIEWS[mark.maker].push(marketReview);
+        emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, agreeCnt, disagreeCnt);
           
         // emit log event for claimed ticket
         emit TicketClaimed(msg.sender, _ticket, is_winner, _resultAgree);
@@ -960,115 +972,6 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT MANAGER) // NOTE: migrate to CallitVault (ALL)
     /* -------------------------------------------------------- */
-    function _logMarketResultReview(ICallitLib.MARKET storage _mark, bool _resultAgree) private {
-        uint64 agreeCnt = 0;
-        uint64 disagreeCnt = 0;
-        uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
-        if (reviewCnt > 0) {
-            agreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].agreeCnt;
-            disagreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].disagreeCnt;
-        }
-
-        agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
-        disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
-        ACCT_MARKET_REVIEWS[_mark.maker].push(ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt));
-        emit MarketReviewed(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt);
-    }
-    function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
-        uint256 accountBalance = IERC20(_token).balanceOf(_account);
-        uint256 totalSupply = IERC20(_token).totalSupply();
-
-        // Prevent division by zero by checking if totalSupply is greater than zero
-        require(totalSupply > 0, "Total supply must be greater than zero");
-
-        // Calculate the percentage (in basis points, e.g., 1% = 100 basis points)
-        uint256 percentage = (accountBalance * 10000) / totalSupply;
-
-        return CALLIT_LIB._uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
-    }
-    function _moveMarketVoteIdxToPaid(ICallitLib.MARKET_VOTE storage _m_vote, uint64 _idxMove) private {
-        // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
-        ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
-
-        // remove _idxMove MARKET_VOTE from ACCT_MARKET_VOTES[msg.sender]
-        //  by replacing it with the last element (then popping last element)
-        uint64 lastIdx = uint64(ACCT_MARKET_VOTES[msg.sender].length) - 1;
-        if (_idxMove != lastIdx) {
-            ACCT_MARKET_VOTES[msg.sender][_idxMove] = ACCT_MARKET_VOTES[msg.sender][lastIdx];
-        }
-        ACCT_MARKET_VOTES[msg.sender].pop(); // Remove the last element (now a duplicate)
-    }
-    function _getWinningVoteIdxForMarket(ICallitLib.MARKET storage _mark) private view returns(uint16) { // should be 'view' not 'pure'?
-        // travers mark.resultTokenVotes for winning idx
-        //  NOTE: default winning index is 0 & ties will settle on lower index
-        uint16 idxCurrHigh = 0;
-        for (uint16 i = 0; i < _mark.marketResults.resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
-            if (_mark.marketResults.resultTokenVotes[i] > _mark.marketResults.resultTokenVotes[idxCurrHigh])
-                idxCurrHigh = i;
-            unchecked {i++;}
-        }
-        return idxCurrHigh;
-    }
-    function _addressIsMarketMakerOrCaller(address _addr, ICallitLib.MARKET storage _mark) private view returns(bool, bool) {
-        bool is_maker = _mark.maker == msg.sender; // true = found maker
-        bool is_caller = false;
-        for (uint16 i = 0; i < _mark.marketResults.resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
-            is_caller = IERC20(_mark.marketResults.resultOptionTokens[i]).balanceOf(_addr) > 0; // true = found caller
-            unchecked {i++;}
-        }
-        return (is_maker, is_caller);
-    }
-    function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private returns(uint64) {
-        // mint _callAmnt $CALL to _receiver & log $CALL votes earned
-        _mint(_receiver, _callAmnt);
-        uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
-        EARNED_CALL_VOTES[_receiver] += _callAmnt;
-
-        // emit log for call tokens earned
-        emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
-        return EARNED_CALL_VOTES[_receiver];
-        // NOTE: call tokens earned on ...
-        //  buyCallTicketWithPromoCode
-        //  closeMarketForTicket
-        //  claimTicketRewards
-    }
-    function _validVoteCount(address _voter, ICallitLib.MARKET storage _mark) private view returns(uint64) {
-        // if indeed locked && locked before _mark start time, calc & return active vote count
-        if (ACCT_CALL_VOTE_LOCK_TIME[_voter] > 0 && ACCT_CALL_VOTE_LOCK_TIME[_voter] <= _mark.blockTimestamp) {
-            uint64 votes_earned = EARNED_CALL_VOTES[_voter]; // note: EARNED_CALL_VOTES stores uint64 type
-            uint64 votes_held = CALLIT_LIB._uint64_from_uint256(balanceOf(address(this)));
-            uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
-            return votes_active;
-        }
-        else
-            return 0; // return no valid votes
-    }
-    function _getCallTicketUsdTargetPrice(ICallitLib.MARKET storage _mark, address _ticket) private view returns(uint64) {
-        // algorithmic logic ...
-        //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
-        //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
-        //   -> if result target price <= 0, then set/return input _ticket target price = $0.01
-
-        address[] memory tickets = _mark.marketResults.resultOptionTokens;
-        uint64 alt_sum = 0;
-        for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
-            if (tickets[i] != _ticket) {
-                address pairAddress = _mark.marketResults.resultTokenLPs[i];
-                // uint256 usdAmountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
-                // alt_sum += usdAmountsOut;
-
-                uint256 usdAmountsOut = CALLIT_LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
-                alt_sum += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(_mark.marketResults.resultTokenUsdStables[i]), usdAmountsOut, CALLIT_VAULT._usd_decimals()));
-            }
-            
-            unchecked {i++;}
-        }
-
-        // NOTE: returns negative if alt_sum is greater than 1
-        //  edge case should be handle in caller
-        int64 target_price = 1 - int64(alt_sum);
-        return target_price > 0 ? uint64(target_price) : MIN_USD_CALL_TICK_TARGET_PRICE; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
-    }
     function _getMarketForTicket(address _maker, address _ticket) private view returns(ICallitLib.MARKET storage, uint16) {
         require(_maker != address (0) && _ticket != address(0), ' no address for market ;:[=] ');
 
@@ -1087,6 +990,32 @@ contract CallitFactory is ERC20, Ownable {
         }
         
         revert(' market not found :( ');
+    }
+    function _moveMarketVoteIdxToPaid(ICallitLib.MARKET_VOTE storage _m_vote, uint64 _idxMove) private {
+        // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
+        ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
+
+        // remove _idxMove MARKET_VOTE from ACCT_MARKET_VOTES[msg.sender]
+        //  by replacing it with the last element (then popping last element)
+        uint64 lastIdx = uint64(ACCT_MARKET_VOTES[msg.sender].length) - 1;
+        if (_idxMove != lastIdx) {
+            ACCT_MARKET_VOTES[msg.sender][_idxMove] = ACCT_MARKET_VOTES[msg.sender][lastIdx];
+        }
+        ACCT_MARKET_VOTES[msg.sender].pop(); // Remove the last element (now a duplicate)
+    }
+    function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private returns(uint64) {
+        // mint _callAmnt $CALL to _receiver & log $CALL votes earned
+        _mint(_receiver, _callAmnt);
+        uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
+        EARNED_CALL_VOTES[_receiver] += _callAmnt;
+
+        // emit log for call tokens earned
+        emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
+        return EARNED_CALL_VOTES[_receiver];
+        // NOTE: call tokens earned on ...
+        //  buyCallTicketWithPromoCode
+        //  closeMarketForTicket
+        //  claimTicketRewards
     }
 
     /* -------------------------------------------------------- */
@@ -1126,6 +1055,119 @@ contract CallitFactory is ERC20, Ownable {
         require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;0 ');
         return super.transfer(to, value);
     }
+    
+    // /* -------------------------------------------------------- */
+    // /* PRIVATTE - SUPPORTING (CALLIT market management) _ // note: migrate to CallitVault (ALL)
+    // /* -------------------------------------------------------- */
+    // // function _logMarketResultReview(ICallitLib.MARKET storage _mark, bool _resultAgree) private {
+    // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) private view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
+    //     uint64 agreeCnt = 0;
+    //     uint64 disagreeCnt = 0;
+    //     // uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
+    //     // if (reviewCnt > 0) {
+    //     //     agreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].agreeCnt;
+    //     //     disagreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].disagreeCnt;
+    //     // }
+    //     uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(_makerReviews.length);
+    //     if (reviewCnt > 0) {
+    //         agreeCnt = _makerReviews[reviewCnt-1].agreeCnt;
+    //         disagreeCnt = _makerReviews[reviewCnt-1].disagreeCnt;
+    //     }
+
+    //     agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
+    //     disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
+    //     // ACCT_MARKET_REVIEWS[_mark.maker].push(ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt));
+    //     // emit MarketReviewed(msg.sender, _resultAgree, _mark.maker, _mark.marketNum, agreeCnt, disagreeCnt);
+
+    //     return (ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _maker, _markNum, agreeCnt, disagreeCnt), agreeCnt, disagreeCnt);
+    // }
+    // function _validVoteCount(address _voter, ICallitLib.MARKET storage _mark) private view returns(uint64) {
+    // function _validVoteCount(uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) private view returns(uint64) {
+    //     // if indeed locked && locked before _mark start time, calc & return active vote count
+    //     // if (ACCT_CALL_VOTE_LOCK_TIME[_voter] > 0 && ACCT_CALL_VOTE_LOCK_TIME[_voter] <= _mark.blockTimestamp) {
+    //     //     uint64 votes_earned = EARNED_CALL_VOTES[_voter]; // note: EARNED_CALL_VOTES stores uint64 type
+    //     //     uint64 votes_held = CALLIT_LIB._uint64_from_uint256(balanceOf(msg.sender));
+    //     //     uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
+    //     //     return votes_active;
+    //     // }
+
+    //     // if indeed locked && locked before _mark start time, calc & return active vote count
+    //     if (_voterLockTime > 0 && _voterLockTime <= _markCreateTime) {
+    //         uint64 votes_earned = _votesEarned; // note: EARNED_CALL_VOTES stores uint64 type
+    //         uint64 votes_held = CALLIT_LIB._uint64_from_uint256(balanceOf(address(this)));
+    //         uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
+    //         return votes_active;
+    //     }
+    //     else
+    //         return 0; // return no valid votes
+    // }
+    // // function _getWinningVoteIdxForMarket(ICallitLib.MARKET storage _mark) private view returns(uint16) { // should be 'view' not 'pure'?
+    // function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) private pure returns(uint16) { // should be 'view' not 'pure'?
+    //     // travers mark.resultTokenVotes for winning idx
+    //     //  NOTE: default winning index is 0 & ties will settle on lower index
+    //     uint16 idxCurrHigh = 0;
+    //     // for (uint16 i = 0; i < _mark.marketResults.resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+    //     //     if (_mark.marketResults.resultTokenVotes[i] > _mark.marketResults.resultTokenVotes[idxCurrHigh])
+    //     //         idxCurrHigh = i;
+    //     //     unchecked {i++;}
+    //     // }
+    //     for (uint16 i = 0; i < _resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+    //         if (_resultTokenVotes[i] > _resultTokenVotes[idxCurrHigh])
+    //             idxCurrHigh = i;
+    //         unchecked {i++;}
+    //     }
+    //     return idxCurrHigh;
+    // }
+    // // function _addressIsMarketMakerOrCaller(address _addr, ICallitLib.MARKET storage _mark) private view returns(bool, bool) {
+    // function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) private view returns(bool, bool) {
+    //     // bool is_maker = _mark.maker == msg.sender; // true = found maker
+    //     // bool is_caller = false;
+    //     // for (uint16 i = 0; i < _mark.marketResults.resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+    //     //     is_caller = IERC20(_mark.marketResults.resultOptionTokens[i]).balanceOf(_addr) > 0; // true = found caller
+    //     //     unchecked {i++;}
+    //     // }
+
+    //     bool is_maker = _markMaker == msg.sender; // true = found maker
+    //     bool is_caller = false;
+    //     for (uint16 i = 0; i < _resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+    //         is_caller = IERC20(_resultOptionTokens[i]).balanceOf(_addr) > 0; // true = found caller
+    //         unchecked {i++;}
+    //     }
+
+    //     return (is_maker, is_caller);
+    // }
+    // // function _getCallTicketUsdTargetPrice(ICallitLib.MARKET storage _mark, address _ticket, uint64 _usdMinTargetPrice) private view returns(uint64) {
+    // function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, address _ticket, uint64 _usdMinTargetPrice) private view returns(uint64) {
+    //     require(_resultTickets.length == _pairAddresses.length, ' tick/pair arr length mismatch :o ');
+    //     // algorithmic logic ...
+    //     //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
+    //     //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
+    //     //   -> if result target price <= 0, then set/return input _ticket target price = $0.01
+
+    //     // address[] memory tickets = _mark.marketResults.resultOptionTokens;
+    //     address[] memory tickets = _resultTickets;
+    //     uint64 alt_sum = 0;
+    //     for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
+    //         if (tickets[i] != _ticket) {
+    //             // address pairAddress = _mark.marketResults.resultTokenLPs[i];
+    //             address pairAddress = _pairAddresses[i];
+                
+    //             // uint256 usdAmountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
+    //             // alt_sum += usdAmountsOut;
+
+    //             uint256 usdAmountsOut = CALLIT_LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
+    //             alt_sum += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(_resultStables[i]), usdAmountsOut, CALLIT_VAULT._usd_decimals()));
+    //         }
+            
+    //         unchecked {i++;}
+    //     }
+
+    //     // NOTE: returns negative if alt_sum is greater than 1
+    //     //  edge case should be handle in caller
+    //     int64 target_price = 1 - int64(alt_sum);
+    //     return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
+    // }
+
     // /* -------------------------------------------------------- */
     // /* PRIVATE - SUPPORTING (legacy VAULT) _ // note: migrate to CallitVault (ALL)
     // /* -------------------------------------------------------- */
@@ -1329,6 +1371,18 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // /* PRIVATE - SUPPORT (ICallitLib)
     // /* -------------------------------------------------------- */
+    // function _perc_total_supply_owned(address _token, address _account) private view returns (uint64) {
+    //     uint256 accountBalance = IERC20(_token).balanceOf(_account);
+    //     uint256 totalSupply = IERC20(_token).totalSupply();
+
+    //     // Prevent division by zero by checking if totalSupply is greater than zero
+    //     require(totalSupply > 0, "Total supply must be greater than zero");
+
+    //     // Calculate the percentage (in basis points, e.g., 1% = 100 basis points)
+    //     uint256 percentage = (accountBalance * 10000) / totalSupply;
+
+    //     return CALLIT_LIB._uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
+    // }
     // // note: migrate to CallitLib
     // function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private view returns(uint64) {
     //     require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%

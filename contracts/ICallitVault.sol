@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
+import "./ICallitLib.sol";
+
 interface ICallitVault {
     // NOTE: legacy public globals
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
@@ -23,4 +25,12 @@ interface ICallitVault {
     function _payUsdReward(uint64 _usdReward, address _receiver) external;
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) external returns(uint256, address);
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external returns (address);
+
+    // NOTE: callit market management
+    function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
+    function _validVoteCount(uint256 _voterCallBal, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external view returns(uint64);
+    function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view returns(uint16);
+    function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
+    function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, address _ticket, uint64 _usdMinTargetPrice) external view returns(uint64);
+
 }

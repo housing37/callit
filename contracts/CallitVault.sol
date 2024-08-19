@@ -114,6 +114,99 @@ contract CallitVaultDelegate {
             // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals)
             // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     }
+
+    /* -------------------------------------------------------- */
+    /* PUBLIC - SUPPORTING (CALLIT market management) _ // note: migrate to CallitVault (ALL)
+    /* -------------------------------------------------------- */
+    function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view onlyFactory returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
+        uint64 agreeCnt = 0;
+        uint64 disagreeCnt = 0;
+        uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(_makerReviews.length);
+        if (reviewCnt > 0) {
+            agreeCnt = _makerReviews[reviewCnt-1].agreeCnt;
+            disagreeCnt = _makerReviews[reviewCnt-1].disagreeCnt;
+        }
+
+        agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
+        disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
+        return (ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _maker, _markNum, agreeCnt, disagreeCnt), agreeCnt, disagreeCnt);
+    }
+    function _validVoteCount(uint256 _voterCallBal, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external view onlyFactory() returns(uint64) {
+        // if indeed locked && locked before _mark start time, calc & return active vote count
+        if (_voterLockTime > 0 && _voterLockTime <= _markCreateTime) {
+            uint64 votes_earned = _votesEarned; // note: EARNED_CALL_VOTES stores uint64 type
+            uint64 votes_held = CALLIT_LIB._uint64_from_uint256(_voterCallBal);
+            uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
+            return votes_active;
+        }
+        else
+            return 0; // return no valid votes
+    }
+    function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view onlyFactory returns(uint16) {
+        // travers mark.resultTokenVotes for winning idx
+        //  NOTE: default winning index is 0 & ties will settle on lower index
+        uint16 idxCurrHigh = 0;
+        // for (uint16 i = 0; i < _mark.marketResults.resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+        //     if (_mark.marketResults.resultTokenVotes[i] > _mark.marketResults.resultTokenVotes[idxCurrHigh])
+        //         idxCurrHigh = i;
+        //     unchecked {i++;}
+        // }
+        for (uint16 i = 0; i < _resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+            if (_resultTokenVotes[i] > _resultTokenVotes[idxCurrHigh])
+                idxCurrHigh = i;
+            unchecked {i++;}
+        }
+        return idxCurrHigh;
+    }
+    function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view onlyFactory returns(bool, bool) {
+        // bool is_maker = _mark.maker == msg.sender; // true = found maker
+        // bool is_caller = false;
+        // for (uint16 i = 0; i < _mark.marketResults.resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+        //     is_caller = IERC20(_mark.marketResults.resultOptionTokens[i]).balanceOf(_addr) > 0; // true = found caller
+        //     unchecked {i++;}
+        // }
+
+        bool is_maker = _markMaker == msg.sender; // true = found maker
+        bool is_caller = false;
+        for (uint16 i = 0; i < _resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+            is_caller = IERC20(_resultOptionTokens[i]).balanceOf(_addr) > 0; // true = found caller
+            unchecked {i++;}
+        }
+
+        return (is_maker, is_caller);
+    }
+    function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, address _ticket, uint64 _usdMinTargetPrice) external view onlyFactory returns(uint64) {
+        require(_resultTickets.length == _pairAddresses.length, ' tick/pair arr length mismatch :o ');
+        // algorithmic logic ...
+        //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
+        //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
+        //   -> if result target price <= 0, then set/return input _ticket target price = $0.01
+
+        // address[] memory tickets = _mark.marketResults.resultOptionTokens;
+        address[] memory tickets = _resultTickets;
+        uint64 alt_sum = 0;
+        for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
+            if (tickets[i] != _ticket) {
+                // address pairAddress = _mark.marketResults.resultTokenLPs[i];
+                address pairAddress = _pairAddresses[i];
+                
+                // uint256 usdAmountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
+                // alt_sum += usdAmountsOut;
+
+                uint256 usdAmountsOut = CALLIT_LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
+                alt_sum += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_resultStables[i]], usdAmountsOut, _usd_decimals()));
+            }
+            
+            unchecked {i++;}
+        }
+
+        // NOTE: returns negative if alt_sum is greater than 1
+        //  edge case should be handle in caller
+        int64 target_price = 1 - int64(alt_sum);
+        return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
+    }
+
+
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (legacy) _ // note: migrate to CallitBank (ALL)
     /* -------------------------------------------------------- */
