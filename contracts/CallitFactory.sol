@@ -165,13 +165,13 @@ contract CallitFactory is ERC20, Ownable {
     event MarketCreated(address _maker, uint256 _markNum, string _name, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, address[] _resultOptionTokens, uint256 _blockTime, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
-    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
+    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut, uint64 _callEarnedAmnt);
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event MarketReviewed(address _caller, bool _resultAgree, address _marketMaker, uint256 _marketNum, uint64 _agreeCnt, uint64 _disagreeCnt);
     event ArbPriceCorrectionExecuted(address _executer, address _ticket, uint64 _tickTargetPrice, uint64 _tokenMintCnt, uint64 _usdGrossReceived, uint64 _usdTotalPaid, uint64 _usdNetProfit, uint64 _callEarnedAmnt);
     event MarketCallsClosed(address _executer, address _ticket, address _marketMaker, uint256 _marketNum, uint64 _usdAmntPrizePool, uint64 _callEarnedAmnt);
-    event MarketClosed(address _sender, address _ticket, address _marketMaker, uint256 _marketNum, uint64 _winningResultIdx, uint64 _usdPrizePoolPaid, uint64 _usdVoterRewardPoolPaid, uint64 _usdRewardPervote);
+    event MarketClosed(address _sender, address _ticket, address _marketMaker, uint256 _marketNum, uint64 _winningResultIdx, uint64 _usdPrizePoolPaid, uint64 _usdVoterRewardPoolPaid, uint64 _usdRewardPervote, uint64 _callEarnedAmnt);
     event TicketClaimed(address _sender, address _ticket, bool _is_winner, bool _resultAgree);
     event VoterRewardsClaimed(address _claimer, uint64 _usdRewardOwed, uint64 _usdRewardOwed_net);
     event CallTokensEarned(address _sedner, address _receiver, uint64 _callAmntEarned, uint64 _callPrevBal, uint64 _callCurrBal);
@@ -627,10 +627,12 @@ contract CallitFactory is ERC20, Ownable {
         // update promo.usdUsed (add full OG input _usdAmnt)
         promo.usdUsed += _usdAmnt;
 
-        // emit log
-        emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
         // LEFT OFF HERE ...
         //  mint $CALL token reward to msg.sender
+        uint64 callEarnedAmnt;
+
+        // emit log
+        emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out, callEarnedAmnt);
     }
     function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
@@ -830,11 +832,12 @@ contract CallitFactory is ERC20, Ownable {
         // close market
         mark.live = false; // NOTE: write to market
 
-        // emit log for closed market
-        emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote);
-
         // LEFT OFF HERE ...
         //  mint $CALL token reward to msg.sender
+        uint64 callEarnedAmnt;
+
+        // emit log for closed market
+        emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote, callEarnedAmnt);
 
         // $CALL token earnings design...
         //  DONE - buyer earns $CALL in 'buyCallTicketWithPromoCode'
