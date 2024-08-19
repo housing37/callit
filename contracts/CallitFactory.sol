@@ -468,10 +468,13 @@ contract CallitFactory is ERC20, Ownable {
         // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
         uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(usdStable), stableAmntOut, CALLIT_VAULT._usd_decimals()));
 
-        // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
-        // CALLIT_VAULT.ACCOUNTS() = CALLIT_LIB._addAddressToArraySafe(msg.sender, CALLIT_VAULT.ACCOUNTS(), true); // true = no dups
+        // OG local
+        // ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
+        // ACCOUNTS = _addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
+
+        // use vault
         CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, usdAmntConvert, true); // true = add
-        CALLIT_VAULT.set_ACCOUNTS(CALLIT_LIB._addAddressToArraySafe(msg.sender, CALLIT_VAULT.ACCOUNTS(), true));
+        CALLIT_VAULT.set_ACCOUNTS(CALLIT_LIB._addAddressToArraySafe(msg.sender, CALLIT_VAULT.ACCOUNTS(), true)); // true = safe (no dups)
 
         emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
     }
