@@ -1023,33 +1023,6 @@ contract CallitFactory is ERC20, Ownable {
         else
             return 0; // return no valid votes
     }
-    function _payUsdReward(uint64 _usdReward, address _receiver) private {
-        if (_usdReward == 0) {
-            emit AlertZeroReward(msg.sender, _usdReward, _receiver);
-            return;
-        }
-        // Get stable to work with ... (any stable that covers 'usdReward' is fine)
-        //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
-        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
-
-        // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_receiver, CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
-    }
-    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
-        // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
-        //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
-        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
-
-        // create path and perform stable-to-stable swap
-        // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
-        address[] memory stab_stab_path = new address[](3);
-        stab_stab_path[0] = highStableHeld;
-        stab_stab_path[1] = _tickStable;
-        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
-        return (stab_amnt_out,highStableHeld);
-    }
     function _getCallTicketUsdTargetPrice(ICallitLib.MARKET storage _mark, address _ticket) private view returns(uint64) {
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
@@ -1095,10 +1068,41 @@ contract CallitFactory is ERC20, Ownable {
         
         revert(' market not found :( ');
     }
+    // note: migrate to CallitLib
     function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private view returns(uint64) {
         require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
         return _net_usdAmnt - CALLIT_LIB._perc_of_uint64(_feePerc, _usdAmnt);
     }
+    // note: migrate to CallitBank
+    function _payUsdReward(uint64 _usdReward, address _receiver) private {
+        if (_usdReward == 0) {
+            emit AlertZeroReward(msg.sender, _usdReward, _receiver);
+            return;
+        }
+        // Get stable to work with ... (any stable that covers 'usdReward' is fine)
+        //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
+        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
+        IERC20(lowStableHeld).transfer(_receiver, CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
+    }
+    // note: migrate to CallitBank
+    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
+        // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
+        //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
+        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // create path and perform stable-to-stable swap
+        // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
+        address[] memory stab_stab_path = new address[](3);
+        stab_stab_path[0] = highStableHeld;
+        stab_stab_path[1] = _tickStable;
+        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
+        return (stab_amnt_out,highStableHeld);
+    }
+    // note: migrate to CallitBank at least, and maybe CallitLib as well
     // Assumed helper functions (implementations not shown)
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private returns (address) {
         // declare factory & router
