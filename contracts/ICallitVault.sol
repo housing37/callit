@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 interface ICallitVault {
-    // NOTE: legacy public
-    function ACCT_USD_BALANCES(address _key) external view returns(uint64); // global mapping(address => uint64)
-    function USD_STABLE_DECIMALS(address _key) external view returns(uint8); // global mapping(address => uint8)
-    function USWAP_V2_ROUTERS() external view returns(address[] memory); // global address[]
-    
-    // NOTE: new legacy public helpers
+    // NOTE: legacy public globals
+    function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
+    function USD_STABLE_DECIMALS(address _key) external view returns(uint8); // public
+    function USWAP_V2_ROUTERS() external view returns(address[] memory); // public
+    function ACCOUNTS() external view returns(address[] memory); // private w/ public getter
+    function WHITELIST_USD_STABLES() external view returns(address[] memory); // private w/ public getter
+    function USD_STABLES_HISTORY() external view returns(address[] memory); // private w/ public getter
+
+    // NOTE: new public helpers for legacy public globals
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
     function set_ACCOUNTS(address[] calldata _accts) external;
     
-    // NOTE: legacy private (was more secure; consider external KEEPER getter instead)
-    function ACCOUNTS() external view returns(address[] memory); // global address[]
-    function WHITELIST_USD_STABLES() external view returns(address[] memory); // global address[]
-    function USD_STABLES_HISTORY() external view returns(address[] memory); // global address[]
-    
-    // NOTE: legacy private
+    // NOTE: legacy private (now public)
     function _collectiveStableBalances(address[] memory _stables) external view returns (uint64, uint64, int64, uint256);
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external;
     function _editDexRouters(address _router, bool _add) external;
