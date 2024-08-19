@@ -34,7 +34,7 @@ contract CallitTicket is ERC20, Ownable {
         _mint(_receiver, _amount);
         emit MintedForPriceParity(_receiver, _amount);
     }
-    function burnForWinClaim(address _account, uint256 _amount) external onlyOwner() {
+    function burnForWinLoseClaim(address _account, uint256 _amount) external onlyOwner() {
         _burn(_account, _amount); // NOTE: checks _balance[_account]
         emit BurnForWinClaim(_account, _amount);
     }

@@ -51,7 +51,7 @@ import "./CallitTicket.sol";
 
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
-    function burnForWinClaim(address _account, uint256 _amount) external;
+    function burnForWinLoseClaim(address _account, uint256 _amount) external;
     function balanceOf(address account) external returns(uint256);
 }
 
@@ -139,8 +139,8 @@ contract CallitFactory is ERC20, Ownable {
     mapping(address => PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked')
-    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (markets voted in) mapping
-    mapping(address => MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (markets voted in) mapping
+    mapping(address => MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (markets voted in) mapping (note: used & private until market close; live = false)
+    mapping(address => MARKET_VOTE[]) public  ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (markets voted in) mapping (note: used & avail when market close; live = false)
     mapping(address => MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     // temp-arrays for 'makeNewMarket' support
@@ -170,6 +170,11 @@ contract CallitFactory is ERC20, Ownable {
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event MarketReviewed(address _caller, bool _resultAgree, address _marketMaker, uint256 _marketNum, uint64 _agreeCnt, uint64 _disagreeCnt);
     event ArbPriceCorrectionExecuted(address _executer, address _ticket, uint64 _tickTargetPrice, uint64 _tokenMintCnt, uint64 _usdGrossReceived, uint64 _usdTotalPaid, uint64 _usdNetProfit, uint64 _callEarnedAmnt);
+    event MarketCallsClosed(address _executer, address _ticket, address _marketMaker, uint256 _marketNum, uint64 _usdAmntPrizePool, uint64 _callEarnedAmnt);
+    event MarketClosed(address _sender, address _ticket, address _marketMaker, uint256 _marketNum, uint64 _winningResultIdx, uint64 _usdPrizePoolPaid, uint64 _usdVoterRewardPoolPaid, uint64 _usdRewardPervote);
+    event TicketClaimed(address _sender, address _ticket, bool _is_winner, bool _resultAgree);
+    event VoterRewardsClaimed(address _claimer, uint64 _usdRewardOwed, uint64 _usdRewardOwed_net);
+    event CallTokensEarned(address _sedner, address _receiver, uint64 _callAmntEarned, uint64 _callPrevBal, uint64 _callCurrBal);
 
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
@@ -740,10 +745,12 @@ contract CallitFactory is ERC20, Ownable {
             mark.marketUsdAmnts.usdAmntPrizePool += _uint64_from_uint256(amountToken1); // NOTE: write to market
         }
 
-        // LEFT OFF HERE ... need emit event log
+        // LEFT OFF HERE ...
         //  mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt;
-        // emit MarketCallsClosed(msg.sender, _ticket, callEarnedAmnt)
+
+        // emit log for this closed market calls event
+        emit MarketCallsClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.marketUsdAmnts.usdAmntPrizePool, callEarnedAmnt);
     }
     function castVoteForMarketTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
@@ -775,8 +782,12 @@ contract CallitFactory is ERC20, Ownable {
 
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
         ACCT_MARKET_VOTES[msg.sender].push(MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
+            // NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
 
-        // LEFT OFF HERE ... need emit event log
+        // NOTE: do not want to emit event log for casting votes 
+        //  this will allow people to see majority votes before voting
+
+        // LEFT OFF HERE ... 
         //  mint $CALL token reward to msg.sender
     }
     function closeMarketForTicket(address _ticket) external { // _deductFeePerc PERC_MARKET_CLOSE_FEE from mark.marketUsdAmnts.usdAmntPrizePool
@@ -819,7 +830,10 @@ contract CallitFactory is ERC20, Ownable {
         // close market
         mark.live = false; // NOTE: write to market
 
-        // LEFT OFF HERE ... need emit event log
+        // emit log for closed market
+        emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote);
+
+        // LEFT OFF HERE ...
         //  mint $CALL token reward to msg.sender
 
         // $CALL token earnings design...
@@ -871,12 +885,15 @@ contract CallitFactory is ERC20, Ownable {
 
         // burn IERC20(_ticket).balanceOf(msg.sender)
         ICallitTicket cTicket = ICallitTicket(_ticket);
-        cTicket.burnForWinClaim(msg.sender, cTicket.balanceOf(msg.sender));
+        cTicket.burnForWinLoseClaim(msg.sender, cTicket.balanceOf(msg.sender));
 
         // log caller's review of market results
         _logMarketResultReview(mark, _resultAgree); // emits MarketReviewed
-        
-        // LEFT OFF HERE .. emit even log        
+          
+        // emit log event for claimed ticket
+        emit TicketClaimed(msg.sender, _ticket, is_winner, _resultAgree);
+
+        // NOTE: no $CALL tokens minted for this action   
     }
     function claimVoterRewards() external { // _deductFeePerc PERC_VOTE_CLAIM_FEE from usdRewardOwed
         // NOTE: loops through all non-piad msg.sender votes (including 'live' markets)
@@ -911,10 +928,14 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // usdRewardOwed = _deductVoterClaimFees(usdRewardOwed, usdRewardOwed);
-        usdRewardOwed = _deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
-        _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
-        // LEFT OFF HERE ... need emit event log
-        // emit PromoRewardPaid(_promoCodeHash, usdReward, promo.promotor, msg.sender, _ticket);
+        // usdRewardOwed = _deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        // _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+
+        uint64 usdRewardOwed_net = _deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        _payUsdReward(usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+
+        // emit log for rewards claimed
+        emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);
     }
 
     /* -------------------------------------------------------- */
@@ -981,9 +1002,16 @@ contract CallitFactory is ERC20, Ownable {
     function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         _mint(_receiver, _callAmnt);
+        uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
         EARNED_CALL_VOTES[_receiver] += _callAmnt;
 
-        // LEFT OFF HERE ... need emit even log
+        // emit log for call tokens earned
+        emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
+
+        // NOTE: call tokens earned on ...
+        //  buyCallTicketWithPromoCode
+        //  closeMarketForTicket
+        //  claimTicketRewards
     }
     function _validVoteCount(address _voter, MARKET storage _mark) private view returns(uint64) {
         // if indeed locked && locked before _mark start time, calc & return active vote count
