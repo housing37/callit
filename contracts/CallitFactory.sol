@@ -125,7 +125,12 @@ contract CallitFactory is ERC20, Ownable {
     // $CALL reward & usd earn settings
     uint16 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
     uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
-    uint8  public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
+    uint32 public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
+    uint32 public RATIO_CALL_MINT_PER_ARB_EXE = 1; // amount of all $CALL minted per arb executer reward // TODO: need KEEPER setter
+    uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = 1; // amount of all $CALL minted per market call close action reward // TODO: need KEEPER setter
+    uint32 public RATIO_CALL_MINT_PER_VOTE = 1; // amount of all $CALL minted per vote reward // TODO: need KEEPER setter
+    uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
+    
     uint64 public RATIO_PROMO_USD_PER_CALL_TOK = 100000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
     uint64 public RATIO_LP_USD_PER_CALL_TOK = 100000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
         // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
@@ -165,7 +170,7 @@ contract CallitFactory is ERC20, Ownable {
     event MarketCreated(address _maker, uint256 _markNum, string _name, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, address[] _resultOptionTokens, uint256 _blockTime, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
-    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut, uint64 _callEarnedAmnt);
+    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event MarketReviewed(address _caller, bool _resultAgree, address _marketMaker, uint256 _marketNum, uint64 _agreeCnt, uint64 _disagreeCnt);
@@ -584,7 +589,7 @@ contract CallitFactory is ERC20, Ownable {
         // check if msg.sender earned $CALL tokens
         if (_usdAmnt >= RATIO_PROMO_USD_PER_CALL_TOK) {
             // mint $CALL to msg.sender & log $CALL votes earned
-            _mintCallToksEarned(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
+            _mintCallToksEarned(msg.sender, _usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK); // emit CallTokensEarned
         }
 
         // verify perc calc/taking <= 100% of _usdAmnt
@@ -610,8 +615,7 @@ contract CallitFactory is ERC20, Ownable {
             emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
             // verify
-            uint256 contr_stab_bal_check = IERC20(tick_stable_tok).balanceOf(address(this));
-            require(contr_stab_bal_check >= net_usdAmnt, ' tick-stable swap failed :[] ' );
+            require(IERC20(tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
         }
 
         // swap remaining net_usdAmnt of tick_stable_tok for _ticket on DEX (_ticket receiver = msg.sender)
@@ -627,12 +631,8 @@ contract CallitFactory is ERC20, Ownable {
         // update promo.usdUsed (add full OG input _usdAmnt)
         promo.usdUsed += _usdAmnt;
 
-        // LEFT OFF HERE ...
-        //  mint $CALL token reward to msg.sender
-        uint64 callEarnedAmnt;
-
         // emit log
-        emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out, callEarnedAmnt);
+        emit PromoBuyPerformed(msg.sender, _promoCodeHash, tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
     }
     function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
@@ -681,9 +681,8 @@ contract CallitFactory is ERC20, Ownable {
         require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
         IERC20(mark.marketResults.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
 
-        // LEFT OFF HERE ...
-        //  mint $CALL token reward to msg.sender
-        uint64 callEarnedAmnt;
+        // mint $CALL token reward to msg.sender
+        uint64 callEarnedAmnt = _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_ARB_EXE); // emit CallTokensEarned
 
         // emit log of this arb price correction
         emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
@@ -747,9 +746,8 @@ contract CallitFactory is ERC20, Ownable {
             mark.marketUsdAmnts.usdAmntPrizePool += _uint64_from_uint256(amountToken1); // NOTE: write to market
         }
 
-        // LEFT OFF HERE ...
-        //  mint $CALL token reward to msg.sender
-        uint64 callEarnedAmnt;
+        // mint $CALL token reward to msg.sender
+        uint64 callEarnedAmnt = _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS); // emit CallTokensEarned
 
         // emit log for this closed market calls event
         emit MarketCallsClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.marketUsdAmnts.usdAmntPrizePool, callEarnedAmnt);
@@ -789,8 +787,8 @@ contract CallitFactory is ERC20, Ownable {
         // NOTE: do not want to emit event log for casting votes 
         //  this will allow people to see majority votes before voting
 
-        // LEFT OFF HERE ... 
-        //  mint $CALL token reward to msg.sender
+        // mint $CALL token reward to msg.sender
+        _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_VOTE); // emit CallTokensEarned
     }
     function closeMarketForTicket(address _ticket) external { // _deductFeePerc PERC_MARKET_CLOSE_FEE from mark.marketUsdAmnts.usdAmntPrizePool
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{-} ');
@@ -826,15 +824,14 @@ contract CallitFactory is ERC20, Ownable {
         // check if mark.maker earned $CALL tokens
         if (mark.marketUsdAmnts.usdAmntLP >= RATIO_LP_USD_PER_CALL_TOK) {
             // mint $CALL to mark.maker & log $CALL votes earned
-            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / RATIO_LP_USD_PER_CALL_TOK);
+            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / RATIO_LP_USD_PER_CALL_TOK); // emit CallTokensEarned
         }
 
         // close market
         mark.live = false; // NOTE: write to market
 
-        // LEFT OFF HERE ...
-        //  mint $CALL token reward to msg.sender
-        uint64 callEarnedAmnt;
+        // mint $CALL token reward to msg.sender
+        uint64 callEarnedAmnt = _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_MARK_CLOSE); // emit CallTokensEarned
 
         // emit log for closed market
         emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote, callEarnedAmnt);
@@ -842,8 +839,8 @@ contract CallitFactory is ERC20, Ownable {
         // $CALL token earnings design...
         //  DONE - buyer earns $CALL in 'buyCallTicketWithPromoCode'
         //  DONE - market maker should earn call when market is closed (init LP requirement needed)
-        //  - invoking 'closeMarketCallsForTicket' earns $CALL
-        //  - invoking 'closeMarketForTicket' earns $CALL
+        //  DONE - invoking 'closeMarketCallsForTicket' earns $CALL
+        //  DONE - invoking 'closeMarketForTicket' earns $CALL
         //  DONE - market losers can trade-in their tickets for minted $CALL
         // log $CALL votes earned w/ ...
         // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
@@ -879,7 +876,7 @@ contract CallitFactory is ERC20, Ownable {
             uint64 perc_supply_owned = _perc_total_supply_owned(_ticket, msg.sender);
             if (perc_supply_owned >= PERC_OF_LOSER_SUPPLY_EARN_CALL) {
                 // mint $CALL to loser msg.sender & log $CALL votes earned
-                _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER);
+                _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER); // emit CallTokensEarned
 
                 // NOTE: this action could open up a secondary OTC market for collecting loser tickets
                 //  ie. collecting losers = minting $CALL
@@ -939,6 +936,8 @@ contract CallitFactory is ERC20, Ownable {
 
         // emit log for rewards claimed
         emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);
+
+        // NOTE: no $CALL tokens minted for this action   
     }
 
     /* -------------------------------------------------------- */
@@ -1002,7 +1001,7 @@ contract CallitFactory is ERC20, Ownable {
         }
         return (is_maker, is_caller);
     }
-    function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private {
+    function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private returns(uint64) {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         _mint(_receiver, _callAmnt);
         uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
@@ -1010,7 +1009,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // emit log for call tokens earned
         emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
-
+        return EARNED_CALL_VOTES[_receiver];
         // NOTE: call tokens earned on ...
         //  buyCallTicketWithPromoCode
         //  closeMarketForTicket
