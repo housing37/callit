@@ -169,7 +169,8 @@ contract CallitFactory is ERC20, Ownable {
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event MarketReviewed(address _caller, bool _resultAgree, address _marketMaker, uint256 _marketNum, uint64 _agreeCnt, uint64 _disagreeCnt);
-    
+    event ArbPriceCorrectionExecuted(address _executer, address _ticket, uint64 _tickTargetPrice, uint64 _tokenMintCnt, uint64 _usdGrossReceived, uint64 _usdTotalPaid, uint64 _usdNetProfit, uint64 _callEarnedAmnt);
+
     /* -------------------------------------------------------- */
     /* STRUCTS (CALLIT)
     /* -------------------------------------------------------- */
@@ -639,8 +640,8 @@ contract CallitFactory is ERC20, Ownable {
         uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket);
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
-        uint256 _usdTickPrice = _normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[mark.marketResults.resultTokenUsdStables[tickIdx]]);
-        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(_calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], _usdTickPrice));
+        uint256 _usdTickTargPrice = _normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[mark.marketResults.resultTokenUsdStables[tickIdx]]);
+        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(_calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], _usdTickTargPrice));
 
         // calc price to charge msg.sender for minting tokensToMint
         //  then deduct that amount from their account balance
@@ -648,9 +649,9 @@ contract CallitFactory is ERC20, Ownable {
         if (msg.sender != KEEPER) { // free for KEEPER
             // verify msg.sender usd balance covers contract sale of minted discounted tokens
             //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
-            //   'ticketTargetPriceUSD' price should be less usd then selling 'tokensToMint' @ current DEX price 
-            //   HENCE, usd profit = gross_stab_amnt_out - total_usd_cost
             require(ACCT_USD_BALANCES[msg.sender] >= total_usd_cost, ' low balance :( ');
+
+            // deduce that sale amount from their account balance
             ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; 
         }
 
@@ -673,8 +674,12 @@ contract CallitFactory is ERC20, Ownable {
         require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
         IERC20(mark.marketResults.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
 
-        // LEFT OFF HERE ... need emit event log
+        // LEFT OFF HERE ...
         //  mint $CALL token reward to msg.sender
+        uint64 callEarnedAmnt;
+
+        // emit log of this arb price correction
+        emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
     }
     function closeMarketCallsForTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
@@ -737,6 +742,8 @@ contract CallitFactory is ERC20, Ownable {
 
         // LEFT OFF HERE ... need emit event log
         //  mint $CALL token reward to msg.sender
+        uint64 callEarnedAmnt;
+        // emit MarketCallsClosed(msg.sender, _ticket, callEarnedAmnt)
     }
     function castVoteForMarketTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
