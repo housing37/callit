@@ -85,9 +85,9 @@ contract CallitFactory is ERC20, Ownable {
 
     /* GLOBALS (CALLIT) */
     address public CALLIT_LIB_ADDR;
-    ICallitLib private CALLIT_LIB;
     address public CALLIT_VAULT_ADDR;
-    ICallitVault CALLIT_VAULT;
+    ICallitLib   private CALLIT_LIB;
+    ICallitVault private CALLIT_VAULT;
 
     uint16 PERC_MARKET_MAKER_FEE; // TODO: KEEPER setter
     uint16 PERC_PROMO_BUY_FEE; // TODO: KEEPER setter
@@ -265,8 +265,8 @@ contract CallitFactory is ERC20, Ownable {
     constructor(uint256 _initSupply, address _callit_lib, address _callit_vault) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
     // constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
         CALLIT_LIB_ADDR = _callit_lib;
-        CALLIT_LIB = ICallitLib(_callit_lib);
         CALLIT_VAULT_ADDR = _callit_vault;
+        CALLIT_LIB = ICallitLib(_callit_lib);
         CALLIT_VAULT = ICallitVault(_callit_vault);
 
         // set default globals
