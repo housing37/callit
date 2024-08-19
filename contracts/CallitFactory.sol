@@ -1165,6 +1165,8 @@ contract CallitFactory is ERC20, Ownable {
 
         // NOTE: LEFT OFF HERE ... may need external support functions for LP & LP token maintence, etc.
         //      similar to accessors that retrieve native and ERC20 tokens held by contract
+        //      maybe a function to trasnfer LP to an EOA
+        //      maybe a function to manually pull all LP into this contract (or a specific receiver)
     }
 
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) private pure returns(uint64, uint256) {
