@@ -291,6 +291,13 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER setters
     /* -------------------------------------------------------- */
+    // legacy - keeper getter w/ check
+    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
+        require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
+        if (_history)
+            return _collectiveStableBalances(USD_STABLES_HISTORY);
+        return _collectiveStableBalances(WHITELIST_USD_STABLES);
+    }
     // legacy
     function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
         //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
@@ -328,7 +335,6 @@ contract CallitFactory is ERC20, Ownable {
         _editDexRouters(_router, _add);
         emit DexRouterUpdated(_router, _add);
     }
-
     // CALLIT
     function KEEPER_withdrawTicketLP(address _ticket, bool _all) external view onlyKeeper {
         require(_ticket != address(0), ' !_ticket indy :) ' );
@@ -396,7 +402,6 @@ contract CallitFactory is ERC20, Ownable {
         // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
         MIN_USD_CALL_TICK_TARGET_PRICE = _usdMin;
     }
-
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
         require(_promotor != address(0) && CALLIT_LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
@@ -406,16 +411,6 @@ contract CallitFactory is ERC20, Ownable {
         // PROMO_CODE_HASHES[promoCodeHash].push(PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
         PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
-    }
-
-    /* -------------------------------------------------------- */
-    /* PUBLIC - KEEPER - ACCESSORS (legacy)
-    /* -------------------------------------------------------- */
-    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
-        require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
-        if (_history)
-            return _collectiveStableBalances(USD_STABLES_HISTORY);
-        return _collectiveStableBalances(WHITELIST_USD_STABLES);
     }
 
     /* -------------------------------------------------------- */
@@ -434,7 +429,6 @@ contract CallitFactory is ERC20, Ownable {
     function getDexRouters() external view returns (address[] memory) {
         return USWAP_V2_ROUTERS;
     }
-
     // CALLIT
     function getAccountMarkets(address _account) external view returns (ICallitLib.MARKET[] memory) {
         require(_account != address(0), ' 0 address? ;[+] ');
@@ -447,8 +441,27 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - MUTATORS (CALLIT)
+    /* PUBLIC - UI (CALLIT)
     /* -------------------------------------------------------- */
+    // handle contract USD value deposits (convert PLS to USD stable)
+    receive() external payable {
+        // extract PLS value sent
+        uint256 amntIn = msg.value; 
+
+        // get whitelisted stable with lowest market value (ie. receive most stable for swap)
+        address usdStable = CALLIT_LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
+
+        // perform swap from PLS to stable
+        uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
+
+        // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
+        uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+
+        ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
+        ACCOUNTS = CALLIT_LIB._addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
+
+        emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
+    }
     function setMyAcctHandle(string calldata _handle) external {
         require(bytes(_handle).length >= MIN_HANDLE_SIZE && bytes(_handle).length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
         require(bytes(_handle)[0] != 0x20, ' !_handle space start :+[ '); // 0x20 -> ASCII for ' ' (single space)
@@ -460,10 +473,6 @@ contract CallitFactory is ERC20, Ownable {
     function setCallTokenVoteLock(bool _lock) external {
         ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
     }
-
-    /* -------------------------------------------------------- */
-    /* PUBLIC - USER INTERFACE (CALLIT)
-    /* -------------------------------------------------------- */
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _descr, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
@@ -1068,108 +1077,9 @@ contract CallitFactory is ERC20, Ownable {
         
         revert(' market not found :( ');
     }
-    // note: migrate to CallitLib
-    function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private view returns(uint64) {
-        require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
-        return _net_usdAmnt - CALLIT_LIB._perc_of_uint64(_feePerc, _usdAmnt);
-    }
-    // note: migrate to CallitBank
-    function _payUsdReward(uint64 _usdReward, address _receiver) private {
-        if (_usdReward == 0) {
-            emit AlertZeroReward(msg.sender, _usdReward, _receiver);
-            return;
-        }
-        // Get stable to work with ... (any stable that covers 'usdReward' is fine)
-        //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
-        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
-
-        // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_receiver, CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
-    }
-    // note: migrate to CallitBank
-    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
-        // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
-        //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
-        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
-
-        // create path and perform stable-to-stable swap
-        // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
-        address[] memory stab_stab_path = new address[](3);
-        stab_stab_path[0] = highStableHeld;
-        stab_stab_path[1] = _tickStable;
-        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
-        return (stab_amnt_out,highStableHeld);
-    }
-    // note: migrate to CallitBank at least, and maybe CallitLib as well
-    // Assumed helper functions (implementations not shown)
-    function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private returns (address) {
-        // declare factory & router
-        IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
-        IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
-
-        // normalize decimals _usdStable token requirements
-        _usdAmount = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
-
-        // Approve tokens for Uniswap Router
-        IERC20(_token).approve(_uswapV2Router, _tokenAmount);
-        // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
-            
-        // Add liquidity to the pool
-        // (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
-        uniswapRouter.addLiquidity(
-            _token,                // Token address
-            _usdStable,           // Assuming ETH as the second asset (or replace with another token address)
-            _tokenAmount,          // Desired _token amount
-            _usdAmount,            // Desired ETH amount (converted from USD or directly provided)
-            0,                    // Min amount of _token (slippage tolerance)
-            0,                    // Min amount of ETH (slippage tolerance)
-            address(this),        // Recipient of liquidity tokens
-            block.timestamp + 300 // Deadline (5 minutes from now)
-        );
-
-        // Return the address of the liquidity pool
-        // For Uniswap V2, the LP address is not directly returned but you can obtain it by querying the factory.
-        // This example assumes you store or use the liquidity tokens or LP in your contract directly.
-
-        // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
-        // For simplicity, we're returning a placeholder.
-        // Retrieve the LP address
-        address lpAddress = uniswapFactory.getPair(_token, _usdStable);
-        return lpAddress;
-
-        // NOTE: LEFT OFF HERE ... may need external support functions for LP & LP token maintence, etc.
-        //      similar to accessors that retrieve native and ERC20 tokens held by contract
-        //      maybe a function to trasnfer LP to an EOA
-        //      maybe a function to manually pull all LP into this contract (or a specific receiver)
-    }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - USER INTERFACE (LUSDST legacy)
-    /* -------------------------------------------------------- */
-    // handle contract USD value deposits (convert PLS to USD stable)
-    receive() external payable {
-        // extract PLS value sent
-        uint256 amntIn = msg.value; 
-
-        // get whitelisted stable with lowest market value (ie. receive most stable for swap)
-        address usdStable = CALLIT_LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
-
-        // perform swap from PLS to stable
-        uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
-
-        // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
-
-        ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
-        ACCOUNTS = CALLIT_LIB._addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
-
-        emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
-    }
-
-    /* -------------------------------------------------------- */
-    /* PRIVATE - SUPPORTING (legacy)
+    /* PRIVATE - SUPPORTING (legacy) _ // note: migrate to CallitBank (ALL)
     /* -------------------------------------------------------- */
     function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
         uint64 gross_bal = 0;
@@ -1295,6 +1205,82 @@ contract CallitFactory is ERC20, Ownable {
             // uint16 max USD: ~0.06 -> 0.065535 (6 decimals)
             // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals)
             // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
+    }
+    // note: migrate to CallitLib
+    function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private view returns(uint64) {
+        require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
+        return _net_usdAmnt - CALLIT_LIB._perc_of_uint64(_feePerc, _usdAmnt);
+    }
+    // note: migrate to CallitBank
+    function _payUsdReward(uint64 _usdReward, address _receiver) private {
+        if (_usdReward == 0) {
+            emit AlertZeroReward(msg.sender, _usdReward, _receiver);
+            return;
+        }
+        // Get stable to work with ... (any stable that covers 'usdReward' is fine)
+        //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
+        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
+        IERC20(lowStableHeld).transfer(_receiver, CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
+    }
+    // note: migrate to CallitBank
+    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
+        // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
+        //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
+        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // create path and perform stable-to-stable swap
+        // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
+        address[] memory stab_stab_path = new address[](3);
+        stab_stab_path[0] = highStableHeld;
+        stab_stab_path[1] = _tickStable;
+        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
+        return (stab_amnt_out,highStableHeld);
+    }
+    // note: migrate to CallitBank at least, and maybe CallitLib as well
+    // Assumed helper functions (implementations not shown)
+    function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private returns (address) {
+        // declare factory & router
+        IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
+        IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
+
+        // normalize decimals _usdStable token requirements
+        _usdAmount = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
+
+        // Approve tokens for Uniswap Router
+        IERC20(_token).approve(_uswapV2Router, _tokenAmount);
+        // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
+            
+        // Add liquidity to the pool
+        // (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
+        uniswapRouter.addLiquidity(
+            _token,                // Token address
+            _usdStable,           // Assuming ETH as the second asset (or replace with another token address)
+            _tokenAmount,          // Desired _token amount
+            _usdAmount,            // Desired ETH amount (converted from USD or directly provided)
+            0,                    // Min amount of _token (slippage tolerance)
+            0,                    // Min amount of ETH (slippage tolerance)
+            address(this),        // Recipient of liquidity tokens
+            block.timestamp + 300 // Deadline (5 minutes from now)
+        );
+
+        // Return the address of the liquidity pool
+        // For Uniswap V2, the LP address is not directly returned but you can obtain it by querying the factory.
+        // This example assumes you store or use the liquidity tokens or LP in your contract directly.
+
+        // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
+        // For simplicity, we're returning a placeholder.
+        // Retrieve the LP address
+        address lpAddress = uniswapFactory.getPair(_token, _usdStable);
+        return lpAddress;
+
+        // NOTE: LEFT OFF HERE ... may need external support functions for LP & LP token maintence, etc.
+        //      similar to accessors that retrieve native and ERC20 tokens held by contract
+        //      maybe a function to trasnfer LP to an EOA
+        //      maybe a function to manually pull all LP into this contract (or a specific receiver)
     }
 
     /* -------------------------------------------------------- */
