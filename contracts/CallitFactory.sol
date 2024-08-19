@@ -511,7 +511,7 @@ contract CallitFactory is ERC20, Ownable {
         // require(ACCT_MARKETS[msg.sender].length <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
 
         // deduct 'market maker fees' from _usdAmntLP
-        uint64 net_usdAmntLP = _deductFeePerc(_usdAmntLP, PERC_MARKET_MAKER_FEE, _usdAmntLP);
+        uint64 net_usdAmntLP = CALLIT_LIB._deductFeePerc(_usdAmntLP, PERC_MARKET_MAKER_FEE, _usdAmntLP);
 
         // check for admin defualt vote time, update _dtResultVoteEnd accordingly
         if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
@@ -617,7 +617,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // deduct usdReward & promo buy fee _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
-        net_usdAmnt = _deductFeePerc(net_usdAmnt, PERC_PROMO_BUY_FEE, _usdAmnt);
+        net_usdAmnt = CALLIT_LIB._deductFeePerc(net_usdAmnt, PERC_PROMO_BUY_FEE, _usdAmnt);
 
         // verifiy contract holds enough tick_stable_tok for DEX buy
         //  if not, swap another contract held stable that can indeed cover
@@ -694,7 +694,7 @@ contract CallitFactory is ERC20, Ownable {
         // calc & send net profits to msg.sender
         //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
         //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
-        uint64 net_usd_profits = _deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
+        uint64 net_usd_profits = CALLIT_LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
         require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
         IERC20(mark.marketResults.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
 
@@ -833,7 +833,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
         mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool; // NOTE: write to market
-        mark.marketUsdAmnts.usdAmntPrizePool_net = _deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdAmntPrizePool_net = CALLIT_LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
         
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
@@ -886,7 +886,7 @@ contract CallitFactory is ERC20, Ownable {
             uint64 usdPrizePoolShare = CALLIT_LIB._uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
 
             // send payout to msg.sender
-            usdPrizePoolShare = _deductFeePerc(usdPrizePoolShare, PERC_CLAIM_WIN_FEE, usdPrizePoolShare);
+            usdPrizePoolShare = CALLIT_LIB._deductFeePerc(usdPrizePoolShare, PERC_CLAIM_WIN_FEE, usdPrizePoolShare);
             CALLIT_VAULT._payUsdReward(usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
@@ -945,10 +945,10 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // usdRewardOwed = _deductVoterClaimFees(usdRewardOwed, usdRewardOwed);
-        // usdRewardOwed = _deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        // usdRewardOwed = CALLIT_LIB._deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
         // _payUsdReward(usdRewardOwed, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
-        uint64 usdRewardOwed_net = _deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        uint64 usdRewardOwed_net = CALLIT_LIB._deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
         CALLIT_VAULT._payUsdReward(usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
         // emit log for rewards claimed
@@ -958,7 +958,7 @@ contract CallitFactory is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
-    /* PRIVATE - SUPPORTING (CALLIT)
+    /* PRIVATE - SUPPORTING (CALLIT MANAGER) // NOTE: migrate to CallitVault (ALL)
     /* -------------------------------------------------------- */
     function _logMarketResultReview(ICallitLib.MARKET storage _mark, bool _resultAgree) private {
         uint64 agreeCnt = 0;
@@ -1089,12 +1089,6 @@ contract CallitFactory is ERC20, Ownable {
         revert(' market not found :( ');
     }
 
-    // note: migrate to CallitLib
-    function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private view returns(uint64) {
-        require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
-        return _net_usdAmnt - CALLIT_LIB._perc_of_uint64(_feePerc, _usdAmnt);
-    }
-
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
     /* -------------------------------------------------------- */
@@ -1133,7 +1127,7 @@ contract CallitFactory is ERC20, Ownable {
         return super.transfer(to, value);
     }
     // /* -------------------------------------------------------- */
-    // /* PRIVATE - SUPPORTING (legacy) _ // note: migrate to CallitBank (ALL)
+    // /* PRIVATE - SUPPORTING (legacy VAULT) _ // note: migrate to CallitVault (ALL)
     // /* -------------------------------------------------------- */
     // function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
     //     uint64 gross_bal = 0;
@@ -1335,6 +1329,11 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // /* PRIVATE - SUPPORT (ICallitLib)
     // /* -------------------------------------------------------- */
+    // // note: migrate to CallitLib
+    // function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private view returns(uint64) {
+    //     require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
+    //     return _net_usdAmnt - CALLIT_LIB._perc_of_uint64(_feePerc, _usdAmnt);
+    // }
     // function _isAddressInArray(address _addr, address[] memory _addrArr) private pure returns(bool) {
     //     for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
     //         if (_addrArr[i] == _addr)
