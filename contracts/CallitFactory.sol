@@ -588,46 +588,51 @@ contract CallitFactory is ERC20, Ownable {
         // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
         uint64 ticketTargetPriceUSD = CALLIT_VAULT._getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
 
-        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
-        uint256 _usdTickTargPrice = CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT._usd_decimals(), ticketTargetPriceUSD, CALLIT_VAULT.USD_STABLE_DECIMALS(mark.marketResults.resultTokenUsdStables[tickIdx]));
-        uint64 /* ~18,000Q */ tokensToMint = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], _usdTickTargPrice));
+        // (uint64 tokensToMint, uint64 gross_stab_amnt_out, uint64 total_usd_cost, uint64 net_usd_profits) = _performTicketMintaAndDexSell(_ticket, ticketTargetPriceUSD, mark.marketResults.resultTokenUsdStables[tickIdx], mark.marketResults.resultTokenLPs[tickIdx], mark.marketResults.resultTokenRouters[tickIdx], PERC_ARB_EXE_FEE);
+        (uint64 tokensToMint, uint64 total_usd_cost) = CALLIT_VAULT._performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _ticket, msg.sender);
+        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = CALLIT_VAULT._performTicketMintedDexSell(mark, tickIdx, _ticket, PERC_ARB_EXE_FEE, tokensToMint, total_usd_cost, msg.sender);
 
-        // calc price to charge msg.sender for minting tokensToMint
-        //  then deduct that amount from their account balance
-        uint64 total_usd_cost = ticketTargetPriceUSD * tokensToMint;
-        if (msg.sender != KEEPER) { // free for KEEPER
-            // verify msg.sender usd balance covers contract sale of minted discounted tokens
-            //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
-            require(CALLIT_VAULT.ACCT_USD_BALANCES(msg.sender) >= total_usd_cost, ' low balance :( ');
+        // // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
+        // uint256 _usdTickTargPrice = CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT._usd_decimals(), ticketTargetPriceUSD, CALLIT_VAULT.USD_STABLE_DECIMALS(mark.marketResults.resultTokenUsdStables[tickIdx]));
+        // uint64 /* ~18,000Q */ tokensToMint = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._calculateTokensToMint(mark.marketResults.resultTokenLPs[tickIdx], _usdTickTargPrice));
 
-            // deduce that sale amount from their account balance
-            // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; 
-            CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, total_usd_cost, false); // false = sub
-        }
+        // // calc price to charge msg.sender for minting tokensToMint
+        // //  then deduct that amount from their account balance
+        // uint64 total_usd_cost = ticketTargetPriceUSD * tokensToMint;
+        // if (msg.sender != KEEPER) { // free for KEEPER
+        //     // verify msg.sender usd balance covers contract sale of minted discounted tokens
+        //     //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
+        //     require(CALLIT_VAULT.ACCT_USD_BALANCES(msg.sender) >= total_usd_cost, ' low balance :( ');
 
-        // mint tokensToMint count to this factory and sell on DEX on behalf of msg.sender
-        //  NOTE: receiver == address(this), NOT msg.sender (need to deduct fees before paying msg.sender)
-        ICallitTicket cTicket = ICallitTicket(_ticket);
-        cTicket.mintForPriceParity(address(this), tokensToMint);
-        require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
-        // address[2] memory tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
-        address[] memory tok_stab_path = new address[](2);
-        tok_stab_path[0] = _ticket;
-        tok_stab_path[1] = mark.marketResults.resultTokenUsdStables[tickIdx];
-        uint256 usdAmntOut = CALLIT_VAULT._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
-        uint64 gross_stab_amnt_out = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(mark.marketResults.resultTokenUsdStables[tickIdx]), usdAmntOut, CALLIT_VAULT._usd_decimals()));
+        //     // deduce that sale amount from their account balance
+        //     // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; 
+        //     CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, total_usd_cost, false); // false = sub
+        // }
 
-        // calc & send net profits to msg.sender
-        //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
-        //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
-        uint64 net_usd_profits = CALLIT_LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
-        require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
-        IERC20(mark.marketResults.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
+        // // mint tokensToMint count to this factory and sell on DEX on behalf of msg.sender
+        // //  NOTE: receiver == address(this), NOT msg.sender (need to deduct fees before paying msg.sender)
+        // ICallitTicket cTicket = ICallitTicket(_ticket);
+        // cTicket.mintForPriceParity(address(this), tokensToMint);
+        // require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
+
+        // // address[2] memory tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
+        // address[] memory tok_stab_path = new address[](2);
+        // tok_stab_path[0] = _ticket;
+        // tok_stab_path[1] = mark.marketResults.resultTokenUsdStables[tickIdx];
+        // uint256 usdAmntOut = CALLIT_VAULT._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
+        // uint64 gross_stab_amnt_out = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(mark.marketResults.resultTokenUsdStables[tickIdx]), usdAmntOut, CALLIT_VAULT._usd_decimals()));
+
+        // // calc & send net profits to msg.sender
+        // //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
+        // //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
+        // uint64 net_usd_profits = CALLIT_LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
+        // require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
+        // IERC20(mark.marketResults.resultTokenUsdStables[tickIdx]).transfer(msg.sender, net_usd_profits);
 
         // mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt = _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_ARB_EXE); // emit CallTokensEarned
 
-        // emit log of this arb price correction
+        // // emit log of this arb price correction
         emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
     }
     function closeMarketCallsForTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
@@ -942,6 +947,45 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // /* PRIVATTE - SUPPORTING (CALLIT market management) _ // note: migrate to CallitVault (ALL)
     // /* -------------------------------------------------------- */
+    // function _performTicketMintaAndDexSell(address _targetTicket, uint64 _targetTickPriceUSD, address _targetTickStable, address _targetTickPairAddr, address _targetTickRouter) private returns(uint64,uint64,uint64,uint64) {
+    //     // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
+    //     uint256 _usdTickTargPrice = CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT._usd_decimals(), _targetTickPriceUSD, CALLIT_VAULT.USD_STABLE_DECIMALS(_targetTickStable));
+    //     uint64 /* ~18,000Q */ tokensToMint = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._calculateTokensToMint(_targetTickPairAddr, _usdTickTargPrice));
+
+    //     // calc price to charge msg.sender for minting tokensToMint
+    //     //  then deduct that amount from their account balance
+    //     uint64 total_usd_cost = _targetTickPriceUSD * tokensToMint;
+    //     if (msg.sender != KEEPER) { // free for KEEPER
+    //         // verify msg.sender usd balance covers contract sale of minted discounted tokens
+    //         //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
+    //         require(CALLIT_VAULT.ACCT_USD_BALANCES(msg.sender) >= total_usd_cost, ' low balance :( ');
+
+    //         // deduce that sale amount from their account balance
+    //         // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; 
+    //         CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, total_usd_cost, false); // false = sub
+    //     }
+
+    //     // mint tokensToMint count to this factory and sell on DEX on behalf of msg.sender
+    //     //  NOTE: receiver == address(this), NOT msg.sender (need to deduct fees before paying msg.sender)
+    //     ICallitTicket cTicket = ICallitTicket(_targetTicket);
+    //     cTicket.mintForPriceParity(address(this), tokensToMint);
+    //     require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
+    //     // address[2] memory tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
+    //     address[] memory tok_stab_path = new address[](2);
+    //     tok_stab_path[0] = _targetTicket;
+    //     tok_stab_path[1] = _targetTickStable;
+    //     uint256 usdAmntOut = CALLIT_VAULT._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _targetTickRouter); // swap tick: use specific router tck:tick-stable
+    //     uint64 gross_stab_amnt_out = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(_targetTickStable), usdAmntOut, CALLIT_VAULT._usd_decimals()));
+
+    //     // calc & send net profits to msg.sender
+    //     //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
+    //     //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
+    //     uint64 net_usd_profits = CALLIT_LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
+    //     require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
+    //     IERC20(_targetTickStable).transfer(msg.sender, net_usd_profits);
+
+    //     return (tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits);
+    // }
     // function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) private returns(uint256) {
     //     // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(mark.resultTokenFactories[i]);
     //     IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_tokenRouter);

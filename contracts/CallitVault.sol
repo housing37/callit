@@ -28,7 +28,14 @@ import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Rout
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
+// import "./CallitTicket.sol";
 import "./ICallitLib.sol";
+
+interface ICallitTicket {
+    function mintForPriceParity(address _receiver, uint256 _amount) external;
+    function burnForWinLoseClaim(address _account, uint256 _amount) external;
+    function balanceOf(address account) external returns(uint256);
+}
 
 contract CallitVaultDelegate {
     /* -------------------------------------------------------- */
@@ -209,6 +216,50 @@ contract CallitVaultDelegate {
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
+        // function _performTicketMintaAndDexSell(address _targetTicket, uint64 _targetTickPriceUSD, address _targetTickStable, address _targetTickPairAddr, address _targetTickRouter, uint16 _percArbFee) external returns(uint64,uint64,uint64,uint64) {
+    // function _performTicketMintaAndDexSell(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 ticketTargetPriceUSD, address _ticket, uint16 _percArbFee) external returns(uint64,uint64,uint64,uint64) {
+    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 ticketTargetPriceUSD, address _ticket, address _arbExecuter) external onlyFactory returns(uint64,uint64) {
+        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
+        uint256 _usdTickTargPrice = _normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[_mark.marketResults.resultTokenUsdStables[_tickIdx]]);
+        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(CALLIT_LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice));
+
+        // calc price to charge _arbExecuter for minting tokensToMint
+        //  then deduct that amount from their account balance
+        uint64 total_usd_cost = ticketTargetPriceUSD * tokensToMint;
+        if (_arbExecuter != KEEPER) { // free for KEEPER
+            // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
+            //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
+            require(ACCT_USD_BALANCES[_arbExecuter] >= total_usd_cost, ' low balance :( ');
+
+            // deduce that sale amount from their account balance
+            // CALLIT_VAULT.ACCT_USD_BALANCES[_arbExecuter] -= total_usd_cost; 
+            _edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
+        }
+        
+        // mint tokensToMint count to this VALAULT and sell on DEX on behalf of _arbExecuter
+        //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
+        //  NOTE: deduct fees andpay _arbExecuter in '_performTicketMintedDexSell'
+        ICallitTicket cTicket = ICallitTicket(_ticket);
+        cTicket.mintForPriceParity(address(this), tokensToMint);
+        require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
+        return (tokensToMint, total_usd_cost);
+    }
+    function _performTicketMintedDexSell(ICallitLib.MARKET memory _mark, uint64 _tickIdx, address _ticket, uint16 _percArbFee, uint64 tokensToMint, uint64 total_usd_cost, address _arbExecuter) external onlyFactory returns(uint64,uint64) {
+        // address[2] memory tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
+        address[] memory tok_stab_path = new address[](2);
+        tok_stab_path[0] = _ticket;
+        tok_stab_path[1] = _mark.marketResults.resultTokenUsdStables[_tickIdx];
+        uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _mark.marketResults.resultTokenRouters[_tickIdx]); // swap tick: use specific router tck:tick-stable
+        uint64 gross_stab_amnt_out = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_mark.marketResults.resultTokenUsdStables[_tickIdx]], usdAmntOut, _usd_decimals()));
+
+        // calc & send net profits to _arbExecuter
+        //  NOTE: _arbExecuter gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
+        //  NOTE: 'net_usd_profits' is _arbExecuter's profit (after additional fees)
+        uint64 net_usd_profits = CALLIT_LIB._deductFeePerc(gross_stab_amnt_out, _percArbFee, gross_stab_amnt_out);
+        require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify _arbExecuter profits would occur
+        IERC20(_mark.marketResults.resultTokenUsdStables[_tickIdx]).transfer(_arbExecuter, net_usd_profits);
+        return (gross_stab_amnt_out, net_usd_profits);
+    }
     function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee, address _buyer) external onlyFactory returns(uint64, uint256) {
         // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
@@ -277,10 +328,30 @@ contract CallitVaultDelegate {
         return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
     }
 
-
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (legacy) _ // note: migrate to CallitBank (ALL)
     /* -------------------------------------------------------- */
+    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) private pure returns (uint256) {
+        require(_fromDecimals > 0 && _toDecimals > 0, 'err: invalid _from|toDecimals');
+        if (_usdAmnt == 0) return _usdAmnt; // fix to allow 0 _usdAmnt (ie. no need to normalize)
+        if (_fromDecimals == _toDecimals) {
+            return _usdAmnt;
+        } else {
+            if (_fromDecimals > _toDecimals) { // _fromDecimals has more 0's
+                uint256 scalingFactor = 10 ** (_fromDecimals - _toDecimals); // get the diff
+                return _usdAmnt / scalingFactor; // decrease # of 0's in _usdAmnt
+            }
+            else { // _fromDecimals has less 0's
+                uint256 scalingFactor = 10 ** (_toDecimals - _fromDecimals); // get the diff
+                return _usdAmnt * scalingFactor; // increase # of 0's in _usdAmnt
+            }
+        }
+    }
+    function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
+        require(value <= type(uint64).max, "Value exceeds uint64 range");
+        uint64 convertedValue = uint64(value);
+        return convertedValue;
+    }
     function _edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
         if (_add) ACCT_USD_BALANCES[_acct] += _usdAmnt;
         else {
@@ -293,7 +364,7 @@ contract CallitVaultDelegate {
         for (uint8 i = 0; i < _stables.length;) {
             // NOTE: more efficient algorithm taking up less stack space with local vars
             require(USD_STABLE_DECIMALS[_stables[i]] > 0, ' found stable with invalid decimals :/ ');
-            gross_bal += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_stables[i]], IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
+            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_stables[i]], IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
             unchecked {i++;}
         }
         return gross_bal;
