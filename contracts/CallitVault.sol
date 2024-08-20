@@ -39,6 +39,7 @@ contract CallitVaultDelegate {
 
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
+    uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     address public CALLIT_FACT_ADDR;
     address public CALLIT_LIB_ADDR;
     ICallitLib private CALLIT_LIB;
@@ -68,6 +69,10 @@ contract CallitVaultDelegate {
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
+    // legacy
+    event KeeperTransfer(address _prev, address _new);
+    event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
+    event DexRouterUpdated(address _router, bool _add);
     // callit
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
 
@@ -108,6 +113,40 @@ contract CallitVaultDelegate {
         payable(KEEPER).transfer(_natAmnt); // cast to a 'payable' address to receive ETH
         // emit KeeperWithdrawel(_natAmnt);
     }
+    function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
+        require(_newKeeper != address(0), 'err: 0 address');
+        address prev = address(KEEPER);
+        KEEPER = _newKeeper;
+        emit KeeperTransfer(prev, KEEPER);
+    }
+    function KEEPER_setKeeperCheck(uint256 _keeperCheck) external onlyKeeper {
+        KEEPER_CHECK = _keeperCheck;
+    }
+    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
+        require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
+        if (_history)
+            return _collectiveStableBalances(USD_STABLES_HISTORY);
+        return _collectiveStableBalances(WHITELIST_USD_STABLES);
+    }
+    function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
+        require(_usdStable != address(0), 'err: 0 address');
+        _editWhitelistStables(_usdStable, _decimals, _add);
+        emit WhitelistStableUpdated(_usdStable, _decimals, _add);
+    }
+    function KEEPER_editDexRouters(address _router, bool _add) external onlyKeeper {
+        require(_router != address(0x0), "0 address");
+        _editDexRouters(_router, _add);
+        emit DexRouterUpdated(_router, _add);
+    }
+    // callit
+    function KEEPER_withdrawTicketLP(address _ticket, bool _all) external view onlyKeeper {
+        require(_ticket != address(0), ' !_ticket indy :) ' );
+        if (_all) { // LEFT OFF HERE ...
+            // loop through market for _ticket and withdraw all LP
+        } else {
+            // withdraw LP from just _ticket (this might not be logical)
+        }
+    }
     function KEEPER_setCallitFactory(address _contr) external onlyKeeper {
         CALLIT_FACT_ADDR = _contr;
     }
@@ -125,6 +164,22 @@ contract CallitVaultDelegate {
             // uint16 max USD: ~0.06 -> 0.065535 (6 decimals)
             // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals)
             // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
+    }
+    /* -------------------------------------------------------- */
+    /* PUBLIC - ACCESSORS
+    /* -------------------------------------------------------- */
+    // legacy
+    function getAccounts() external view returns (address[] memory) {
+        return ACCOUNTS;
+    }
+    function getUsdStablesHistory() external view returns (address[] memory) {
+        return USD_STABLES_HISTORY;
+    }    
+    function getWhitelistStables() external view returns (address[] memory) {
+        return WHITELIST_USD_STABLES;
+    }
+    function getDexRouters() external view returns (address[] memory) {
+        return USWAP_V2_ROUTERS;
     }
 
     /* -------------------------------------------------------- */
@@ -240,7 +295,7 @@ contract CallitVaultDelegate {
         }
         return owed_bal;
     }
-    function _collectiveStableBalances(address[] memory _stables) external view onlyFactory returns (uint64, uint64, int64, uint256) {
+    function _collectiveStableBalances(address[] memory _stables) private view returns (uint64, uint64, int64, uint256) {
         uint64 gross_bal = _grossStableBalance(_stables);
         uint64 owed_bal = _owedStableBalance();
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
@@ -248,7 +303,7 @@ contract CallitVaultDelegate {
         return (gross_bal, owed_bal, net_bal, IERC20(CALLIT_FACT_ADDR).totalSupply());
         
     }
-    function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyFactory() { // allows duplicates
+    function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
         if (_add) {
             WHITELIST_USD_STABLES = CALLIT_LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
             USD_STABLES_HISTORY = CALLIT_LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
@@ -257,7 +312,7 @@ contract CallitVaultDelegate {
             WHITELIST_USD_STABLES = CALLIT_LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
         }
     }
-    function _editDexRouters(address _router, bool _add) external onlyFactory() {
+    function _editDexRouters(address _router, bool _add) private {
         require(_router != address(0x0), "0 address");
         if (_add) {
             USWAP_V2_ROUTERS = CALLIT_LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups

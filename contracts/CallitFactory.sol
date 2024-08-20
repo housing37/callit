@@ -172,8 +172,8 @@ contract CallitFactory is ERC20, Ownable {
     event KeeperTransfer(address _prev, address _new);
     event TokenNameSymbolUpdated(string TOK_NAME, string TOK_SYMB);
     event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
-    event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
-    event DexRouterUpdated(address _router, bool _add);
+    // event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
+    // event DexRouterUpdated(address _router, bool _add);
 
     // callit
     event MarketCreated(address _maker, uint256 _markNum, string _name, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, address[] _resultOptionTokens, uint256 _blockTime, bool _live);
@@ -302,13 +302,13 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER setters
     /* -------------------------------------------------------- */
-    // legacy - keeper getter w/ check
-    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
-        require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
-        if (_history)
-            return CALLIT_VAULT._collectiveStableBalances(CALLIT_VAULT.USD_STABLES_HISTORY());
-        return CALLIT_VAULT._collectiveStableBalances(CALLIT_VAULT.WHITELIST_USD_STABLES());
-    }
+    // // legacy - keeper getter w/ check
+    // function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
+    //     require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
+    //     if (_history)
+    //         return CALLIT_VAULT._collectiveStableBalances(CALLIT_VAULT.USD_STABLES_HISTORY());
+    //     return CALLIT_VAULT._collectiveStableBalances(CALLIT_VAULT.WHITELIST_USD_STABLES());
+    // }
     // legacy
     function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
         //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
@@ -336,25 +336,25 @@ contract CallitFactory is ERC20, Ownable {
         TOK_SYMB = _tok_symb;
         emit TokenNameSymbolUpdated(TOK_NAME, TOK_SYMB);
     }
-    function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
-        require(_usdStable != address(0), 'err: 0 address');
-        CALLIT_VAULT._editWhitelistStables(_usdStable, _decimals, _add);
-        emit WhitelistStableUpdated(_usdStable, _decimals, _add);
-    }
-    function KEEPER_editDexRouters(address _router, bool _add) external onlyKeeper {
-        require(_router != address(0x0), "0 address");
-        CALLIT_VAULT._editDexRouters(_router, _add);
-        emit DexRouterUpdated(_router, _add);
-    }
+    // function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
+    //     require(_usdStable != address(0), 'err: 0 address');
+    //     CALLIT_VAULT._editWhitelistStables(_usdStable, _decimals, _add);
+    //     emit WhitelistStableUpdated(_usdStable, _decimals, _add);
+    // }
+    // function KEEPER_editDexRouters(address _router, bool _add) external onlyKeeper {
+    //     require(_router != address(0x0), "0 address");
+    //     CALLIT_VAULT._editDexRouters(_router, _add);
+    //     emit DexRouterUpdated(_router, _add);
+    // }
     // CALLIT
-    function KEEPER_withdrawTicketLP(address _ticket, bool _all) external view onlyKeeper {
-        require(_ticket != address(0), ' !_ticket indy :) ' );
-        if (_all) { // LEFT OFF HERE ...
-            // loop through market for _ticket and withdraw all LP
-        } else {
-            // withdraw LP from just _ticket (this might not be logical)
-        }
-    }
+    // function KEEPER_withdrawTicketLP(address _ticket, bool _all) external view onlyKeeper {
+    //     require(_ticket != address(0), ' !_ticket indy :) ' );
+    //     if (_all) { // LEFT OFF HERE ...
+    //         // loop through market for _ticket and withdraw all LP
+    //     } else {
+    //         // withdraw LP from just _ticket (this might not be logical)
+    //     }
+    // }
     function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
@@ -424,22 +424,22 @@ contract CallitFactory is ERC20, Ownable {
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
 
-    /* -------------------------------------------------------- */
-    /* PUBLIC - ACCESSORS
-    /* -------------------------------------------------------- */
-    // legacy
-    function getAccounts() external view returns (address[] memory) {
-        return CALLIT_VAULT.ACCOUNTS();
-    }
-    function getUsdStablesHistory() external view returns (address[] memory) {
-        return CALLIT_VAULT.USD_STABLES_HISTORY();
-    }    
-    function getWhitelistStables() external view returns (address[] memory) {
-        return CALLIT_VAULT.WHITELIST_USD_STABLES();
-    }
-    function getDexRouters() external view returns (address[] memory) {
-        return CALLIT_VAULT.USWAP_V2_ROUTERS();
-    }
+    // /* -------------------------------------------------------- */
+    // /* PUBLIC - ACCESSORS
+    // /* -------------------------------------------------------- */
+    // // legacy
+    // function getAccounts() external view returns (address[] memory) {
+    //     return CALLIT_VAULT.ACCOUNTS();
+    // }
+    // function getUsdStablesHistory() external view returns (address[] memory) {
+    //     return CALLIT_VAULT.USD_STABLES_HISTORY();
+    // }    
+    // function getWhitelistStables() external view returns (address[] memory) {
+    //     return CALLIT_VAULT.WHITELIST_USD_STABLES();
+    // }
+    // function getDexRouters() external view returns (address[] memory) {
+    //     return CALLIT_VAULT.USWAP_V2_ROUTERS();
+    // }
     // CALLIT
     function getAccountMarkets(address _account) external view returns (ICallitLib.MARKET[] memory) {
         require(_account != address(0), ' 0 address? ;[+] ');
