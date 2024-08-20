@@ -73,7 +73,9 @@ interface ICallitLib {
         uint64 agreeCnt;
         uint64 disagreeCnt;
     }
-
+    function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
+    function _validVoteCount(uint256 _voterCallBal, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64);
+    function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
     function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view returns(uint16);
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external view returns(uint64, uint256);
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);

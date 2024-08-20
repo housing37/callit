@@ -9,6 +9,8 @@ import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
+import "./ICallitLib.sol";
+
 pragma solidity ^0.8.20;
 library CallitLib {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
@@ -16,7 +18,41 @@ library CallitLib {
     /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
-    function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view onlyFactory returns(uint16) {
+    function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
+        uint64 agreeCnt = 0;
+        uint64 disagreeCnt = 0;
+        uint64 reviewCnt = _uint64_from_uint256(_makerReviews.length);
+        if (reviewCnt > 0) {
+            agreeCnt = _makerReviews[reviewCnt-1].agreeCnt;
+            disagreeCnt = _makerReviews[reviewCnt-1].disagreeCnt;
+        }
+
+        agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
+        disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
+        return (ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _maker, _markNum, agreeCnt, disagreeCnt), agreeCnt, disagreeCnt);
+    }
+    function _validVoteCount(uint256 _voterCallBal, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
+        // if indeed locked && locked before _mark start time, calc & return active vote count
+        if (_voterLockTime > 0 && _voterLockTime <= _markCreateTime) {
+            uint64 votes_earned = _votesEarned; // note: EARNED_CALL_VOTES stores uint64 type
+            uint64 votes_held = _uint64_from_uint256(_voterCallBal);
+            uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
+            return votes_active;
+        }
+        else
+            return 0; // return no valid votes
+    }
+    function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool) {
+        bool is_maker = _markMaker == _addr; // true = found maker
+        bool is_caller = false;
+        for (uint16 i = 0; i < _resultOptionTokens.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+            is_caller = IERC20(_resultOptionTokens[i]).balanceOf(_addr) > 0; // true = found caller
+            unchecked {i++;}
+        }
+
+        return (is_maker, is_caller);
+    }
+    function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external pure returns(uint16) {
         // travers mark.resultTokenVotes for winning idx
         //  NOTE: default winning index is 0 & ties will settle on lower index
         uint16 idxCurrHigh = 0;

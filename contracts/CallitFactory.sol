@@ -680,13 +680,13 @@ contract CallitFactory is ERC20, Ownable {
 
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
         // (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
-        (bool is_maker, bool is_caller) = CALLIT_VAULT._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
+        (bool is_maker, bool is_caller) = CALLIT_LIB._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
         require(!is_maker && !is_caller, ' no self-voting :o ');
 
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         // uint64 vote_cnt = _validVoteCount(msg.sender, mark);
-        uint64 vote_cnt = CALLIT_VAULT._validVoteCount(balanceOf(msg.sender), EARNED_CALL_VOTES[msg.sender], ACCT_CALL_VOTE_LOCK_TIME[msg.sender], mark.blockTimestamp);
+        uint64 vote_cnt = CALLIT_LIB._validVoteCount(balanceOf(msg.sender), EARNED_CALL_VOTES[msg.sender], ACCT_CALL_VOTE_LOCK_TIME[msg.sender], mark.blockTimestamp);
         require(vote_cnt > 0, ' invalid voter :{=} ');
 
         //  - store vote in struct MARKET
@@ -802,7 +802,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // log caller's review of market results
         // _logMarketResultReview(mark, _resultAgree); // emits MarketReviewed
-        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = CALLIT_VAULT._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
+        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = CALLIT_LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
         ACCT_MARKET_REVIEWS[mark.maker].push(marketReview);
         emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, agreeCnt, disagreeCnt);
           
@@ -981,7 +981,7 @@ contract CallitFactory is ERC20, Ownable {
     // function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok) private {
     //     // calc influencer reward from _usdAmnt to send to promo.promotor
     //     uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
-    //     CALLIT_VAULT._payUsdReward(usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+    //     CALLIT_VAULT._payUsdReward(usdReward, _promo`tor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
     //     emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, msg.sender, _ticket);
 
     //     // deduct usdReward & promo buy fee _usdAmnt
