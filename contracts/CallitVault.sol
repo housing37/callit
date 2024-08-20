@@ -60,8 +60,7 @@ contract CallitVaultDelegate {
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external onlyFactory() {
         // NOTE: _usdAmnt must be in _usd_decimals() precision
         require(_acct != address(0) && _usdAmnt > 0, ' invalid _acct | _usdAmnt :p ');
-        if (_add) ACCT_USD_BALANCES[_acct] += _usdAmnt;
-        else ACCT_USD_BALANCES[_acct] -= _usdAmnt;
+        _edit_ACCT_USD_BALANCES(_acct, _usdAmnt, _add);
     }
     function set_ACCOUNTS(address[] calldata _accts) external onlyFactory() {
         ACCOUNTS = _accts;
@@ -73,6 +72,7 @@ contract CallitVaultDelegate {
     event KeeperTransfer(address _prev, address _new);
     event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
     event DexRouterUpdated(address _router, bool _add);
+    event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
     // callit
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
 
@@ -185,6 +185,28 @@ contract CallitVaultDelegate {
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management) _ // note: migrate to CallitVault (ALL)
     /* -------------------------------------------------------- */
+    // handle contract USD value deposits (convert PLS to USD stable)
+    receive() external payable {
+        // extract PLS value sent
+        uint256 amntIn = msg.value; 
+
+        // get whitelisted stable with lowest market value (ie. receive most stable for swap)
+        address usdStable = _getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
+
+        // perform swap from PLS to stable & send to vault
+        uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
+
+        // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
+        uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+
+        // use VAULT remote
+        _edit_ACCT_USD_BALANCES(msg.sender, usdAmntConvert, true); // true = add
+        ACCOUNTS = CALLIT_LIB._addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
+
+        emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
+
+        // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
+    }
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view onlyFactory returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
         uint64 agreeCnt = 0;
         uint64 disagreeCnt = 0;
@@ -277,6 +299,13 @@ contract CallitVaultDelegate {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (legacy) _ // note: migrate to CallitBank (ALL)
     /* -------------------------------------------------------- */
+    function _edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
+        if (_add) ACCT_USD_BALANCES[_acct] += _usdAmnt;
+        else {
+            require(ACCT_USD_BALANCES[_acct] >= _usdAmnt, ' !deduct low balance :{} ');
+            ACCT_USD_BALANCES[_acct] -= _usdAmnt;    
+        }
+    }
     function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
         uint64 gross_bal = 0;
         for (uint8 i = 0; i < _stables.length;) {
@@ -357,7 +386,7 @@ contract CallitVaultDelegate {
         (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
         return tok_amnt; 
     }
-    function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) external onlyFactory() returns (uint256) {
+    function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
         pls_stab_path[1] = _usdStable;

@@ -461,25 +461,26 @@ contract CallitFactory is ERC20, Ownable {
 
         // send PLS to vault
         payable(address(CALLIT_VAULT)).transfer(amntIn);
+            // NOTE: VAULT's receive() function should handle swap for usd stable
 
-        // get whitelisted stable with lowest market value (ie. receive most stable for swap)
-        address usdStable = CALLIT_VAULT._getStableTokenLowMarketValue(CALLIT_VAULT.WHITELIST_USD_STABLES(), CALLIT_VAULT.USWAP_V2_ROUTERS());
+        // // get whitelisted stable with lowest market value (ie. receive most stable for swap)
+        // address usdStable = CALLIT_VAULT._getStableTokenLowMarketValue(CALLIT_VAULT.WHITELIST_USD_STABLES(), CALLIT_VAULT.USWAP_V2_ROUTERS());
 
-        // perform swap from PLS to stable & send to vault
-        uint256 stableAmntOut = CALLIT_VAULT._exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
+        // // perform swap from PLS to stable & send to vault
+        // uint256 stableAmntOut = CALLIT_VAULT._exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
 
-        // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(usdStable), stableAmntOut, CALLIT_VAULT._usd_decimals()));
+        // // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
+        // uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(usdStable), stableAmntOut, CALLIT_VAULT._usd_decimals()));
 
-        // OG local
-        // ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
-        // ACCOUNTS = _addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
+        // // OG local
+        // // ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
+        // // ACCOUNTS = _addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
 
-        // use vault
-        CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, usdAmntConvert, true); // true = add
-        CALLIT_VAULT.set_ACCOUNTS(CALLIT_LIB._addAddressToArraySafe(msg.sender, CALLIT_VAULT.ACCOUNTS(), true)); // true = safe (no dups)
+        // // use vault
+        // CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, usdAmntConvert, true); // true = add
+        // CALLIT_VAULT.set_ACCOUNTS(CALLIT_LIB._addAddressToArraySafe(msg.sender, CALLIT_VAULT.ACCOUNTS(), true)); // true = safe (no dups)
 
-        emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
+        emit DepositReceived(msg.sender, amntIn, 0);
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
     }

@@ -19,7 +19,7 @@ interface ICallitVault {
     function _collectiveStableBalances(address[] memory _stables) external view returns (uint64, uint64, int64, uint256);
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external;
     function _editDexRouters(address _router, bool _add) external;
-    function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) external returns (uint256);
+    // function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) external returns (uint256);
     function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) external returns (uint256);
     function _usd_decimals() external pure returns (uint8);
     function _payUsdReward(uint64 _usdReward, address _receiver) external;
