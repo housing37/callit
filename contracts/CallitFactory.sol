@@ -459,10 +459,13 @@ contract CallitFactory is ERC20, Ownable {
         // extract PLS value sent
         uint256 amntIn = msg.value; 
 
-        // get whitelisted stable with lowest market value (ie. receive most stable for swap)
-        address usdStable = CALLIT_LIB._getStableTokenLowMarketValue(CALLIT_VAULT.WHITELIST_USD_STABLES(), CALLIT_VAULT.USWAP_V2_ROUTERS());
+        // send PLS to vault
+        payable(address(CALLIT_VAULT)).transfer(amntIn);
 
-        // perform swap from PLS to stable
+        // get whitelisted stable with lowest market value (ie. receive most stable for swap)
+        address usdStable = CALLIT_VAULT._getStableTokenLowMarketValue(CALLIT_VAULT.WHITELIST_USD_STABLES(), CALLIT_VAULT.USWAP_V2_ROUTERS());
+
+        // perform swap from PLS to stable & send to vault
         uint256 stableAmntOut = CALLIT_VAULT._exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
 
         // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
@@ -477,6 +480,8 @@ contract CallitFactory is ERC20, Ownable {
         CALLIT_VAULT.set_ACCOUNTS(CALLIT_LIB._addAddressToArraySafe(msg.sender, CALLIT_VAULT.ACCOUNTS(), true)); // true = safe (no dups)
 
         emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
+
+        // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
     }
     function setMyAcctHandle(string calldata _handle) external {
         require(bytes(_handle).length >= MIN_HANDLE_SIZE && bytes(_handle).length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
@@ -529,11 +534,11 @@ contract CallitFactory is ERC20, Ownable {
             // Get/calc amounts for initial LP (usd and token amounts)
             (uint64 usdAmount, uint256 tokenAmount) = CALLIT_LIB._getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
 
-            // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to this contract)
+            // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
             (string memory tok_name, string memory tok_symb) = CALLIT_LIB._genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            address new_tick_tok = address (new CallitTicket(tokenAmount, tok_name, tok_symb));
+            address new_tick_tok = address (new CallitTicket(tokenAmount, address(CALLIT_VAULT), tok_name, tok_symb));
             
-            // Create DEX LP for new ticket token
+            // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
             address pairAddr = CALLIT_VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
 
             // verify ERC20 & LP was created
@@ -697,7 +702,7 @@ contract CallitFactory is ERC20, Ownable {
         address[] memory tok_stab_path = new address[](3);
         tok_stab_path[0] = _ticket;
         tok_stab_path[1] = mark.marketResults.resultTokenUsdStables[tickIdx];
-        uint256 usdAmntOut = CALLIT_LIB._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
+        uint256 usdAmntOut = CALLIT_VAULT._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable
         uint64 gross_stab_amnt_out = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(mark.marketResults.resultTokenUsdStables[tickIdx]), usdAmntOut, CALLIT_VAULT._usd_decimals()));
 
         // calc & send net profits to msg.sender
