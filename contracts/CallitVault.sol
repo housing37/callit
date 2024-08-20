@@ -96,6 +96,18 @@ contract CallitVaultDelegate {
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER
     /* -------------------------------------------------------- */
+    // legacy
+    function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
+        //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
+        require(IERC20(_tokAddr).balanceOf(address(this)) >= _tokAmnt, ' not enough amount for token :O ');
+        IERC20(_tokAddr).transfer(KEEPER, _tokAmnt);
+        // emit KeeperMaintenance(_tokAddr, _tokAmnt);
+    }
+    function KEEPER_withdraw(uint256 _natAmnt) external onlyKeeper {
+        require(address(this).balance >= _natAmnt, " Insufficient native PLS balance :[ ");
+        payable(KEEPER).transfer(_natAmnt); // cast to a 'payable' address to receive ETH
+        // emit KeeperWithdrawel(_natAmnt);
+    }
     function KEEPER_setCallitFactory(address _contr) external onlyKeeper {
         CALLIT_FACT_ADDR = _contr;
     }
