@@ -37,7 +37,9 @@ interface ICallitTicket {
     function balanceOf(address account) external returns(uint256);
 }
 
-contract CallitVaultDelegate {
+contract CallitVault {
+    string public constant tVERSION = '0.1';
+
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
     /* -------------------------------------------------------- */
@@ -47,9 +49,10 @@ contract CallitVaultDelegate {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
+    address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
+    ICallitLib private LIB = ICallitLib(LIB_ADDR);
     address public FACT_ADDR;
-    address public LIB_ADDR;
-    ICallitLib private LIB;
+    bool private ONCE_ = true;
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
@@ -85,10 +88,15 @@ contract CallitVaultDelegate {
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
 
-    constructor(address _callit_lib) {
-        LIB_ADDR = _callit_lib;
-        LIB = ICallitLib(_callit_lib);
+    constructor() {
         KEEPER = msg.sender;
+
+        // add default whiteliste stable: weDAI
+        _editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
+
+        // add default routers: pulsex (x2)
+        _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
+        // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
     }
 
     /* -------------------------------------------------------- */
@@ -105,6 +113,16 @@ contract CallitVaultDelegate {
     modifier onlyKeeperOrFactory() {
         require(msg.sender == KEEPER || msg.sender == FACT_ADDR, " !keeper & !contr :p");
         _;
+    }
+    modifier onlyOnce() {
+        require(ONCE_, ' never again :/ ' );
+        ONCE_ = false;
+        _;
+    }
+
+    function INIT_factory() external onlyOnce {
+        require(FACT_ADDR == address(0), ' factor already set :) ');
+        FACT_ADDR == msg.sender;
     }
 
     /* -------------------------------------------------------- */

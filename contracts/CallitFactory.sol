@@ -47,7 +47,7 @@ contract CallitFactory is ERC20, Ownable {
 
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
-    uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
+    // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     string public tVERSION = '0.1';
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
@@ -55,10 +55,10 @@ contract CallitFactory is ERC20, Ownable {
     // string private TOK_NAME = "CALL-IT";
 
     /* GLOBALS (CALLIT) */
-    address public LIB_ADDR;
+    address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
+    ICallitLib private LIB = ICallitLib(LIB_ADDR);
     address public VAULT_ADDR;
-    ICallitLib   private LIB;
-    ICallitVault private VAULT;
+    ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
 
     uint16 PERC_MARKET_MAKER_FEE; // TODO: KEEPER setter
     uint16 PERC_PROMO_BUY_FEE; // TODO: KEEPER setter
@@ -164,23 +164,15 @@ contract CallitFactory is ERC20, Ownable {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
-    constructor(uint256 _initSupply, address _lib, address _vault) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-        LIB_ADDR = _lib;
-        VAULT_ADDR = _vault;
-        LIB = ICallitLib(_lib);
-        VAULT = ICallitVault(_vault);
+    constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
+        // set FACT_ADDR in VAULT
+        VAULT.INIT_factory();
 
         // set default globals
         KEEPER = msg.sender;
-        KEEPER_CHECK = 0;
         _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
 
-        // add a whitelist stable
-        VAULT._editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
-
-        // add default routers: pulsex (x2)
-        VAULT._editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
-        // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
+        // NOTE: whitelist stable & dex routers set in VAULT constructor
     }
 
     /* -------------------------------------------------------- */
@@ -215,9 +207,6 @@ contract CallitFactory is ERC20, Ownable {
         address prev = address(KEEPER);
         KEEPER = _newKeeper;
         emit KeeperTransfer(prev, KEEPER);
-    }
-    function KEEPER_setKeeperCheck(uint256 _keeperCheck) external onlyKeeper {
-        KEEPER_CHECK = _keeperCheck;
     }
     function KEEPER_setTokNameSymb(string memory _tok_name, string memory _tok_symb) external onlyKeeper() {
         require(bytes(_tok_name).length > 0 && bytes(_tok_symb).length > 0, ' invalid input  :<> ');

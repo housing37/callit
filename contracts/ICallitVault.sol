@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
 
 interface ICallitVault {
+    function INIT_factory() external;
     function deposit(address _depositor) external payable;
 
     // NOTE: legacy public globals

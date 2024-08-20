@@ -13,6 +13,7 @@ import "./ICallitLib.sol";
 
 pragma solidity ^0.8.20;
 library CallitLib {
+    string public constant tVERSION = '1.0';
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
 
     /* -------------------------------------------------------- */
