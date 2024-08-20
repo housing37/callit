@@ -55,7 +55,7 @@ contract CallitFactory is ERC20, Ownable {
     // string private TOK_NAME = "CALL-IT";
 
     /* GLOBALS (CALLIT) */
-    address public CALLIT_LIB_ADDR;
+    address public LIB_ADDR;
     address public VAULT_ADDR;
     ICallitLib   private LIB;
     ICallitVault private VAULT;
@@ -165,7 +165,7 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
     constructor(uint256 _initSupply, address _lib, address _vault) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-        CALLIT_LIB_ADDR = _lib;
+        LIB_ADDR = _lib;
         VAULT_ADDR = _vault;
         LIB = ICallitLib(_lib);
         VAULT = ICallitVault(_vault);
@@ -224,6 +224,14 @@ contract CallitFactory is ERC20, Ownable {
         TOK_NAME = _tok_name;
         TOK_SYMB = _tok_symb;
         emit TokenNameSymbolUpdated(TOK_NAME, TOK_SYMB);
+    }
+    function KEEPER_setVaultLib(address _vault, address _lib) external onlyKeeper {
+        require(_vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
+        VAULT_ADDR = _vault;
+        VAULT = ICallitVault(_vault);
+
+        LIB_ADDR = _lib;
+        LIB = ICallitLib(_lib);
     }
     function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
         require(_admin != address(0), ' !_admin :{+} ');

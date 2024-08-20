@@ -47,8 +47,8 @@ contract CallitVaultDelegate {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    address public CALLIT_FACT_ADDR;
-    address public CALLIT_LIB_ADDR;
+    address public FACT_ADDR;
+    address public LIB_ADDR;
     ICallitLib private LIB;
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
@@ -86,7 +86,7 @@ contract CallitVaultDelegate {
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
 
     constructor(address _callit_lib) {
-        CALLIT_LIB_ADDR = _callit_lib;
+        LIB_ADDR = _callit_lib;
         LIB = ICallitLib(_callit_lib);
         KEEPER = msg.sender;
     }
@@ -99,11 +99,11 @@ contract CallitVaultDelegate {
         _;
     }
     modifier onlyFactory() {
-        require(msg.sender == CALLIT_FACT_ADDR, " !keeper & !contr :p");
+        require(msg.sender == FACT_ADDR, " !keeper & !contr :p");
         _;
     }
     modifier onlyKeeperOrFactory() {
-        require(msg.sender == KEEPER || msg.sender == CALLIT_FACT_ADDR, " !keeper & !contr :p");
+        require(msg.sender == KEEPER || msg.sender == FACT_ADDR, " !keeper & !contr :p");
         _;
     }
 
@@ -156,12 +156,10 @@ contract CallitVaultDelegate {
             // withdraw LP from just _ticket (this might not be logical)
         }
     }
-    function KEEPER_setCallitFactory(address _contr) external onlyKeeper {
-        CALLIT_FACT_ADDR = _contr;
-    }
-    function KEEPER_setCallitLib(address _callit_lib) external onlyKeeper {
-        CALLIT_LIB_ADDR = _callit_lib;
-        LIB = ICallitLib(_callit_lib);
+    function KEEPER_setFactoryLib(address _fact, address _lib) external onlyKeeper {
+        FACT_ADDR = _fact;
+        LIB_ADDR = _lib;
+        LIB = ICallitLib(_lib);
     }
 
     /* -------------------------------------------------------- */
@@ -392,7 +390,7 @@ contract CallitVaultDelegate {
         uint64 owed_bal = _owedStableBalance();
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
         // return (gross_bal, owed_bal, net_bal, totalSupply());
-        return (gross_bal, owed_bal, net_bal, IERC20(CALLIT_FACT_ADDR).totalSupply());
+        return (gross_bal, owed_bal, net_bal, IERC20(FACT_ADDR).totalSupply());
         
     }
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
