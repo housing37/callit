@@ -80,11 +80,6 @@ interface ICallitLib {
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external view returns(uint64, uint256);
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);
     function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256);
-    // function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) external returns (uint256);
-    // function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
-    // function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
-    // function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) external view returns (uint8, uint256);
-    // function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) external returns (uint256);
 
     function _perc_total_supply_owned(address _token, address _account) external view returns (uint64);
     function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) external pure returns(uint64);

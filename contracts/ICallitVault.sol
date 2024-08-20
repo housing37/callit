@@ -19,11 +19,8 @@ interface ICallitVault {
     function _collectiveStableBalances(address[] memory _stables) external view returns (uint64, uint64, int64, uint256);
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external;
     function _editDexRouters(address _router, bool _add) external;
-    // function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) external returns (uint256);
-    // function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) external returns (uint256);
     function _usd_decimals() external pure returns (uint8);
     function _payUsdReward(uint64 _usdReward, address _receiver) external;
-    // function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) external returns(uint256, address);
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external returns (address);
     function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) external returns(uint256);
 
@@ -36,7 +33,4 @@ interface ICallitVault {
     function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) external returns (uint256);
     function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
     function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
-    // function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) external view returns (uint8, uint256);
-    // function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) external returns (uint256);
-
 }
