@@ -179,7 +179,7 @@ contract CallitFactory is ERC20, Ownable {
     event MarketCreated(address _maker, uint256 _markNum, string _name, uint64 _usdAmntLP, uint256 _dtCallDeadline, uint256 _dtResultVoteStart, uint256 _dtResultVoteEnd, string[] _resultLabels, address[] _resultOptionTokens, uint256 _blockTime, bool _live);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
     // event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
-    // event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
+    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
     // event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     // event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event MarketReviewed(address _caller, bool _resultAgree, address _marketMaker, uint256 _marketNum, uint64 _agreeCnt, uint64 _disagreeCnt);
@@ -636,7 +636,10 @@ contract CallitFactory is ERC20, Ownable {
         require(promo.percReward + PERC_PROMO_BUY_FEE <= 10000, ' buy promo fee perc mismatch :o ');
 
         // pay promotor usd reward & purchase msg.sender's tickets from DEX
-        CALLIT_VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, mark.marketResults.resultTokenUsdStables[tickIdx], PERC_PROMO_BUY_FEE);
+        (uint64 net_usdAmnt, uint256 tick_amnt_out) = CALLIT_VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, mark.marketResults.resultTokenUsdStables[tickIdx], PERC_PROMO_BUY_FEE, msg.sender);
+        
+        // emit log
+        emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
 
         // update promo.usdUsed (add full OG input _usdAmnt)
         promo.usdUsed += _usdAmnt;
@@ -1044,6 +1047,44 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // /* PRIVATTE - SUPPORTING (CALLIT market management) _ // note: migrate to CallitVault (ALL)
     // /* -------------------------------------------------------- */
+    // function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok) private {
+    //     // calc influencer reward from _usdAmnt to send to promo.promotor
+    //     uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
+    //     CALLIT_VAULT._payUsdReward(usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+    //     emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, msg.sender, _ticket);
+
+    //     // deduct usdReward & promo buy fee _usdAmnt
+    //     uint64 net_usdAmnt = _usdAmnt - usdReward;
+    //     net_usdAmnt = CALLIT_LIB._deductFeePerc(net_usdAmnt, PERC_PROMO_BUY_FEE, _usdAmnt);
+
+    //     // verifiy contract holds enough tick_stable_tok for DEX buy
+    //     //  if not, swap another contract held stable that can indeed cover
+    //     // address tick_stable_tok = mark.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
+    //     // address tick_stable_tok = mark.marketResults.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
+    //     uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
+    //     if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
+    //         uint64 net_usdAmnt_needed = net_usdAmnt - CALLIT_LIB._uint64_from_uint256(contr_stab_bal);
+    //         (uint256 stab_amnt_out, address stab_swap_from)  = CALLIT_VAULT._swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+    //         emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
+
+    //         // verify
+    //         require(IERC20(_tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
+    //     }
+
+    //     // swap remaining net_usdAmnt of tick_stable_tok for _ticket on DEX (_ticket receiver = msg.sender)
+    //     // address[] memory usd_tick_path = [tick_stable_tok, _ticket]; // ref: https://ethereum.stackexchange.com/a/28048
+    //     address[] memory usd_tick_path = new address[](2);
+    //     usd_tick_path[0] = _tick_stable_tok;
+    //     usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
+    //     uint256 tick_amnt_out = CALLIT_VAULT._exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
+
+    //     // deduct full OG input _usdAmnt from account balance
+    //     // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
+    //     CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, _usdAmnt, false); // false = sub
+
+    //     // emit log
+    //     emit PromoBuyPerformed(msg.sender, _promoCodeHash, _tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
+    // }
     // // function _logMarketResultReview(ICallitLib.MARKET storage _mark, bool _resultAgree) private {
     // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) private view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
     //     uint64 agreeCnt = 0;

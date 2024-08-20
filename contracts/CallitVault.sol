@@ -77,7 +77,6 @@ contract CallitVaultDelegate {
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
-    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
 
     constructor(address _callit_lib) {
         CALLIT_LIB_ADDR = _callit_lib;
@@ -210,11 +209,11 @@ contract CallitVaultDelegate {
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
-    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee) external onlyFactory {
+    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee, address _buyer) external onlyFactory returns(uint64, uint256) {
         // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
         _payUsdReward(usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
-        emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, msg.sender, _ticket);
+        emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, _buyer, _ticket);
 
         // deduct usdReward & promo buy fee _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
@@ -239,14 +238,13 @@ contract CallitVaultDelegate {
         address[] memory usd_tick_path = new address[](2);
         usd_tick_path[0] = _tick_stable_tok;
         usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
-        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
+        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, _buyer); // buyer (msg.sender) = _receiver
 
         // deduct full OG input _usdAmnt from account balance
         // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
-        _edit_ACCT_USD_BALANCES(msg.sender, _usdAmnt, false); // false = sub
+        _edit_ACCT_USD_BALANCES(_buyer, _usdAmnt, false); // false = sub
 
-        // emit log
-        emit PromoBuyPerformed(msg.sender, _promoCodeHash, _tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
+        return (net_usdAmnt, tick_amnt_out);
     }
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view onlyFactory returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
         uint64 agreeCnt = 0;
