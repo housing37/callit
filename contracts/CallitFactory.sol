@@ -24,9 +24,9 @@ pragma solidity ^0.8.24;
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+// import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+// import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+// import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 import "./CallitTicket.sol";
 import "./ICallitLib.sol";
@@ -715,7 +715,7 @@ contract CallitFactory is ERC20, Ownable {
         // loop through pair addresses and pull liquidity 
         address[] memory _ticketLPs = mark.marketResults.resultTokenLPs;
         for (uint16 i = 0; i < _ticketLPs.length;) { // MAX_RESULTS is uint16
-            uint256 amountToken1 = _exePullLiquidityFromLP(mark.marketResults.resultTokenRouters[i], _ticketLPs[i], mark.marketResults.resultOptionTokens[i], mark.marketResults.resultTokenUsdStables[i]);
+            uint256 amountToken1 = CALLIT_VAULT._exePullLiquidityFromLP(mark.marketResults.resultTokenRouters[i], _ticketLPs[i], mark.marketResults.resultOptionTokens[i], mark.marketResults.resultTokenUsdStables[i]);
 
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
             mark.marketUsdAmnts.usdAmntPrizePool += CALLIT_LIB._uint64_from_uint256(amountToken1); // NOTE: write to market
@@ -973,42 +973,6 @@ contract CallitFactory is ERC20, Ownable {
         //  closeMarketForTicket
         //  claimTicketRewards
     }
-    function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) private returns(uint256) {
-        // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(mark.resultTokenFactories[i]);
-        IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_tokenRouter);
-        
-        // pull liquidity from pairAddress
-        IERC20 pairToken = IERC20(_pairAddress);
-        uint256 liquidity = pairToken.balanceOf(address(this));  // Get the contract's balance of the LP tokens
-        
-        // Approve the router to spend the LP tokens
-        pairToken.approve(address(uniswapRouter), liquidity);
-        
-        // Retrieve the token pair
-        address token0 = IUniswapV2Pair(_pairAddress).token0();
-        address token1 = IUniswapV2Pair(_pairAddress).token1();
-
-        // check to make sure that token0 is the 'ticket' & token1 is the 'stable'
-        require(_token == token0 && _usdStable == token1, ' pair token mismatch w/ MARKET tck:usd :*() ');
-
-        // get OG stable balance, so we can verify later
-        uint256 OG_stable_bal = IERC20(_usdStable).balanceOf(address(this));
-
-        // Remove liquidity
-        (, uint256 amountToken1) = uniswapRouter.removeLiquidity(
-            token0,
-            token1,
-            liquidity,
-            0, // Min amount of token0, to prevent slippage (adjust based on your needs)
-            0, // Min amount of token1, to prevent slippage (adjust based on your needs)
-            address(this), // Send tokens to the contract itself or a specified recipient
-            block.timestamp + 300 // Deadline (5 minutes from now)
-        );
-
-        // verify correct ticket token stable was pulled and recieved
-        require(IERC20(_usdStable).balanceOf(address(this)) >= OG_stable_bal, ' stab bal mismatch after liq pull :+( ');
-        return amountToken1;
-    }
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
     /* -------------------------------------------------------- */
@@ -1047,6 +1011,42 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // /* PRIVATTE - SUPPORTING (CALLIT market management) _ // note: migrate to CallitVault (ALL)
     // /* -------------------------------------------------------- */
+    // function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) private returns(uint256) {
+    //     // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(mark.resultTokenFactories[i]);
+    //     IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_tokenRouter);
+        
+    //     // pull liquidity from pairAddress
+    //     IERC20 pairToken = IERC20(_pairAddress);
+    //     uint256 liquidity = pairToken.balanceOf(address(this));  // Get the contract's balance of the LP tokens
+        
+    //     // Approve the router to spend the LP tokens
+    //     pairToken.approve(address(uniswapRouter), liquidity);
+        
+    //     // Retrieve the token pair
+    //     address token0 = IUniswapV2Pair(_pairAddress).token0();
+    //     address token1 = IUniswapV2Pair(_pairAddress).token1();
+
+    //     // check to make sure that token0 is the 'ticket' & token1 is the 'stable'
+    //     require(_token == token0 && _usdStable == token1, ' pair token mismatch w/ MARKET tck:usd :*() ');
+
+    //     // get OG stable balance, so we can verify later
+    //     uint256 OG_stable_bal = IERC20(_usdStable).balanceOf(address(this));
+
+    //     // Remove liquidity
+    //     (, uint256 amountToken1) = uniswapRouter.removeLiquidity(
+    //         token0,
+    //         token1,
+    //         liquidity,
+    //         0, // Min amount of token0, to prevent slippage (adjust based on your needs)
+    //         0, // Min amount of token1, to prevent slippage (adjust based on your needs)
+    //         address(this), // Send tokens to the contract itself or a specified recipient
+    //         block.timestamp + 300 // Deadline (5 minutes from now)
+    //     );
+
+    //     // verify correct ticket token stable was pulled and recieved
+    //     require(IERC20(_usdStable).balanceOf(address(this)) >= OG_stable_bal, ' stab bal mismatch after liq pull :+( ');
+    //     return amountToken1;
+    // }
     // function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok) private {
     //     // calc influencer reward from _usdAmnt to send to promo.promotor
     //     uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);

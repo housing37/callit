@@ -25,6 +25,7 @@ interface ICallitVault {
     function _payUsdReward(uint64 _usdReward, address _receiver) external;
     // function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) external returns(uint256, address);
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external returns (address);
+    function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) external returns(uint256);
 
     // NOTE: callit market management
     function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee, address _buyer) external returns(uint64, uint256);
