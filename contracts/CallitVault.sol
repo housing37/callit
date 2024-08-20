@@ -74,7 +74,10 @@ contract CallitVaultDelegate {
     event DexRouterUpdated(address _router, bool _add);
     event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
     // callit
+    event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
+    event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
+    event PromoBuyPerformed(address _buyer, address _promoCodeHash, address _usdStable, address _ticket, uint64 _grossUsdAmnt, uint64 _netUsdAmnt, uint256  _tickAmntOut);
 
     constructor(address _callit_lib) {
         CALLIT_LIB_ADDR = _callit_lib;
@@ -206,6 +209,44 @@ contract CallitVaultDelegate {
         emit DepositReceived(msg.sender, amntIn, usdAmntConvert);
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
+    }
+    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee) external onlyFactory {
+        // calc influencer reward from _usdAmnt to send to promo.promotor
+        uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
+        _payUsdReward(usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, msg.sender, _ticket);
+
+        // deduct usdReward & promo buy fee _usdAmnt
+        uint64 net_usdAmnt = _usdAmnt - usdReward;
+        net_usdAmnt = CALLIT_LIB._deductFeePerc(net_usdAmnt, _percPromoBuyFee, _usdAmnt);
+
+        // verifiy contract holds enough tick_stable_tok for DEX buy
+        //  if not, swap another contract held stable that can indeed cover
+        // address tick_stable_tok = mark.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
+        // address tick_stable_tok = mark.marketResults.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
+        uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
+        if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
+            uint64 net_usdAmnt_needed = net_usdAmnt - CALLIT_LIB._uint64_from_uint256(contr_stab_bal);
+            (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+            emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
+
+            // verify
+            require(IERC20(_tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
+        }
+
+        // swap remaining net_usdAmnt of tick_stable_tok for _ticket on DEX (_ticket receiver = msg.sender)
+        // address[] memory usd_tick_path = [tick_stable_tok, _ticket]; // ref: https://ethereum.stackexchange.com/a/28048
+        address[] memory usd_tick_path = new address[](2);
+        usd_tick_path[0] = _tick_stable_tok;
+        usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
+        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
+
+        // deduct full OG input _usdAmnt from account balance
+        // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
+        _edit_ACCT_USD_BALANCES(msg.sender, _usdAmnt, false); // false = sub
+
+        // emit log
+        emit PromoBuyPerformed(msg.sender, _promoCodeHash, _tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
     }
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view onlyFactory returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
         uint64 agreeCnt = 0;
@@ -405,7 +446,7 @@ contract CallitVaultDelegate {
         return stable_amnt_out;
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
-    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) external onlyFactory() returns (uint256) {
+    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
         address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
         uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
         (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
@@ -427,7 +468,7 @@ contract CallitVaultDelegate {
         return tok_amnt_out;
     }
     // note: migrate to CallitBank
-    function _payUsdReward(uint64 _usdReward, address _receiver) external onlyFactory() {
+    function _payUsdReward(uint64 _usdReward, address _receiver) public onlyFactory() {
         if (_usdReward == 0) {
             emit AlertZeroReward(msg.sender, _usdReward, _receiver);
             return;
@@ -441,7 +482,7 @@ contract CallitVaultDelegate {
         IERC20(lowStableHeld).transfer(_receiver, CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
     }
     // note: migrate to CallitBank
-    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) external onlyFactory() returns(uint256, address){
+    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
         // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
         //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
         address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded

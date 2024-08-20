@@ -20,13 +20,14 @@ interface ICallitVault {
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external;
     function _editDexRouters(address _router, bool _add) external;
     // function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) external returns (uint256);
-    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) external returns (uint256);
+    // function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) external returns (uint256);
     function _usd_decimals() external pure returns (uint8);
     function _payUsdReward(uint64 _usdReward, address _receiver) external;
-    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) external returns(uint256, address);
+    // function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) external returns(uint256, address);
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external returns (address);
 
     // NOTE: callit market management
+    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee) external;
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
     function _validVoteCount(uint256 _voterCallBal, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external view returns(uint64);
     function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view returns(uint16);
