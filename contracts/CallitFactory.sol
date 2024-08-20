@@ -81,15 +81,15 @@ contract CallitFactory is ERC20, Ownable {
     uint8  public MAX_HANDLE_SIZE = 25; // max # of chars for account handles
 
     // promo settings
-    uint64 public MIN_USD_PROMO_TARGET = 100; // min $ target for creating promo codes
+    uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
 
     // arb algorithm settings
-    uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+    uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
 
     // market settings
     bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    uint64  public MIN_USD_MARK_LIQ = 10000000; // (10000000 = $10.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    uint64  public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
     uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
         // NOTE: additional launch security: caps EOA $CALL earned to 255
@@ -105,9 +105,8 @@ contract CallitFactory is ERC20, Ownable {
     uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = 1; // amount of all $CALL minted per market call close action reward // TODO: need KEEPER setter
     uint32 public RATIO_CALL_MINT_PER_VOTE = 1; // amount of all $CALL minted per vote reward // TODO: need KEEPER setter
     uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
-    
-    uint64 public RATIO_PROMO_USD_PER_CALL_TOK = 100000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
-    uint64 public RATIO_LP_USD_PER_CALL_TOK = 100000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
+    uint64 public RATIO_PROMO_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
+    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
         // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
         //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)
     
