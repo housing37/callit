@@ -315,9 +315,8 @@ contract CallitFactory is ERC20, Ownable {
         // extract PLS value sent
         uint256 amntIn = msg.value; 
 
-        // send PLS to vault
-        payable(address(CALLIT_VAULT)).transfer(amntIn);
-            // NOTE: VAULT's receive() function should handle swap for usd stable
+        // send PLS to vault for processing (handle swap for usd stable)
+        CALLIT_VAULT.deposit{value: amntIn}(msg.sender);
 
         emit DepositReceived(msg.sender, amntIn, 0);
 
@@ -648,7 +647,7 @@ contract CallitFactory is ERC20, Ownable {
 
             // send payout to msg.sender
             usdPrizePoolShare = CALLIT_LIB._deductFeePerc(usdPrizePoolShare, PERC_CLAIM_WIN_FEE, usdPrizePoolShare);
-            CALLIT_VAULT._payUsdReward(usdPrizePoolShare, msg.sender);
+            CALLIT_VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
             uint64 perc_supply_owned = CALLIT_LIB._perc_total_supply_owned(_ticket, msg.sender);
@@ -710,7 +709,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // deduct fees and pay voter rewards
         uint64 usdRewardOwed_net = CALLIT_LIB._deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
-        CALLIT_VAULT._payUsdReward(usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        CALLIT_VAULT._payUsdReward(msg.sender, usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
         // emit log for rewards claimed
         emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);
@@ -882,7 +881,7 @@ contract CallitFactory is ERC20, Ownable {
     // function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok) private {
     //     // calc influencer reward from _usdAmnt to send to promo.promotor
     //     uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
-    //     CALLIT_VAULT._payUsdReward(usdReward, _promo`tor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+    //     CALLIT_VAULT._payUsdReward(usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
     //     emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, msg.sender, _ticket);
 
     //     // deduct usdReward & promo buy fee _usdAmnt

@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
 
 interface ICallitVault {
+    function deposit(address _depositor) external payable;
+
     // NOTE: legacy public globals
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
     function USD_STABLE_DECIMALS(address _key) external view returns(uint8); // public
@@ -20,7 +22,7 @@ interface ICallitVault {
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external;
     function _editDexRouters(address _router, bool _add) external;
     function _usd_decimals() external pure returns (uint8);
-    function _payUsdReward(uint64 _usdReward, address _receiver) external;
+    function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) external;
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external returns (address);
     function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) external returns(uint256);
 
