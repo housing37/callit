@@ -49,7 +49,7 @@ contract CallitVaultDelegate {
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     address public CALLIT_FACT_ADDR;
     address public CALLIT_LIB_ADDR;
-    ICallitLib private CALLIT_LIB;
+    ICallitLib private LIB;
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
@@ -87,7 +87,7 @@ contract CallitVaultDelegate {
 
     constructor(address _callit_lib) {
         CALLIT_LIB_ADDR = _callit_lib;
-        CALLIT_LIB = ICallitLib(_callit_lib);
+        LIB = ICallitLib(_callit_lib);
         KEEPER = msg.sender;
     }
 
@@ -161,7 +161,7 @@ contract CallitVaultDelegate {
     }
     function KEEPER_setCallitLib(address _callit_lib) external onlyKeeper {
         CALLIT_LIB_ADDR = _callit_lib;
-        CALLIT_LIB = ICallitLib(_callit_lib);
+        LIB = ICallitLib(_callit_lib);
     }
 
     /* -------------------------------------------------------- */
@@ -214,11 +214,11 @@ contract CallitVaultDelegate {
         uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
 
         // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+        uint64 usdAmntConvert = LIB._uint64_from_uint256(LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
 
         // use VAULT remote
         _edit_ACCT_USD_BALANCES(_depositor, usdAmntConvert, true); // true = add
-        ACCOUNTS = CALLIT_LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
+        ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
 
         emit DepositReceived(_depositor, amntIn, usdAmntConvert);
 
@@ -230,7 +230,7 @@ contract CallitVaultDelegate {
     function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 ticketTargetPriceUSD, address _ticket, address _arbExecuter) external onlyFactory returns(uint64,uint64) {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         uint256 _usdTickTargPrice = _normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[_mark.marketResults.resultTokenUsdStables[_tickIdx]]);
-        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(CALLIT_LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice));
+        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice));
 
         // calc price to charge _arbExecuter for minting tokensToMint
         //  then deduct that amount from their account balance
@@ -266,20 +266,20 @@ contract CallitVaultDelegate {
         // calc & send net profits to _arbExecuter
         //  NOTE: _arbExecuter gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
         //  NOTE: 'net_usd_profits' is _arbExecuter's profit (after additional fees)
-        uint64 net_usd_profits = CALLIT_LIB._deductFeePerc(gross_stab_amnt_out, _percArbFee, gross_stab_amnt_out);
+        uint64 net_usd_profits = LIB._deductFeePerc(gross_stab_amnt_out, _percArbFee, gross_stab_amnt_out);
         require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify _arbExecuter profits would occur
         IERC20(_mark.marketResults.resultTokenUsdStables[_tickIdx]).transfer(_arbExecuter, net_usd_profits);
         return (gross_stab_amnt_out, net_usd_profits);
     }
     function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee, address _buyer) external onlyFactory returns(uint64, uint256) {
         // calc influencer reward from _usdAmnt to send to promo.promotor
-        uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
+        uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
         _payUsdReward(_buyer, usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
         emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, _buyer, _ticket);
 
         // deduct usdReward & promo buy fee _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
-        net_usdAmnt = CALLIT_LIB._deductFeePerc(net_usdAmnt, _percPromoBuyFee, _usdAmnt);
+        net_usdAmnt = LIB._deductFeePerc(net_usdAmnt, _percPromoBuyFee, _usdAmnt);
 
         // verifiy this VAULT contract holds enough tick_stable_tok for DEX buy
         //  if not, swap another contract held stable that can indeed cover
@@ -287,7 +287,7 @@ contract CallitVaultDelegate {
         // address tick_stable_tok = mark.marketResults.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
         uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
         if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
-            uint64 net_usdAmnt_needed = net_usdAmnt - CALLIT_LIB._uint64_from_uint256(contr_stab_bal);
+            uint64 net_usdAmnt_needed = net_usdAmnt - LIB._uint64_from_uint256(contr_stab_bal);
             (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
             emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
@@ -325,8 +325,8 @@ contract CallitVaultDelegate {
                 // uint256 usdAmountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
                 // alt_sum += usdAmountsOut;
 
-                uint256 usdAmountsOut = CALLIT_LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
-                alt_sum += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_resultStables[i]], usdAmountsOut, _usd_decimals()));
+                uint256 usdAmountsOut = LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
+                alt_sum += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_resultStables[i]], usdAmountsOut, _usd_decimals()));
             }
             
             unchecked {i++;}
@@ -397,19 +397,19 @@ contract CallitVaultDelegate {
     }
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
         if (_add) {
-            WHITELIST_USD_STABLES = CALLIT_LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
-            USD_STABLES_HISTORY = CALLIT_LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
+            WHITELIST_USD_STABLES = LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
+            USD_STABLES_HISTORY = LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
             USD_STABLE_DECIMALS[_usdStable] = _decimals;
         } else {
-            WHITELIST_USD_STABLES = CALLIT_LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
+            WHITELIST_USD_STABLES = LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
         }
     }
     function _editDexRouters(address _router, bool _add) private {
         require(_router != address(0x0), "0 address");
         if (_add) {
-            USWAP_V2_ROUTERS = CALLIT_LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
+            USWAP_V2_ROUTERS = LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
         } else {
-            USWAP_V2_ROUTERS = CALLIT_LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
+            USWAP_V2_ROUTERS = LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
         }
     }
     function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
@@ -417,7 +417,7 @@ contract CallitVaultDelegate {
         address[] memory _stablesHeld;
         for (uint8 i=0; i < _stables.length;) {
             if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-                _stablesHeld = CALLIT_LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+                _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
 
             unchecked {
                 i++;
@@ -430,7 +430,7 @@ contract CallitVaultDelegate {
         address[] memory _stablesHeld;
         for (uint8 i=0; i < _stables.length;) {
             if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-                _stablesHeld = CALLIT_LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+                _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
 
             unchecked {
                 i++;
@@ -441,11 +441,11 @@ contract CallitVaultDelegate {
     function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
         if (_usdStable == address(0x0)) 
             return false;
-        uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+        uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
         return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
     }
     function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
-        uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+        uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
         (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
         return tok_amnt; 
     }
@@ -455,7 +455,7 @@ contract CallitVaultDelegate {
         pls_stab_path[1] = _usdStable;
         (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
         uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
-        stab_amnt_out = CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
+        stab_amnt_out = LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
         return stab_amnt_out;
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
@@ -470,7 +470,7 @@ contract CallitVaultDelegate {
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
     function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
         address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
-        uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
+        uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
         (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
 
         // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
@@ -501,7 +501,7 @@ contract CallitVaultDelegate {
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_receiver, CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
+        IERC20(lowStableHeld).transfer(_receiver, LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
     }
     // note: migrate to CallitBank
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
@@ -526,7 +526,7 @@ contract CallitVaultDelegate {
         IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
         // normalize decimals _usdStable token requirements
-        _usdAmount = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
+        _usdAmount = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
 
         // Approve tokens for Uniswap Router
         IERC20(_token).approve(_uswapV2Router, _tokenAmount);

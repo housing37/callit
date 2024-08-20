@@ -56,9 +56,9 @@ contract CallitFactory is ERC20, Ownable {
 
     /* GLOBALS (CALLIT) */
     address public CALLIT_LIB_ADDR;
-    address public CALLIT_VAULT_ADDR;
-    ICallitLib   private CALLIT_LIB;
-    ICallitVault private CALLIT_VAULT;
+    address public VAULT_ADDR;
+    ICallitLib   private LIB;
+    ICallitVault private VAULT;
 
     uint16 PERC_MARKET_MAKER_FEE; // TODO: KEEPER setter
     uint16 PERC_PROMO_BUY_FEE; // TODO: KEEPER setter
@@ -164,12 +164,11 @@ contract CallitFactory is ERC20, Ownable {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
-    constructor(uint256 _initSupply, address _callit_lib, address _callit_vault) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-    // constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-        CALLIT_LIB_ADDR = _callit_lib;
-        CALLIT_VAULT_ADDR = _callit_vault;
-        CALLIT_LIB = ICallitLib(_callit_lib);
-        CALLIT_VAULT = ICallitVault(_callit_vault);
+    constructor(uint256 _initSupply, address _lib, address _vault) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
+        CALLIT_LIB_ADDR = _lib;
+        VAULT_ADDR = _vault;
+        LIB = ICallitLib(_lib);
+        VAULT = ICallitVault(_vault);
 
         // set default globals
         KEEPER = msg.sender;
@@ -177,10 +176,10 @@ contract CallitFactory is ERC20, Ownable {
         _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
 
         // add a whitelist stable
-        CALLIT_VAULT._editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
+        VAULT._editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
 
         // add default routers: pulsex (x2)
-        CALLIT_VAULT._editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
+        VAULT._editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
         // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
     }
 
@@ -257,7 +256,7 @@ contract CallitFactory is ERC20, Ownable {
     }
     function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable, string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
         // max array size = 255 (uint8 loop)
-        require(CALLIT_LIB._isAddressInArray(_router, CALLIT_VAULT.USWAP_V2_ROUTERS()) && CALLIT_LIB._isAddressInArray(_usdStable, CALLIT_VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|stable :() ');
+        require(LIB._isAddressInArray(_router, VAULT.USWAP_V2_ROUTERS()) && LIB._isAddressInArray(_usdStable, VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|stable :() ');
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_UNISWAP_V2_FACTORY = _factory;
         NEW_TICK_USD_STABLE = _usdStable;
@@ -284,8 +283,8 @@ contract CallitFactory is ERC20, Ownable {
     }
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
-        require(_promotor != address(0) && CALLIT_LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
-        address promoCodeHash = CALLIT_LIB._generateAddressHash(_promotor, _promoCode);
+        require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
+        address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
         require(promo.promotor == address(0), ' promo already exists :-O ');
         // PROMO_CODE_HASHES[promoCodeHash].push(PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
@@ -316,7 +315,7 @@ contract CallitFactory is ERC20, Ownable {
         uint256 amntIn = msg.value; 
 
         // send PLS to vault for processing (handle swap for usd stable)
-        CALLIT_VAULT.deposit{value: amntIn}(msg.sender);
+        VAULT.deposit{value: amntIn}(msg.sender);
 
         emit DepositReceived(msg.sender, amntIn, 0);
 
@@ -325,7 +324,7 @@ contract CallitFactory is ERC20, Ownable {
     function setMyAcctHandle(string calldata _handle) external {
         require(bytes(_handle).length >= MIN_HANDLE_SIZE && bytes(_handle).length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
         require(bytes(_handle)[0] != 0x20, ' !_handle space start :+[ '); // 0x20 -> ASCII for ' ' (single space)
-        if (CALLIT_LIB._validNonWhiteSpaceString(_handle))
+        if (LIB._validNonWhiteSpaceString(_handle))
             ACCT_HANDLES[msg.sender] = _handle;
         else
             revert(' !blank space handles :-[=] ');        
@@ -353,7 +352,7 @@ contract CallitFactory is ERC20, Ownable {
                             string[] calldata _resultDescrs
                             ) external { 
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
-        require(CALLIT_VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmntLP, ' low balance ;{ ');
+        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
         require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
@@ -363,7 +362,7 @@ contract CallitFactory is ERC20, Ownable {
         // require(ACCT_MARKETS[msg.sender].length <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
 
         // deduct 'market maker fees' from _usdAmntLP
-        uint64 net_usdAmntLP = CALLIT_LIB._deductFeePerc(_usdAmntLP, PERC_MARKET_MAKER_FEE, _usdAmntLP);
+        uint64 net_usdAmntLP = LIB._deductFeePerc(_usdAmntLP, PERC_MARKET_MAKER_FEE, _usdAmntLP);
 
         // check for admin defualt vote time, update _dtResultVoteEnd accordingly
         if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
@@ -371,14 +370,14 @@ contract CallitFactory is ERC20, Ownable {
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
             // Get/calc amounts for initial LP (usd and token amounts)
-            (uint64 usdAmount, uint256 tokenAmount) = CALLIT_LIB._getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
+            (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
 
             // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
-            (string memory tok_name, string memory tok_symb) = CALLIT_LIB._genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            address new_tick_tok = address (new CallitTicket(tokenAmount, address(CALLIT_VAULT), tok_name, tok_symb));
+            (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(msg.sender, mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
+            address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), tok_name, tok_symb));
             
             // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
-            address pairAddr = CALLIT_VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
+            address pairAddr = VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
 
             // verify ERC20 & LP was created
             require(new_tick_tok != address(0) && pairAddr != address(0), ' err: gen tick tok | lp :( ');
@@ -399,8 +398,8 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // deduct full OG usd input from account balance
-        // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= _usdAmntLP;
-        CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, _usdAmntLP, false); // false = sub
+        // VAULT.ACCT_USD_BALANCES[msg.sender] -= _usdAmntLP;
+        VAULT.edit_ACCT_USD_BALANCES(msg.sender, _usdAmntLP, false); // false = sub
 
         // save this market and emit log
         ACCT_MARKETS[msg.sender].push(ICallitLib.MARKET({maker:msg.sender, 
@@ -437,7 +436,7 @@ contract CallitFactory is ERC20, Ownable {
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
         require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
-        require(CALLIT_VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
+        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
@@ -463,7 +462,7 @@ contract CallitFactory is ERC20, Ownable {
         require(promo.percReward + PERC_PROMO_BUY_FEE <= 10000, ' buy promo fee perc mismatch :o ');
 
         // pay promotor usd reward & purchase msg.sender's tickets from DEX
-        (uint64 net_usdAmnt, uint256 tick_amnt_out) = CALLIT_VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, mark.marketResults.resultTokenUsdStables[tickIdx], PERC_PROMO_BUY_FEE, msg.sender);
+        (uint64 net_usdAmnt, uint256 tick_amnt_out) = VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, mark.marketResults.resultTokenUsdStables[tickIdx], PERC_PROMO_BUY_FEE, msg.sender);
         
         // emit log
         emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
@@ -482,11 +481,11 @@ contract CallitFactory is ERC20, Ownable {
         //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
         //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
         // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
-        uint64 ticketTargetPriceUSD = CALLIT_VAULT._getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
+        uint64 ticketTargetPriceUSD = VAULT._getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
 
         // (uint64 tokensToMint, uint64 gross_stab_amnt_out, uint64 total_usd_cost, uint64 net_usd_profits) = _performTicketMintaAndDexSell(_ticket, ticketTargetPriceUSD, mark.marketResults.resultTokenUsdStables[tickIdx], mark.marketResults.resultTokenLPs[tickIdx], mark.marketResults.resultTokenRouters[tickIdx], PERC_ARB_EXE_FEE);
-        (uint64 tokensToMint, uint64 total_usd_cost) = CALLIT_VAULT._performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _ticket, msg.sender);
-        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = CALLIT_VAULT._performTicketMintedDexSell(mark, tickIdx, _ticket, PERC_ARB_EXE_FEE, tokensToMint, total_usd_cost, msg.sender);
+        (uint64 tokensToMint, uint64 total_usd_cost) = VAULT._performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _ticket, msg.sender);
+        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT._performTicketMintedDexSell(mark, tickIdx, _ticket, PERC_ARB_EXE_FEE, tokensToMint, total_usd_cost, msg.sender);
 
         // mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt = _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_ARB_EXE); // emit CallTokensEarned
@@ -510,10 +509,10 @@ contract CallitFactory is ERC20, Ownable {
         // loop through pair addresses and pull liquidity 
         address[] memory _ticketLPs = mark.marketResults.resultTokenLPs;
         for (uint16 i = 0; i < _ticketLPs.length;) { // MAX_RESULTS is uint16
-            uint256 amountToken1 = CALLIT_VAULT._exePullLiquidityFromLP(mark.marketResults.resultTokenRouters[i], _ticketLPs[i], mark.marketResults.resultOptionTokens[i], mark.marketResults.resultTokenUsdStables[i]);
+            uint256 amountToken1 = VAULT._exePullLiquidityFromLP(mark.marketResults.resultTokenRouters[i], _ticketLPs[i], mark.marketResults.resultOptionTokens[i], mark.marketResults.resultTokenUsdStables[i]);
 
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
-            mark.marketUsdAmnts.usdAmntPrizePool += CALLIT_LIB._uint64_from_uint256(amountToken1); // NOTE: write to market
+            mark.marketUsdAmnts.usdAmntPrizePool += LIB._uint64_from_uint256(amountToken1); // NOTE: write to market
 
             unchecked {
                 i++;
@@ -544,13 +543,13 @@ contract CallitFactory is ERC20, Ownable {
 
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
         // (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
-        (bool is_maker, bool is_caller) = CALLIT_LIB._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
+        (bool is_maker, bool is_caller) = LIB._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
         require(!is_maker && !is_caller, ' no self-voting :o ');
 
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         // uint64 vote_cnt = _validVoteCount(msg.sender, mark);
-        uint64 vote_cnt = CALLIT_LIB._validVoteCount(balanceOf(msg.sender), EARNED_CALL_VOTES[msg.sender], ACCT_CALL_VOTE_LOCK_TIME[msg.sender], mark.blockTimestamp);
+        uint64 vote_cnt = LIB._validVoteCount(balanceOf(msg.sender), EARNED_CALL_VOTES[msg.sender], ACCT_CALL_VOTE_LOCK_TIME[msg.sender], mark.blockTimestamp);
         require(vote_cnt > 0, ' invalid voter :{=} ');
 
         //  - store vote in struct MARKET
@@ -583,17 +582,17 @@ contract CallitFactory is ERC20, Ownable {
         // getting winning result index to set mark.winningVoteResultIdx
         //  for voter fee claim algorithm (ie. only pay majority voters)
         // mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
-        mark.winningVoteResultIdx = CALLIT_LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
+        mark.winningVoteResultIdx = LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
 
         // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
         require(PERC_PRIZEPOOL_VOTERS + PERC_MARKET_CLOSE_FEE <= 10000, ' perc error ;( ');
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
-        mark.marketUsdAmnts.usdVoterRewardPool = CALLIT_LIB._perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdVoterRewardPool = LIB._perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
 
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
         mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool; // NOTE: write to market
-        mark.marketUsdAmnts.usdAmntPrizePool_net = CALLIT_LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdAmntPrizePool_net = LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, PERC_MARKET_CLOSE_FEE, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
         
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
@@ -642,15 +641,15 @@ contract CallitFactory is ERC20, Ownable {
         bool is_winner = mark.winningVoteResultIdx == tickIdx;
         if (is_winner) {
             // calc payout based on: _ticket.balanceOf(msg.sender) & mark.marketUsdAmnts.usdAmntPrizePool_net & _ticket.totalSupply();
-            uint64 usdPerTicket = CALLIT_LIB._uint64_from_uint256(uint256(mark.marketUsdAmnts.usdAmntPrizePool_net) / IERC20(_ticket).totalSupply());
-            uint64 usdPrizePoolShare = CALLIT_LIB._uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
+            uint64 usdPerTicket = LIB._uint64_from_uint256(uint256(mark.marketUsdAmnts.usdAmntPrizePool_net) / IERC20(_ticket).totalSupply());
+            uint64 usdPrizePoolShare = LIB._uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
 
             // send payout to msg.sender
-            usdPrizePoolShare = CALLIT_LIB._deductFeePerc(usdPrizePoolShare, PERC_CLAIM_WIN_FEE, usdPrizePoolShare);
-            CALLIT_VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender);
+            usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, PERC_CLAIM_WIN_FEE, usdPrizePoolShare);
+            VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
-            uint64 perc_supply_owned = CALLIT_LIB._perc_total_supply_owned(_ticket, msg.sender);
+            uint64 perc_supply_owned = LIB._perc_total_supply_owned(_ticket, msg.sender);
             if (perc_supply_owned >= PERC_OF_LOSER_SUPPLY_EARN_CALL) {
                 // mint $CALL to loser msg.sender & log $CALL votes earned
                 _mintCallToksEarned(msg.sender, RATIO_CALL_MINT_PER_LOSER); // emit CallTokensEarned
@@ -666,7 +665,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // log caller's review of market results
         // _logMarketResultReview(mark, _resultAgree); // emits MarketReviewed
-        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = CALLIT_LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
+        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
         ACCT_MARKET_REVIEWS[mark.maker].push(marketReview);
         emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, agreeCnt, disagreeCnt);
           
@@ -708,8 +707,8 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // deduct fees and pay voter rewards
-        uint64 usdRewardOwed_net = CALLIT_LIB._deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
-        CALLIT_VAULT._payUsdReward(msg.sender, usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        uint64 usdRewardOwed_net = LIB._deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        VAULT._payUsdReward(msg.sender, usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
         // emit log for rewards claimed
         emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);
@@ -805,8 +804,8 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // function _performTicketMintaAndDexSell(address _targetTicket, uint64 _targetTickPriceUSD, address _targetTickStable, address _targetTickPairAddr, address _targetTickRouter) private returns(uint64,uint64,uint64,uint64) {
     //     // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
-    //     uint256 _usdTickTargPrice = CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT._usd_decimals(), _targetTickPriceUSD, CALLIT_VAULT.USD_STABLE_DECIMALS(_targetTickStable));
-    //     uint64 /* ~18,000Q */ tokensToMint = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._calculateTokensToMint(_targetTickPairAddr, _usdTickTargPrice));
+    //     uint256 _usdTickTargPrice = LIB._normalizeStableAmnt(VAULT._usd_decimals(), _targetTickPriceUSD, VAULT.USD_STABLE_DECIMALS(_targetTickStable));
+    //     uint64 /* ~18,000Q */ tokensToMint = LIB._uint64_from_uint256(LIB._calculateTokensToMint(_targetTickPairAddr, _usdTickTargPrice));
 
     //     // calc price to charge msg.sender for minting tokensToMint
     //     //  then deduct that amount from their account balance
@@ -814,11 +813,11 @@ contract CallitFactory is ERC20, Ownable {
     //     if (msg.sender != KEEPER) { // free for KEEPER
     //         // verify msg.sender usd balance covers contract sale of minted discounted tokens
     //         //  NOTE: msg.sender is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
-    //         require(CALLIT_VAULT.ACCT_USD_BALANCES(msg.sender) >= total_usd_cost, ' low balance :( ');
+    //         require(VAULT.ACCT_USD_BALANCES(msg.sender) >= total_usd_cost, ' low balance :( ');
 
     //         // deduce that sale amount from their account balance
-    //         // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; 
-    //         CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, total_usd_cost, false); // false = sub
+    //         // VAULT.ACCT_USD_BALANCES[msg.sender] -= total_usd_cost; 
+    //         VAULT.edit_ACCT_USD_BALANCES(msg.sender, total_usd_cost, false); // false = sub
     //     }
 
     //     // mint tokensToMint count to this factory and sell on DEX on behalf of msg.sender
@@ -830,13 +829,13 @@ contract CallitFactory is ERC20, Ownable {
     //     address[] memory tok_stab_path = new address[](2);
     //     tok_stab_path[0] = _targetTicket;
     //     tok_stab_path[1] = _targetTickStable;
-    //     uint256 usdAmntOut = CALLIT_VAULT._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _targetTickRouter); // swap tick: use specific router tck:tick-stable
-    //     uint64 gross_stab_amnt_out = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(_targetTickStable), usdAmntOut, CALLIT_VAULT._usd_decimals()));
+    //     uint256 usdAmntOut = VAULT._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _targetTickRouter); // swap tick: use specific router tck:tick-stable
+    //     uint64 gross_stab_amnt_out = LIB._uint64_from_uint256(LIB._normalizeStableAmnt(VAULT.USD_STABLE_DECIMALS(_targetTickStable), usdAmntOut, VAULT._usd_decimals()));
 
     //     // calc & send net profits to msg.sender
     //     //  NOTE: msg.sender gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
     //     //  NOTE: 'net_usd_profits' is msg.sender's profit (after additional fees)
-    //     uint64 net_usd_profits = CALLIT_LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
+    //     uint64 net_usd_profits = LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
     //     require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify msg.sender profit
     //     IERC20(_targetTickStable).transfer(msg.sender, net_usd_profits);
 
@@ -880,13 +879,13 @@ contract CallitFactory is ERC20, Ownable {
     // }
     // function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok) private {
     //     // calc influencer reward from _usdAmnt to send to promo.promotor
-    //     uint64 usdReward = CALLIT_LIB._perc_of_uint64(_percReward, _usdAmnt);
-    //     CALLIT_VAULT._payUsdReward(usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+    //     uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
+    //     VAULT._payUsdReward(usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
     //     emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, msg.sender, _ticket);
 
     //     // deduct usdReward & promo buy fee _usdAmnt
     //     uint64 net_usdAmnt = _usdAmnt - usdReward;
-    //     net_usdAmnt = CALLIT_LIB._deductFeePerc(net_usdAmnt, PERC_PROMO_BUY_FEE, _usdAmnt);
+    //     net_usdAmnt = LIB._deductFeePerc(net_usdAmnt, PERC_PROMO_BUY_FEE, _usdAmnt);
 
     //     // verifiy contract holds enough tick_stable_tok for DEX buy
     //     //  if not, swap another contract held stable that can indeed cover
@@ -894,8 +893,8 @@ contract CallitFactory is ERC20, Ownable {
     //     // address tick_stable_tok = mark.marketResults.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
     //     uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
     //     if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
-    //         uint64 net_usdAmnt_needed = net_usdAmnt - CALLIT_LIB._uint64_from_uint256(contr_stab_bal);
-    //         (uint256 stab_amnt_out, address stab_swap_from)  = CALLIT_VAULT._swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+    //         uint64 net_usdAmnt_needed = net_usdAmnt - LIB._uint64_from_uint256(contr_stab_bal);
+    //         (uint256 stab_amnt_out, address stab_swap_from)  = VAULT._swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
     //         emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
     //         // verify
@@ -907,11 +906,11 @@ contract CallitFactory is ERC20, Ownable {
     //     address[] memory usd_tick_path = new address[](2);
     //     usd_tick_path[0] = _tick_stable_tok;
     //     usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
-    //     uint256 tick_amnt_out = CALLIT_VAULT._exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
+    //     uint256 tick_amnt_out = VAULT._exeSwapStableForTok(net_usdAmnt, usd_tick_path, msg.sender); // msg.sender = _receiver
 
     //     // deduct full OG input _usdAmnt from account balance
-    //     // CALLIT_VAULT.ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
-    //     CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, _usdAmnt, false); // false = sub
+    //     // VAULT.ACCT_USD_BALANCES[msg.sender] -= _usdAmnt;
+    //     VAULT.edit_ACCT_USD_BALANCES(msg.sender, _usdAmnt, false); // false = sub
 
     //     // emit log
     //     emit PromoBuyPerformed(msg.sender, _promoCodeHash, _tick_stable_tok, _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
@@ -920,12 +919,12 @@ contract CallitFactory is ERC20, Ownable {
     // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) private view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
     //     uint64 agreeCnt = 0;
     //     uint64 disagreeCnt = 0;
-    //     // uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
+    //     // uint64 reviewCnt = LIB._uint64_from_uint256(ACCT_MARKET_REVIEWS[_mark.maker].length);
     //     // if (reviewCnt > 0) {
     //     //     agreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].agreeCnt;
     //     //     disagreeCnt = ACCT_MARKET_REVIEWS[_mark.maker][reviewCnt-1].disagreeCnt;
     //     // }
-    //     uint64 reviewCnt = CALLIT_LIB._uint64_from_uint256(_makerReviews.length);
+    //     uint64 reviewCnt = LIB._uint64_from_uint256(_makerReviews.length);
     //     if (reviewCnt > 0) {
     //         agreeCnt = _makerReviews[reviewCnt-1].agreeCnt;
     //         disagreeCnt = _makerReviews[reviewCnt-1].disagreeCnt;
@@ -943,7 +942,7 @@ contract CallitFactory is ERC20, Ownable {
     //     // if indeed locked && locked before _mark start time, calc & return active vote count
     //     // if (ACCT_CALL_VOTE_LOCK_TIME[_voter] > 0 && ACCT_CALL_VOTE_LOCK_TIME[_voter] <= _mark.blockTimestamp) {
     //     //     uint64 votes_earned = EARNED_CALL_VOTES[_voter]; // note: EARNED_CALL_VOTES stores uint64 type
-    //     //     uint64 votes_held = CALLIT_LIB._uint64_from_uint256(balanceOf(msg.sender));
+    //     //     uint64 votes_held = LIB._uint64_from_uint256(balanceOf(msg.sender));
     //     //     uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
     //     //     return votes_active;
     //     // }
@@ -951,7 +950,7 @@ contract CallitFactory is ERC20, Ownable {
     //     // if indeed locked && locked before _mark start time, calc & return active vote count
     //     if (_voterLockTime > 0 && _voterLockTime <= _markCreateTime) {
     //         uint64 votes_earned = _votesEarned; // note: EARNED_CALL_VOTES stores uint64 type
-    //         uint64 votes_held = CALLIT_LIB._uint64_from_uint256(balanceOf(address(this)));
+    //         uint64 votes_held = LIB._uint64_from_uint256(balanceOf(address(this)));
     //         uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
     //         return votes_active;
     //     }
@@ -1012,8 +1011,8 @@ contract CallitFactory is ERC20, Ownable {
     //             // uint256 usdAmountsOut = _estimateLastPriceForTCK(pairAddress, _mark.marketResults.resultTokenUsdStables[i]); // invokes _normalizeStableAmnt
     //             // alt_sum += usdAmountsOut;
 
-    //             uint256 usdAmountsOut = CALLIT_LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
-    //             alt_sum += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(_resultStables[i]), usdAmountsOut, CALLIT_VAULT._usd_decimals()));
+    //             uint256 usdAmountsOut = LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
+    //             alt_sum += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(VAULT.USD_STABLE_DECIMALS(_resultStables[i]), usdAmountsOut, VAULT._usd_decimals()));
     //         }
             
     //         unchecked {i++;}
@@ -1033,7 +1032,7 @@ contract CallitFactory is ERC20, Ownable {
     //     for (uint8 i = 0; i < _stables.length;) {
     //         // NOTE: more efficient algorithm taking up less stack space with local vars
     //         require(USD_STABLE_DECIMALS[_stables[i]] > 0, ' found stable with invalid decimals :/ ');
-    //         gross_bal += CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_stables[i]], IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
+    //         gross_bal += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_stables[i]], IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
     //         unchecked {i++;}
     //     }
     //     return gross_bal;
@@ -1054,19 +1053,19 @@ contract CallitFactory is ERC20, Ownable {
     // }
     // function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
     //     if (_add) {
-    //         WHITELIST_USD_STABLES = CALLIT_LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
-    //         USD_STABLES_HISTORY = CALLIT_LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
+    //         WHITELIST_USD_STABLES = LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
+    //         USD_STABLES_HISTORY = LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
     //         USD_STABLE_DECIMALS[_usdStable] = _decimals;
     //     } else {
-    //         WHITELIST_USD_STABLES = CALLIT_LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
+    //         WHITELIST_USD_STABLES = LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
     //     }
     // }
     // function _editDexRouters(address _router, bool _add) private {
     //     require(_router != address(0x0), "0 address");
     //     if (_add) {
-    //         USWAP_V2_ROUTERS = CALLIT_LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
+    //         USWAP_V2_ROUTERS = LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
     //     } else {
-    //         USWAP_V2_ROUTERS = CALLIT_LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
+    //         USWAP_V2_ROUTERS = LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
     //     }
     // }
     // function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
@@ -1074,45 +1073,45 @@ contract CallitFactory is ERC20, Ownable {
     //     address[] memory _stablesHeld;
     //     for (uint8 i=0; i < _stables.length;) {
     //         if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-    //             _stablesHeld = CALLIT_LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+    //             _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
 
     //         unchecked {
     //             i++;
     //         }
     //     }
-    //     return CALLIT_LIB._getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+    //     return LIB._getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
     // }
     // function _getStableHeldLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
     //     // NOTE: if nothing in _stables can cover _usdAmntReq, then returns address(0x0)
     //     address[] memory _stablesHeld;
     //     for (uint8 i=0; i < _stables.length;) {
     //         if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-    //             _stablesHeld = CALLIT_LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+    //             _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
 
     //         unchecked {
     //             i++;
     //         }
     //     }
-    //     return CALLIT_LIB._getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+    //     return LIB._getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
     // }
     // function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
     //     if (_usdStable == address(0x0)) 
     //         return false;
-    //     uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+    //     uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
     //     return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
     // }
     // function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
-    //     uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
-    //     (, uint256 tok_amnt) = CALLIT_LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+    //     uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+    //     (, uint256 tok_amnt) = LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
     //     return tok_amnt; 
     // }
     // function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
     //     address[] memory pls_stab_path = new address[](2);
     //     pls_stab_path[0] = TOK_WPLS;
     //     pls_stab_path[1] = _usdStable;
-    //     (uint8 rtrIdx,) = CALLIT_LIB._best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
-    //     uint256 stab_amnt_out = CALLIT_LIB._swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
-    //     stab_amnt_out = CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
+    //     (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
+    //     uint256 stab_amnt_out = LIB._swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
+    //     stab_amnt_out = LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
     //     return stab_amnt_out;
     // }
     // // generic: gets best from USWAP_V2_ROUTERS to perform trade
@@ -1120,15 +1119,15 @@ contract CallitFactory is ERC20, Ownable {
     //     // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
     //     require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
         
-    //     (uint8 rtrIdx,) = CALLIT_LIB._best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
-    //     uint256 stable_amnt_out = CALLIT_LIB._swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
+    //     (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
+    //     uint256 stable_amnt_out = LIB._swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
     //     return stable_amnt_out;
     // }
     // // generic: gets best from USWAP_V2_ROUTERS to perform trade
     // function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
     //     address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
-    //     uint256 usdAmnt_ = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
-    //     (uint8 rtrIdx,) = CALLIT_LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+    //     uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
+    //     (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
 
     //     // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
     //     // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
@@ -1143,7 +1142,7 @@ contract CallitFactory is ERC20, Ownable {
     //     //     return tok_amnt_out;
     //     // }
 
-    //     uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+    //     uint256 tok_amnt_out = LIB._swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
     //     return tok_amnt_out;
     // }
     // function _usd_decimals() private pure returns (uint8) {
@@ -1165,7 +1164,7 @@ contract CallitFactory is ERC20, Ownable {
     //     require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
     //     // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-    //     IERC20(lowStableHeld).transfer(_receiver, CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
+    //     IERC20(lowStableHeld).transfer(_receiver, LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
     // }
     // // note: migrate to CallitBank
     // function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
@@ -1190,7 +1189,7 @@ contract CallitFactory is ERC20, Ownable {
     //     IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
     //     // normalize decimals _usdStable token requirements
-    //     _usdAmount = CALLIT_LIB._normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
+    //     _usdAmount = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
 
     //     // Approve tokens for Uniswap Router
     //     IERC20(_token).approve(_uswapV2Router, _tokenAmount);
@@ -1238,12 +1237,12 @@ contract CallitFactory is ERC20, Ownable {
     //     // Calculate the percentage (in basis points, e.g., 1% = 100 basis points)
     //     uint256 percentage = (accountBalance * 10000) / totalSupply;
 
-    //     return CALLIT_LIB._uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
+    //     return LIB._uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
     // }
     // // note: migrate to CallitLib
     // function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) private view returns(uint64) {
     //     require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
-    //     return _net_usdAmnt - CALLIT_LIB._perc_of_uint64(_feePerc, _usdAmnt);
+    //     return _net_usdAmnt - LIB._perc_of_uint64(_feePerc, _usdAmnt);
     // }
     // function _isAddressInArray(address _addr, address[] memory _addrArr) private pure returns(bool) {
     //     for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
@@ -1364,7 +1363,7 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) private view returns(uint64, uint256) {
     //     require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
-    //     return (CALLIT_LIB._uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
+    //     return (LIB._uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
     // }
     // function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) private view returns (uint256) {
     //     // NOTE: _usdTargetPrice should already be normalized/matched to decimals of reserve1 in _pairAddress
@@ -1389,7 +1388,7 @@ contract CallitFactory is ERC20, Ownable {
     //     uint256 price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
         
     //     // convert to contract '_usd_decimals()'
-    //     // uint64 price_ret = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
+    //     // uint64 price_ret = LIB._uint64_from_uint256(LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
     //     // return price_ret;
     //     return price;
     // }
@@ -1397,7 +1396,7 @@ contract CallitFactory is ERC20, Ownable {
     // function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
     //     // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
     //     require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
-    //     uint256 tok_amnt_out = CALLIT_LIB._swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
+    //     uint256 tok_amnt_out = LIB._swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
     //     return tok_amnt_out;
     // }
     // // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
