@@ -74,6 +74,7 @@ interface ICallitLib {
         uint64 disagreeCnt;
     }
 
+    function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view returns(uint16);
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external view returns(uint64, uint256);
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);
     function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256);

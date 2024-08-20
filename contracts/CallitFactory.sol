@@ -788,7 +788,7 @@ contract CallitFactory is ERC20, Ownable {
         // getting winning result index to set mark.winningVoteResultIdx
         //  for voter fee claim algorithm (ie. only pay majority voters)
         // mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
-        mark.winningVoteResultIdx = CALLIT_VAULT._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
+        mark.winningVoteResultIdx = CALLIT_LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
 
         // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
         require(PERC_PRIZEPOOL_VOTERS + PERC_MARKET_CLOSE_FEE <= 10000, ' perc error ;( ');

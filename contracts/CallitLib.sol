@@ -16,6 +16,17 @@ library CallitLib {
     /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
+    function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view onlyFactory returns(uint16) {
+        // travers mark.resultTokenVotes for winning idx
+        //  NOTE: default winning index is 0 & ties will settle on lower index
+        uint16 idxCurrHigh = 0;
+        for (uint16 i = 0; i < _resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
+            if (_resultTokenVotes[i] > _resultTokenVotes[idxCurrHigh])
+                idxCurrHigh = i;
+            unchecked {i++;}
+        }
+        return idxCurrHigh;
+    }
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external pure returns(uint64, uint256) {
         require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
         return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));

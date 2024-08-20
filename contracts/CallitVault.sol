@@ -270,22 +270,6 @@ contract CallitVaultDelegate {
         else
             return 0; // return no valid votes
     }
-    function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view onlyFactory returns(uint16) {
-        // travers mark.resultTokenVotes for winning idx
-        //  NOTE: default winning index is 0 & ties will settle on lower index
-        uint16 idxCurrHigh = 0;
-        // for (uint16 i = 0; i < _mark.marketResults.resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
-        //     if (_mark.marketResults.resultTokenVotes[i] > _mark.marketResults.resultTokenVotes[idxCurrHigh])
-        //         idxCurrHigh = i;
-        //     unchecked {i++;}
-        // }
-        for (uint16 i = 0; i < _resultTokenVotes.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535
-            if (_resultTokenVotes[i] > _resultTokenVotes[idxCurrHigh])
-                idxCurrHigh = i;
-            unchecked {i++;}
-        }
-        return idxCurrHigh;
-    }
     function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view onlyFactory returns(bool, bool) {
         // bool is_maker = _mark.maker == msg.sender; // true = found maker
         // bool is_caller = false;
