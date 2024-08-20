@@ -65,6 +65,7 @@ contract CallitFactory is ERC20, Ownable {
     uint16 public PERC_PROMO_BUY_FEE; // note: yes other % fee (promo.percReward)
     uint16 public PERC_ARB_EXE_FEE; // note: no other % fee
     uint16 public PERC_MARKET_CLOSE_FEE; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+    uint16 public PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
     uint16 public PERC_VOTER_CLAIM_FEE; // note: no other % fee
     uint16 public PERC_WINNER_CLAIM_FEE; // note: no other % fee
 
@@ -89,7 +90,7 @@ contract CallitFactory is ERC20, Ownable {
     bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
     uint64  public MIN_USD_MARK_LIQ = 10000000; // (10000000 = $10.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
-    uint16  public MAX_RESULTS = 100; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
+    uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
     uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
         // NOTE: additional launch security: caps EOA $CALL earned to 255
         //  but also limits the EOA following (KEEPER setter available; should raise after launch)
@@ -98,7 +99,6 @@ contract CallitFactory is ERC20, Ownable {
     uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
 
     // $CALL reward & usd earn settings
-    uint16 private PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
     uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
     uint32 public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
     uint32 public RATIO_CALL_MINT_PER_ARB_EXE = 1; // amount of all $CALL minted per arb executer reward // TODO: need KEEPER setter
@@ -237,16 +237,17 @@ contract CallitFactory is ERC20, Ownable {
         MIN_USD_PROMO_TARGET = _usdTargetMin;
         RATIO_PROMO_USD_PER_CALL_TOK = _usdBuyRequired;
     }
-    function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
+    function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
         // no 2 percs taken out of market close
-        require(PERC_PRIZEPOOL_VOTERS + _percMarkClose <= 10000, ' close market perc error ;() ');
-        require(_percMaker < 10000 && _percPromo <= 10000 && _percArbExe <= 10000 && _percMarkClose <= 10000 && _percVoterClaim <= 10000 && _perWinnerClaim <= 10000, ' invalid perc(s) :0 ');
+        require(_percPrizeVoters + _percMarkClose < 10000, ' close market perc error ;() ');
+        require(_percMaker < 10000 && _percPromo < 10000 && _percArbExe < 10000 && _percMarkClose < 10000 && _percPrizeVoters < 10000 && _percVoterClaim < 10000 && _perWinnerClaim < 10000, ' invalid perc(s) :0 ');
         PERC_MARKET_MAKER_FEE = _percMaker; 
-        PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.percReward)
+        PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.perc`Reward)
         PERC_ARB_EXE_FEE = _percArbExe;
         PERC_MARKET_CLOSE_FEE = _percMarkClose; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+        PERC_PRIZEPOOL_VOTERS = _percPrizeVoters;
         PERC_VOTER_CLAIM_FEE = _percVoterClaim;
-        PERC_WINNER_CLAIM_FEE = _perWinnerClaim;
+        PERC_WINNER_CLAIM_FEE = _perWinnerClaim;        
     }
     function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
         RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
@@ -269,11 +270,6 @@ contract CallitFactory is ERC20, Ownable {
         SEC_DEFAULT_VOTE_TIME = _sec; // 24 * 60 * 60 == 86,400 sec == 24 hours
         USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     }
-    function KEEPER_setPercPrizePoolVoters(uint8 _perc) external onlyKeeper {
-        // no 2 percs taken out of market close
-        require(PERC_MARKET_CLOSE_FEE + _perc <= 10000, ' invalid _perc for close market :() ');
-        PERC_PRIZEPOOL_VOTERS = _perc;
-    }
     function KEEPER_setReqCallMintPerLoser(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
         require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
         RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
@@ -286,7 +282,7 @@ contract CallitFactory is ERC20, Ownable {
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
         // no 2 percs taken out of promo buy
-        require(PERC_PROMO_BUY_FEE + _percReward <= 10000, ' invalid promo buy _perc :(=) ');
+        require(PERC_PROMO_BUY_FEE + _percReward < 10000, ' invalid promo buy _perc :(=) ');
         require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
         address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
@@ -463,7 +459,7 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // verify perc calc/taking <= 100% of _usdAmnt
-        require(promo.percReward + PERC_PROMO_BUY_FEE <= 10000, ' buy promo fee perc mismatch :o ');
+        require(promo.percReward + PERC_PROMO_BUY_FEE < 10000, ' buy promo fee perc mismatch :o ');
 
         // pay promotor usd reward & purchase msg.sender's tickets from DEX
         (uint64 net_usdAmnt, uint256 tick_amnt_out) = VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, mark.marketResults.resultTokenUsdStables[tickIdx], PERC_PROMO_BUY_FEE, msg.sender);
@@ -589,7 +585,7 @@ contract CallitFactory is ERC20, Ownable {
         mark.winningVoteResultIdx = LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
 
         // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
-        require(PERC_PRIZEPOOL_VOTERS + PERC_MARKET_CLOSE_FEE <= 10000, ' perc error ;( ');
+        require(PERC_PRIZEPOOL_VOTERS + PERC_MARKET_CLOSE_FEE < 10000, ' perc error ;( ');
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
         mark.marketUsdAmnts.usdVoterRewardPool = LIB._perc_of_uint64(PERC_PRIZEPOOL_VOTERS, mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
