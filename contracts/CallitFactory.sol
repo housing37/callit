@@ -57,21 +57,21 @@ contract CallitFactory is ERC20, Ownable {
     /* GLOBALS (CALLIT) */
     address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
     ICallitLib private LIB = ICallitLib(LIB_ADDR);
-    address public VAULT_ADDR;
+    address public VAULT_ADDR = address(0xAbF4E00b848E06bb11Df56f54e81B47D5A584e50); // CallitVault v0.1
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
 
-    uint16 PERC_MARKET_MAKER_FEE; // TODO: KEEPER setter
-    uint16 PERC_PROMO_BUY_FEE; // TODO: KEEPER setter
-    uint16 PERC_ARB_EXE_FEE; // TODO: KEEPER setter
-    uint16 PERC_MARKET_CLOSE_FEE; // TODO: KEEPER setter
-    uint16 PERC_VOTE_CLAIM_FEE; // TODO: KEEPER setter
-    uint16 PERC_CLAIM_WIN_FEE; // TODO: KEEPER setter
+    // default all fees to 0 (KEEPER setter available)
+    uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
+    uint16 public PERC_PROMO_BUY_FEE; // note: yes other % fee (promo.percReward)
+    uint16 public PERC_ARB_EXE_FEE; // note: no other % fee
+    uint16 public PERC_MARKET_CLOSE_FEE; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+    uint16 public PERC_VOTER_CLAIM_FEE; // note: no other % fee
+    uint16 public PERC_WINNER_CLAIM_FEE; // note: no other % fee
 
-    // call ticket token settings
+    // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
     address public NEW_TICK_UNISWAP_V2_ROUTER;
     address public NEW_TICK_UNISWAP_V2_FACTORY;
     address public NEW_TICK_USD_STABLE;
-    // uint64 public TOK_TICK_INIT_SUPPLY = 1000000; // init supply used for new call ticket tokens (uint64 = ~18,000Q max)
     string public TOK_TICK_NAME_SEED = "TCK#";
     string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
 
@@ -237,12 +237,17 @@ contract CallitFactory is ERC20, Ownable {
         MIN_USD_PROMO_TARGET = _usdTargetMin;
         RATIO_PROMO_USD_PER_CALL_TOK = _usdBuyRequired;
     }
-    // function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
-    //     MIN_USD_PROMO_TARGET = _usdTarget;
-    // }
-    // function KEEPER_setRatioPromoBuyUsdPerCall(uint64 _usdBuyRequired) external onlyKeeper {
-    //     RATIO_PROMO_USD_PER_CALL_TOK = _usdBuyRequired;
-    // }
+    function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
+        // no 2 percs taken out of market close
+        require(PERC_PRIZEPOOL_VOTERS + _percMarkClose <= 10000, ' close market perc error ;() ');
+        require(_percMaker < 10000 && _percPromo <= 10000 && _percArbExe <= 10000 && _percMarkClose <= 10000 && _percVoterClaim <= 10000 && _perWinnerClaim <= 10000, ' invalid perc(s) :0 ');
+        PERC_MARKET_MAKER_FEE = _percMaker; 
+        PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.percReward)
+        PERC_ARB_EXE_FEE = _percArbExe;
+        PERC_MARKET_CLOSE_FEE = _percMarkClose; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+        PERC_VOTER_CLAIM_FEE = _percVoterClaim;
+        PERC_WINNER_CLAIM_FEE = _perWinnerClaim;
+    }
     function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
         RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
@@ -265,8 +270,8 @@ contract CallitFactory is ERC20, Ownable {
         USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     }
     function KEEPER_setPercPrizePoolVoters(uint8 _perc) external onlyKeeper {
-        // require(_servFee + _bstBurn + _auxBurn <= 10000, ' total percs > 100.00% ;) ');
-        require(_perc <= 10000, ' invalid _perc :() ');
+        // no 2 percs taken out of market close
+        require(PERC_MARKET_CLOSE_FEE + _perc <= 10000, ' invalid _perc for close market :() ');
         PERC_PRIZEPOOL_VOTERS = _perc;
     }
     function KEEPER_setReqCallMintPerLoser(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
@@ -280,6 +285,8 @@ contract CallitFactory is ERC20, Ownable {
     }
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
+        // no 2 percs taken out of promo buy
+        require(PERC_PROMO_BUY_FEE + _percReward <= 10000, ' invalid promo buy _perc :(=) ');
         require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= MIN_USD_PROMO_TARGET, ' !param(s) :={ ');
         address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
@@ -618,7 +625,7 @@ contract CallitFactory is ERC20, Ownable {
         // log $CALL votes earned w/ ...
         // EARNED_CALL_VOTES[msg.sender] += (_usdAmnt / RATIO_PROMO_USD_PER_CALL_TOK);
     }
-    function claimTicketRewards(address _ticket, bool _resultAgree) external { // _deductFeePerc PERC_CLAIM_WIN_FEE from usdPrizePoolShare
+    function claimTicketRewards(address _ticket, bool _resultAgree) external { // _deductFeePerc PERC_WINNER_CLAIM_FEE from usdPrizePoolShare
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{+} ');
         require(IERC20(_ticket).balanceOf(msg.sender) > 0, ' ticket !owned ;( ');
         // algorithmic logic...
@@ -642,7 +649,7 @@ contract CallitFactory is ERC20, Ownable {
             uint64 usdPrizePoolShare = LIB._uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
 
             // send payout to msg.sender
-            usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, PERC_CLAIM_WIN_FEE, usdPrizePoolShare);
+            usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, PERC_WINNER_CLAIM_FEE, usdPrizePoolShare);
             VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
@@ -671,7 +678,7 @@ contract CallitFactory is ERC20, Ownable {
 
         // NOTE: no $CALL tokens minted for this action   
     }
-    function claimVoterRewards() external { // _deductFeePerc PERC_VOTE_CLAIM_FEE from usdRewardOwed
+    function claimVoterRewards() external { // _deductFeePerc PERC_VOTER_CLAIM_FEE from usdRewardOwed
         // NOTE: loops through all non-piad msg.sender votes (including 'live' markets)
         require(ACCT_MARKET_VOTES[msg.sender].length > 0, ' no un-paid market votes :) ');
         uint64 usdRewardOwed = 0;
@@ -704,7 +711,7 @@ contract CallitFactory is ERC20, Ownable {
         }
 
         // deduct fees and pay voter rewards
-        uint64 usdRewardOwed_net = LIB._deductFeePerc(usdRewardOwed, PERC_VOTE_CLAIM_FEE, usdRewardOwed);
+        uint64 usdRewardOwed_net = LIB._deductFeePerc(usdRewardOwed, PERC_VOTER_CLAIM_FEE, usdRewardOwed);
         VAULT._payUsdReward(msg.sender, usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
         // emit log for rewards claimed
