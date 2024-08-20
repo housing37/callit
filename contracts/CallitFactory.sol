@@ -302,13 +302,6 @@ contract CallitFactory is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER setters
     /* -------------------------------------------------------- */
-    // // legacy - keeper getter w/ check
-    // function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
-    //     require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
-    //     if (_history)
-    //         return CALLIT_VAULT._collectiveStableBalances(CALLIT_VAULT.USD_STABLES_HISTORY());
-    //     return CALLIT_VAULT._collectiveStableBalances(CALLIT_VAULT.WHITELIST_USD_STABLES());
-    // }
     // legacy
     function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
         //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
@@ -336,25 +329,6 @@ contract CallitFactory is ERC20, Ownable {
         TOK_SYMB = _tok_symb;
         emit TokenNameSymbolUpdated(TOK_NAME, TOK_SYMB);
     }
-    // function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
-    //     require(_usdStable != address(0), 'err: 0 address');
-    //     CALLIT_VAULT._editWhitelistStables(_usdStable, _decimals, _add);
-    //     emit WhitelistStableUpdated(_usdStable, _decimals, _add);
-    // }
-    // function KEEPER_editDexRouters(address _router, bool _add) external onlyKeeper {
-    //     require(_router != address(0x0), "0 address");
-    //     CALLIT_VAULT._editDexRouters(_router, _add);
-    //     emit DexRouterUpdated(_router, _add);
-    // }
-    // CALLIT
-    // function KEEPER_withdrawTicketLP(address _ticket, bool _all) external view onlyKeeper {
-    //     require(_ticket != address(0), ' !_ticket indy :) ' );
-    //     if (_all) { // LEFT OFF HERE ...
-    //         // loop through market for _ticket and withdraw all LP
-    //     } else {
-    //         // withdraw LP from just _ticket (this might not be logical)
-    //     }
-    // }
     function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
@@ -381,15 +355,6 @@ contract CallitFactory is ERC20, Ownable {
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
         MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     }
-    // function KEEPER_setRatioMarketLpUsdPerCall(uint64 _usdLpRequired) external onlyKeeper {
-    //     RATIO_LP_USD_PER_CALL_TOK = _usdLpRequired;
-    // }
-    // function KEEPER_setRatioLpTokPerUsd(uint16 _ratio) external onlyKeeper {
-    //     RATIO_LP_TOK_PER_USD = _ratio;
-    // }
-    // function KEEPER_setMinInitMarketLiq(uint16 _min) external onlyKeeper {
-    //     MIN_USD_MARK_LIQ = _min;
-    // }
     function KEEPER_setMaxEoaMarkets(uint64 _max) external onlyKeeper { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
         MAX_EOA_MARKETS = _max;
     }
@@ -402,10 +367,6 @@ contract CallitFactory is ERC20, Ownable {
         TOK_TICK_NAME_SEED = _nameSeed;
         TOK_TICK_SYMB_SEED = _symbSeed;
     }
-    // function KEEPER_setTokTicketNameSymbSeeds(string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
-    //     TOK_TICK_NAME_SEED = _nameSeed;
-    //     TOK_TICK_SYMB_SEED = _symbSeed;
-    // }
     function KEEPER_setEnableDefaultVoteTime(uint256 _sec, bool _enable) external onlyKeeper {
         SEC_DEFAULT_VOTE_TIME = _sec; // 24 * 60 * 60 == 86,400 sec == 24 hours
         USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
@@ -438,19 +399,6 @@ contract CallitFactory is ERC20, Ownable {
     // /* -------------------------------------------------------- */
     // /* PUBLIC - ACCESSORS
     // /* -------------------------------------------------------- */
-    // // legacy
-    // function getAccounts() external view returns (address[] memory) {
-    //     return CALLIT_VAULT.ACCOUNTS();
-    // }
-    // function getUsdStablesHistory() external view returns (address[] memory) {
-    //     return CALLIT_VAULT.USD_STABLES_HISTORY();
-    // }    
-    // function getWhitelistStables() external view returns (address[] memory) {
-    //     return CALLIT_VAULT.WHITELIST_USD_STABLES();
-    // }
-    // function getDexRouters() external view returns (address[] memory) {
-    //     return CALLIT_VAULT.USWAP_V2_ROUTERS();
-    // }
     // CALLIT
     function getAccountMarkets(address _account) external view returns (ICallitLib.MARKET[] memory) {
         require(_account != address(0), ' 0 address? ;[+] ');
@@ -473,23 +421,6 @@ contract CallitFactory is ERC20, Ownable {
         // send PLS to vault
         payable(address(CALLIT_VAULT)).transfer(amntIn);
             // NOTE: VAULT's receive() function should handle swap for usd stable
-
-        // // get whitelisted stable with lowest market value (ie. receive most stable for swap)
-        // address usdStable = CALLIT_VAULT._getStableTokenLowMarketValue(CALLIT_VAULT.WHITELIST_USD_STABLES(), CALLIT_VAULT.USWAP_V2_ROUTERS());
-
-        // // perform swap from PLS to stable & send to vault
-        // uint256 stableAmntOut = CALLIT_VAULT._exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
-
-        // // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        // uint64 usdAmntConvert = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(CALLIT_VAULT.USD_STABLE_DECIMALS(usdStable), stableAmntOut, CALLIT_VAULT._usd_decimals()));
-
-        // // OG local
-        // // ACCT_USD_BALANCES[msg.sender] += usdAmntConvert;
-        // // ACCOUNTS = _addAddressToArraySafe(msg.sender, ACCOUNTS, true); // true = no dups
-
-        // // use vault
-        // CALLIT_VAULT.edit_ACCT_USD_BALANCES(msg.sender, usdAmntConvert, true); // true = add
-        // CALLIT_VAULT.set_ACCOUNTS(CALLIT_LIB._addAddressToArraySafe(msg.sender, CALLIT_VAULT.ACCOUNTS(), true)); // true = safe (no dups)
 
         emit DepositReceived(msg.sender, amntIn, 0);
 
@@ -680,7 +611,7 @@ contract CallitFactory is ERC20, Ownable {
         cTicket.mintForPriceParity(address(this), tokensToMint);
         require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
         // address[2] memory tok_stab_path = [_ticket, mark.resultTokenUsdStables[tickIdx]];
-        address[] memory tok_stab_path = new address[](3);
+        address[] memory tok_stab_path = new address[](2);
         tok_stab_path[0] = _ticket;
         tok_stab_path[1] = mark.marketResults.resultTokenUsdStables[tickIdx];
         uint256 usdAmntOut = CALLIT_VAULT._exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), mark.marketResults.resultTokenRouters[tickIdx]); // swap tick: use specific router tck:tick-stable

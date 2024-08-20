@@ -472,7 +472,7 @@ contract CallitVaultDelegate {
 
         // create path and perform stable-to-stable swap
         // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
-        address[] memory stab_stab_path = new address[](3);
+        address[] memory stab_stab_path = new address[](2);
         stab_stab_path[0] = highStableHeld;
         stab_stab_path[1] = _tickStable;
         uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
