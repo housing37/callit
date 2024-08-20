@@ -371,6 +371,7 @@ contract CallitVaultDelegate {
 
         // Approve tokens for Uniswap Router
         IERC20(_token).approve(_uswapV2Router, _tokenAmount);
+        IERC20(_usdStable).approve(_uswapV2Router, _usdAmount);
         // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
             
         // Add liquidity to the pool
