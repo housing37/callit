@@ -117,7 +117,7 @@ contract CallitFactory is ERC20, Ownable {
     // market settings
     bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    uint16  public MIN_USD_MARK_LIQ = 10; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    uint64  public MIN_USD_MARK_LIQ = 10000000; // (10000000 = $10.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     uint16  public MAX_RESULTS = 100; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
     uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
         // NOTE: additional launch security: caps EOA $CALL earned to 255
@@ -366,35 +366,46 @@ contract CallitFactory is ERC20, Ownable {
         MIN_HANDLE_SIZE = _min; // min # of chars for account handles
         MAX_HANDLE_SIZE = _max; // max # of chars for account handles
     }
-    function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
-        MIN_USD_PROMO_TARGET = _usdTarget;
-    }
-    function KEEPER_setRatioPromoBuyUsdPerCall(uint64 _usdBuyRequired) external onlyKeeper {
+    function KEEPER_setPromoSettings(uint64 _usdTargetMin, uint64 _usdBuyRequired) external onlyKeeper {
+        MIN_USD_PROMO_TARGET = _usdTargetMin;
         RATIO_PROMO_USD_PER_CALL_TOK = _usdBuyRequired;
     }
-    function KEEPER_setRatioMarketLpUsdPerCall(uint64 _usdLpRequired) external onlyKeeper {
-        RATIO_LP_USD_PER_CALL_TOK = _usdLpRequired;
+    // function KEEPER_setMinUsdPromoTarget(uint64 _usdTarget) external onlyKeeper {
+    //     MIN_USD_PROMO_TARGET = _usdTarget;
+    // }
+    // function KEEPER_setRatioPromoBuyUsdPerCall(uint64 _usdBuyRequired) external onlyKeeper {
+    //     RATIO_PROMO_USD_PER_CALL_TOK = _usdBuyRequired;
+    // }
+    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
+        RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
+        RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
+        MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     }
-    function KEEPER_setRatioLpTokPerUsd(uint16 _ratio) external onlyKeeper {
-        RATIO_LP_TOK_PER_USD = _ratio;
-    }
-    function KEEPER_setTokTicketNameSymbSeeds(string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
-        TOK_TICK_NAME_SEED = _nameSeed;
-        TOK_TICK_SYMB_SEED = _symbSeed;
-    }
+    // function KEEPER_setRatioMarketLpUsdPerCall(uint64 _usdLpRequired) external onlyKeeper {
+    //     RATIO_LP_USD_PER_CALL_TOK = _usdLpRequired;
+    // }
+    // function KEEPER_setRatioLpTokPerUsd(uint16 _ratio) external onlyKeeper {
+    //     RATIO_LP_TOK_PER_USD = _ratio;
+    // }
+    // function KEEPER_setMinInitMarketLiq(uint16 _min) external onlyKeeper {
+    //     MIN_USD_MARK_LIQ = _min;
+    // }
     function KEEPER_setMaxEoaMarkets(uint64 _max) external onlyKeeper { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
         MAX_EOA_MARKETS = _max;
     }
-    function KEEPER_setMinInitMarketLiq(uint16 _min) external onlyKeeper {
-        MIN_USD_MARK_LIQ = _min;
-    }
-    function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable) external onlyKeeper {
+    function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable, string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
         // max array size = 255 (uint8 loop)
         require(CALLIT_LIB._isAddressInArray(_router, CALLIT_VAULT.USWAP_V2_ROUTERS()) && CALLIT_LIB._isAddressInArray(_usdStable, CALLIT_VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|stable :() ');
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_UNISWAP_V2_FACTORY = _factory;
         NEW_TICK_USD_STABLE = _usdStable;
+        TOK_TICK_NAME_SEED = _nameSeed;
+        TOK_TICK_SYMB_SEED = _symbSeed;
     }
+    // function KEEPER_setTokTicketNameSymbSeeds(string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
+    //     TOK_TICK_NAME_SEED = _nameSeed;
+    //     TOK_TICK_SYMB_SEED = _symbSeed;
+    // }
     function KEEPER_setEnableDefaultVoteTime(uint256 _sec, bool _enable) external onlyKeeper {
         SEC_DEFAULT_VOTE_TIME = _sec; // 24 * 60 * 60 == 86,400 sec == 24 hours
         USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
