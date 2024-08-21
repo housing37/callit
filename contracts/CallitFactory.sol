@@ -68,10 +68,6 @@ contract CallitFactory is ERC20, Ownable {
     string public TOK_TICK_NAME_SEED = "TCK#";
     string public TOK_TICK_SYMB_SEED = "CALL-TICKET";
 
-    // account settings
-    uint8  public MIN_HANDLE_SIZE = 1; // min # of chars for account handles
-    uint8  public MAX_HANDLE_SIZE = 25; // max # of chars for account handles
-
     // promo settings
     uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
 
@@ -217,12 +213,11 @@ contract CallitFactory is ERC20, Ownable {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
-    function KEEPER_setMaxMarketResultOptions(uint16 _optionCnt) external onlyKeeper {
-        MAX_RESULTS = _optionCnt; // max # of result options a market may have
-    }
-    function KEEPER_setMinMaxAcctHandleSize(uint8 _min, uint8 _max) external onlyKeeper {
-        MIN_HANDLE_SIZE = _min; // min # of chars for account handles
-        MAX_HANDLE_SIZE = _max; // max # of chars for account handles
+    function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice) external {
+        MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
+        MAX_EOA_MARKETS = _maxEoaMarkets;
+        // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+        MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
     }
     function KEEPER_setPromoSettings(uint64 _usdTargetMin, uint64 _usdBuyRequired) external onlyKeeper {
         MIN_USD_PROMO_TARGET = _usdTargetMin;
@@ -245,9 +240,6 @@ contract CallitFactory is ERC20, Ownable {
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
         MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     }
-    function KEEPER_setMaxEoaMarkets(uint64 _max) external onlyKeeper { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
-        MAX_EOA_MARKETS = _max;
-    }
     function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable, string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
         // max array size = 255 (uint8 loop)
         require(LIB._isAddressInArray(_router, VAULT.USWAP_V2_ROUTERS()) && LIB._isAddressInArray(_usdStable, VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|stable :() ');
@@ -265,10 +257,6 @@ contract CallitFactory is ERC20, Ownable {
         require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
         RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
         PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
-    }
-    function KEEPER_setMinCallTickTargPrice(uint64 _usdMin) external onlyKeeper {
-        // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-        MIN_USD_CALL_TICK_TARGET_PRICE = _usdMin;
     }
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
@@ -313,7 +301,7 @@ contract CallitFactory is ERC20, Ownable {
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
     }
     function setMyAcctHandle(string calldata _handle) external {
-        require(bytes(_handle).length >= MIN_HANDLE_SIZE && bytes(_handle).length <= MAX_HANDLE_SIZE, ' !_handle.length :[] ');
+        require(bytes(_handle).length >= 1, ' !_handle.length :[] ');
         require(bytes(_handle)[0] != 0x20, ' !_handle space start :+[ '); // 0x20 -> ASCII for ' ' (single space)
         if (LIB._validNonWhiteSpaceString(_handle))
             ACCT_HANDLES[msg.sender] = _handle;
