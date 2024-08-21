@@ -178,16 +178,17 @@ contract CallitFactory is ERC20, Ownable {
     /* PUBLIC - KEEPER setters
     /* -------------------------------------------------------- */
     // legacy
-    function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
-        //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
-        require(IERC20(_tokAddr).balanceOf(address(this)) >= _tokAmnt, ' not enough amount for token :O ');
-        IERC20(_tokAddr).transfer(KEEPER, _tokAmnt);
-        // emit KeeperMaintenance(_tokAddr, _tokAmnt);
-    }
-    function KEEPER_withdraw(uint256 _natAmnt) external onlyKeeper {
-        require(address(this).balance >= _natAmnt, " Insufficient native PLS balance :[ ");
-        payable(KEEPER).transfer(_natAmnt); // cast to a 'payable' address to receive ETH
-        // emit KeeperWithdrawel(_natAmnt);
+    function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
+        if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
+            require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
+            payable(KEEPER).transfer(_amount); // cast to a 'payable' address to receive ETH
+            // emit KeeperWithdrawel(_amount);
+        } else { // found _erc20: transfer ERC20
+            //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
+            require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
+            IERC20(_erc20).transfer(KEEPER, _amount);
+            // emit KeeperMaintenance(_erc20, _amount);
+        }
     }
     function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
         require(_newKeeper != address(0), 'err: 0 address');
