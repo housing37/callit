@@ -21,16 +21,6 @@ from attributedict.collections import AttributeDict # tx_receipt requirement
 import _web3 # from web3 import Account, Web3, HTTPProvider
 
 LST_CONTR_ABI_BIN = [
-    "../bin/contracts/BearSharesTrinity",
-    "../bin/contracts/StockPot",
-    "../bin/contracts/TheBotFckr",
-    "../bin/contracts/BalancerFLR_test",
-    "../bin/contracts/LPCleaner",
-    "../bin/contracts/UniswapFlashQuery",
-    "../bin/contracts/StakingContract",
-    "../bin/contracts/SwapDelegate",
-    "../bin/contracts/LUSDShareToken",
-    "../../defi-arb/bin/contracts/AtropaMV",
     "../bin/contracts/CallitLib",
     "../bin/contracts/CallitVault",
     "../bin/contracts/CallitFactory",
