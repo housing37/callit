@@ -11,22 +11,14 @@
 pragma solidity ^0.8.24;
 
 // inherited contracts
-// import "@openzeppelin/contracts/utils/Strings.sol";
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; // deploy
 // import "@openzeppelin/contracts/access/Ownable.sol"; // deploy
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
-// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
-// import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-// import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 // local _ $ npm install @openzeppelin/contracts
-// import "./node_modules/@openzeppelin/contracts/utils/Strings.sol";
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-// import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-// import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 import "./CallitTicket.sol";
 import "./ICallitLib.sol";

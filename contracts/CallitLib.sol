@@ -2,12 +2,10 @@
 // inherited contracts
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 // import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
 
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-// import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 import "./ICallitLib.sol";
 

@@ -17,7 +17,6 @@ pragma solidity ^0.8.24;
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
-// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CallitTicket is ERC20, Ownable {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
