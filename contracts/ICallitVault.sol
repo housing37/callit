@@ -3,6 +3,31 @@ pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
 
 interface ICallitVault {
+    // more migration from factory attempts
+    // default all fees to 0 (KEEPER setter available)
+    function PERC_MARKET_MAKER_FEE() external view returns(uint16);
+    function PERC_PROMO_BUY_FEE() external view returns(uint16);
+    function PERC_ARB_EXE_FEE() external view returns(uint16);
+    function PERC_MARKET_CLOSE_FEE() external view returns(uint16);
+    function PERC_PRIZEPOOL_VOTERS() external view returns(uint16);
+    function PERC_VOTER_CLAIM_FEE() external view returns(uint16);
+    function PERC_WINNER_CLAIM_FEE() external view returns(uint16);
+
+    // call token mint rewards
+    function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_VOTE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_MARK_CLOSE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_LOSER() external view returns(uint32);
+    function PERC_OF_LOSER_SUPPLY_EARN_CALL() external view returns(uint16);
+    function RATIO_PROMO_USD_PER_CALL_MINT() external view returns(uint64);
+    function MIN_USD_PROMO_TARGET() external view returns(uint64);
+
+    // lp settings
+    function MIN_USD_MARK_LIQ() external view returns(uint64);
+    function RATIO_LP_TOK_PER_USD() external view returns(uint16);
+    function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
+
     function INIT_factory() external;
     function deposit(address _depositor) external payable;
 

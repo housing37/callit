@@ -231,3 +231,4 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 # deploy log (082024):
 # address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
 # address public VAULT_ADDR = address(0xAbF4E00b848E06bb11Df56f54e81B47D5A584e50); // CallitVault v0.1
+# address public VAULT_ADDR = address(0xa8667527F00da10cadE9533952e069f5209273c2); // CallitVault v0.4

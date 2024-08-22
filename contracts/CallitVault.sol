@@ -27,12 +27,39 @@ import "./ICallitLib.sol";
 
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
-    function burnForWinLoseClaim(address _account, uint256 _amount) external;
+    // function burnForWinLoseClaim(address _account, uint256 _amount) external;
     function balanceOf(address account) external returns(uint256);
 }
 
 contract CallitVault {
-    string public constant tVERSION = '0.1';
+    string public constant tVERSION = '0.4';
+
+    // default all fees to 0 (KEEPER setter available)
+    uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
+    uint16 public PERC_PROMO_BUY_FEE; // note: yes other % fee (promo.percReward)
+    uint16 public PERC_ARB_EXE_FEE; // note: no other % fee
+    uint16 public PERC_MARKET_CLOSE_FEE; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+    uint16 public PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
+    uint16 public PERC_VOTER_CLAIM_FEE; // note: no other % fee
+    uint16 public PERC_WINNER_CLAIM_FEE; // note: no other % fee
+
+    uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    uint32 public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
+
+    // market action mint incentives
+    uint32 public RATIO_CALL_MINT_PER_ARB_EXE = 1; // amount of all $CALL minted per arb executer reward // TODO: need KEEPER setter
+    uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = 1; // amount of all $CALL minted per market call close action reward // TODO: need KEEPER setter
+    uint32 public RATIO_CALL_MINT_PER_VOTE = 1; // amount of all $CALL minted per vote reward // TODO: need KEEPER setter
+    uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
+    uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
+    uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
+
+    // lp settings
+    uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
+    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
+        // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
+        //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)
 
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
@@ -123,25 +150,25 @@ contract CallitVault {
     /* PUBLIC - KEEPER
     /* -------------------------------------------------------- */
     // legacy
-    function KEEPER_maintenance(address _tokAddr, uint256 _tokAmnt) external onlyKeeper() {
-        //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
-        require(IERC20(_tokAddr).balanceOf(address(this)) >= _tokAmnt, ' not enough amount for token :O ');
-        IERC20(_tokAddr).transfer(KEEPER, _tokAmnt);
-        // emit KeeperMaintenance(_tokAddr, _tokAmnt);
+    function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
+        if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
+            require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
+            payable(KEEPER).transfer(_amount); // cast to a 'payable' address to receive ETH
+            // emit KeeperWithdrawel(_amount);
+        } else { // found _erc20: transfer ERC20
+            //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
+            require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
+            IERC20(_erc20).transfer(KEEPER, _amount);
+            // emit KeeperMaintenance(_erc20, _amount);
+        }
     }
-    function KEEPER_withdraw(uint256 _natAmnt) external onlyKeeper {
-        require(address(this).balance >= _natAmnt, " Insufficient native PLS balance :[ ");
-        payable(KEEPER).transfer(_natAmnt); // cast to a 'payable' address to receive ETH
-        // emit KeeperWithdrawel(_natAmnt);
-    }
-    function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
+    function KEEPER_setKeeper(address _newKeeper, uint16 _keeperCheck) external onlyKeeper {
         require(_newKeeper != address(0), 'err: 0 address');
         address prev = address(KEEPER);
         KEEPER = _newKeeper;
+        if (_keeperCheck > 0)
+            KEEPER_CHECK = _keeperCheck;
         emit KeeperTransfer(prev, KEEPER);
-    }
-    function KEEPER_setKeeperCheck(uint256 _keeperCheck) external onlyKeeper {
-        KEEPER_CHECK = _keeperCheck;
     }
     function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
         require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
@@ -173,7 +200,37 @@ contract CallitVault {
         LIB_ADDR = _lib;
         LIB = ICallitLib(_lib);
     }
+    function KEEPER_setMarketActionMints(uint32 _callPerArb, uint32 _callPerMarkCloseCalls, uint32 _callPerVote, uint32 _callPerMarkClose, uint64 _promoUsdPerCall, uint64 _minUsdPromoTarget) external onlyKeeper {
+        RATIO_CALL_MINT_PER_ARB_EXE = _callPerArb; // amount of all $CALL minted per arb executer reward
+        RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = _callPerMarkCloseCalls; // amount of all $CALL minted per market call close action reward
+        RATIO_CALL_MINT_PER_VOTE = _callPerVote; // amount of all $CALL minted per vote reward
+        RATIO_CALL_MINT_PER_MARK_CLOSE = _callPerMarkClose; // amount of all $CALL minted per market close action reward
+        RATIO_PROMO_USD_PER_CALL_MINT = _promoUsdPerCall; // usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
+        MIN_USD_PROMO_TARGET = _minUsdPromoTarget; // min target for creating promo codes ($ target = $ bets this promo brought in)
+    }
 
+    function KEEPER_setMarketLoserMints(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
+        require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
+        RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
+        PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
+    }
+    function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
+        // no 2 percs taken out of market close
+        require(_percPrizeVoters + _percMarkClose < 10000, ' close market perc error ;() ');
+        require(_percMaker < 10000 && _percPromo < 10000 && _percArbExe < 10000 && _percMarkClose < 10000 && _percPrizeVoters < 10000 && _percVoterClaim < 10000 && _perWinnerClaim < 10000, ' invalid perc(s) :0 ');
+        PERC_MARKET_MAKER_FEE = _percMaker; 
+        PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.perc`Reward)
+        PERC_ARB_EXE_FEE = _percArbExe;
+        PERC_MARKET_CLOSE_FEE = _percMarkClose; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+        PERC_PRIZEPOOL_VOTERS = _percPrizeVoters;
+        PERC_VOTER_CLAIM_FEE = _percVoterClaim;
+        PERC_WINNER_CLAIM_FEE = _perWinnerClaim;        
+    }
+    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
+        RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
+        RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
+        MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    }
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING
     /* -------------------------------------------------------- */
@@ -191,6 +248,9 @@ contract CallitVault {
     function getAccounts() external view returns (address[] memory) {
         return ACCOUNTS;
     }
+    // function getUsdStablesWhitelistHistory() external view returns (address[] memory, address[] memory) {
+    //     return (WHITELIST_USD_STABLES, USD_STABLES_HISTORY);
+    // }    
     function getUsdStablesHistory() external view returns (address[] memory) {
         return USD_STABLES_HISTORY;
     }    
@@ -224,7 +284,7 @@ contract CallitVault {
         uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
 
         // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        uint64 usdAmntConvert = LIB._uint64_from_uint256(LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+        uint64 usdAmntConvert = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
 
         // use VAULT remote
         _edit_ACCT_USD_BALANCES(_depositor, usdAmntConvert, true); // true = add
@@ -297,7 +357,7 @@ contract CallitVault {
         // address tick_stable_tok = mark.marketResults.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
         uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
         if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
-            uint64 net_usdAmnt_needed = net_usdAmnt - LIB._uint64_from_uint256(contr_stab_bal);
+            uint64 net_usdAmnt_needed = net_usdAmnt - _uint64_from_uint256(contr_stab_bal);
             (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
             emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
@@ -336,7 +396,7 @@ contract CallitVault {
                 // alt_sum += usdAmountsOut;
 
                 uint256 usdAmountsOut = LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
-                alt_sum += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_resultStables[i]], usdAmountsOut, _usd_decimals()));
+                alt_sum += _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_resultStables[i]], usdAmountsOut, _usd_decimals()));
             }
             
             unchecked {i++;}
@@ -451,11 +511,11 @@ contract CallitVault {
     function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
         if (_usdStable == address(0x0)) 
             return false;
-        uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
         return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
     }
     function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
-        uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
         (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
         return tok_amnt; 
     }
@@ -465,7 +525,7 @@ contract CallitVault {
         pls_stab_path[1] = _usdStable;
         (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
         uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
-        stab_amnt_out = LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
+        stab_amnt_out = _normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
         return stab_amnt_out;
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
@@ -480,7 +540,7 @@ contract CallitVault {
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
     function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
         address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
-        uint256 usdAmnt_ = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
         (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
 
         // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
@@ -511,7 +571,7 @@ contract CallitVault {
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_receiver, LIB._normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
+        IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
     }
     // note: migrate to CallitBank
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
@@ -536,7 +596,7 @@ contract CallitVault {
         IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
         // normalize decimals _usdStable token requirements
-        _usdAmount = LIB._normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
+        _usdAmount = _normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
 
         // Approve tokens for Uniswap Router
         IERC20(_token).approve(_uswapV2Router, _tokenAmount);
