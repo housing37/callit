@@ -32,7 +32,7 @@ interface ICallitTicket {
 }
 
 contract CallitVault {
-    string public constant tVERSION = '0.4';
+    string public constant tVERSION = '0.5';
 
     // default all fees to 0 (KEEPER setter available)
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
@@ -144,6 +144,7 @@ contract CallitVault {
         // // emit log of this arb price correction
       //  emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
     }
+
     /* -------------------------------------------------------- */
     /* MODIFIERS
     /* -------------------------------------------------------- */
@@ -152,11 +153,7 @@ contract CallitVault {
         _;
     }
     modifier onlyFactory() {
-        require(msg.sender == FACT_ADDR, " !keeper & !contr :p");
-        _;
-    }
-    modifier onlyKeeperOrFactory() {
-        require(msg.sender == KEEPER || msg.sender == FACT_ADDR, " !keeper & !contr :p");
+        require(msg.sender == FACT_ADDR || msg.sender == KEEPER, " !keeper & !fact :p");
         _;
     }
     modifier onlyOnce() {
@@ -655,7 +652,7 @@ contract CallitVault {
         //      maybe a function to trasnfer LP to an EOA
         //      maybe a function to manually pull all LP into this contract (or a specific receiver)
     }
-    function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) external onlyFactory returns(uint256) {
+    function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) public onlyFactory returns(uint256) {
         // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(mark.resultTokenFactories[i]);
         IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_tokenRouter);
         

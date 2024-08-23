@@ -41,7 +41,7 @@ contract CallitFactory {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public tVERSION = '0.5';
+    string public tVERSION = '0.6';
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
@@ -54,11 +54,11 @@ contract CallitFactory {
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
 
     // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
-    address public NEW_TICK_UNISWAP_V2_ROUTER;
-    address public NEW_TICK_UNISWAP_V2_FACTORY;
-    address public NEW_TICK_USD_STABLE;
-    string  public TOK_TICK_NAME_SEED = "TCK#";
-    string  public TOK_TICK_SYMB_SEED = "CALL-TICKET";
+    // address public NEW_TICK_UNISWAP_V2_ROUTER;
+    // address public NEW_TICK_UNISWAP_V2_FACTORY;
+    // address public NEW_TICK_USD_STABLE;
+    // string  public TOK_TICK_NAME_SEED = "TCK#";
+    // string  public TOK_TICK_SYMB_SEED = "CALL-TICKET";
 
     // arb algorithm settings
     uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
@@ -194,15 +194,15 @@ contract CallitFactory {
         // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
         MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
     }
-    function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable, string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
-        // max array size = 255 (uint8 loop)
-        require(LIB._isAddressInArray(_router, VAULT.USWAP_V2_ROUTERS()) && LIB._isAddressInArray(_usdStable, VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|stable :() ');
-        NEW_TICK_UNISWAP_V2_ROUTER = _router;
-        NEW_TICK_UNISWAP_V2_FACTORY = _factory;
-        NEW_TICK_USD_STABLE = _usdStable;
-        TOK_TICK_NAME_SEED = _nameSeed;
-        TOK_TICK_SYMB_SEED = _symbSeed;
-    }
+    // function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable, string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
+    //     // max array size = 255 (uint8 loop)
+    //     require(LIB._isAddressInArray(_router, VAULT.USWAP_V2_ROUTERS()) && LIB._isAddressInArray(_usdStable, VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|stable :() ');
+    //     NEW_TICK_UNISWAP_V2_ROUTER = _router;
+    //     NEW_TICK_UNISWAP_V2_FACTORY = _factory;
+    //     NEW_TICK_USD_STABLE = _usdStable;
+    //     TOK_TICK_NAME_SEED = _nameSeed;
+    //     TOK_TICK_SYMB_SEED = _symbSeed;
+    // }
     function KEEPER_setDefaultVoteTime(uint256 _sec, bool _enable) external onlyKeeper {
         SEC_DEFAULT_VOTE_TIME = _sec; // 24 * 60 * 60 == 86,400 sec == 24 hours
         USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
