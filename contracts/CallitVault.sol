@@ -120,6 +120,30 @@ contract CallitVault {
         // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
     }
 
+    function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint64 tickIdx, address _maker, address _ticket, uint64 _minUsdTargPrice) external returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
+        require(_ticket != address(0) && _maker != address(0), ' invalid _ticket :-{} ');
+
+        // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
+        // (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(_maker, _ticket); // reverts if market not found | address(0)
+        require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
+
+        // calc target usd price for _ticket (in order to bring this market to price parity)
+        //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
+        //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
+        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
+        uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, _ticket, _minUsdTargPrice);
+
+        // (uint64 tokensToMint, uint64 gross_stab_amnt_out, uint64 total_usd_cost, uint64 net_usd_profits) = _performTicketMintaAndDexSell(_ticket, ticketTargetPriceUSD, mark.marketResults.resultTokenUsdStables[tickIdx], mark.marketResults.resultTokenLPs[tickIdx], mark.marketResults.resultTokenRouters[tickIdx], PERC_ARB_EXE_FEE);
+        (uint64 tokensToMint, uint64 total_usd_cost) = _performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _ticket, msg.sender);
+        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = _performTicketMintedDexSell(mark, tickIdx, _ticket, PERC_ARB_EXE_FEE, tokensToMint, total_usd_cost, msg.sender);
+        return (ticketTargetPriceUSD, tokensToMint, total_usd_cost, gross_stab_amnt_out, net_usd_profits);
+
+        // // mint $CALL token reward to msg.sender
+        // uint64 callEarnedAmnt = _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_ARB_EXE()); // emit CallTokensEarned
+
+        // // emit log of this arb price correction
+      //  emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
+    }
     /* -------------------------------------------------------- */
     /* MODIFIERS
     /* -------------------------------------------------------- */
@@ -297,7 +321,7 @@ contract CallitVault {
 
         // function _performTicketMintaAndDexSell(address _targetTicket, uint64 _targetTickPriceUSD, address _targetTickStable, address _targetTickPairAddr, address _targetTickRouter, uint16 _percArbFee) external returns(uint64,uint64,uint64,uint64) {
     // function _performTicketMintaAndDexSell(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 ticketTargetPriceUSD, address _ticket, uint16 _percArbFee) external returns(uint64,uint64,uint64,uint64) {
-    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 ticketTargetPriceUSD, address _ticket, address _arbExecuter) external onlyFactory returns(uint64,uint64) {
+    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 ticketTargetPriceUSD, address _ticket, address _arbExecuter) public onlyFactory returns(uint64,uint64) {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         uint256 _usdTickTargPrice = _normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[_mark.marketResults.resultTokenUsdStables[_tickIdx]]);
         uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice));
@@ -323,7 +347,7 @@ contract CallitVault {
         require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
         return (tokensToMint, total_usd_cost);
     }
-    function _performTicketMintedDexSell(ICallitLib.MARKET memory _mark, uint64 _tickIdx, address _ticket, uint16 _percArbFee, uint64 tokensToMint, uint64 total_usd_cost, address _arbExecuter) external onlyFactory returns(uint64,uint64) {
+    function _performTicketMintedDexSell(ICallitLib.MARKET memory _mark, uint64 _tickIdx, address _ticket, uint16 _percArbFee, uint64 tokensToMint, uint64 total_usd_cost, address _arbExecuter) public onlyFactory returns(uint64,uint64) {
         // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
         //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
         //  NOTE: deduct fees andpay _arbExecuter in '_performTicketMintedDexSell'
@@ -377,7 +401,7 @@ contract CallitVault {
 
         return (net_usdAmnt, tick_amnt_out);
     }
-    function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, address _ticket, uint64 _usdMinTargetPrice) external view onlyFactory returns(uint64) {
+    function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, address _ticket, uint64 _usdMinTargetPrice) public view onlyFactory returns(uint64) {
         require(_resultTickets.length == _pairAddresses.length, ' tick/pair arr length mismatch :o ');
         // algorithmic logic ...
         //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)

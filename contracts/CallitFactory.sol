@@ -203,7 +203,7 @@ contract CallitFactory {
         TOK_TICK_NAME_SEED = _nameSeed;
         TOK_TICK_SYMB_SEED = _symbSeed;
     }
-    function KEEPER_setEnableDefaultVoteTime(uint256 _sec, bool _enable) external onlyKeeper {
+    function KEEPER_setDefaultVoteTime(uint256 _sec, bool _enable) external onlyKeeper {
         SEC_DEFAULT_VOTE_TIME = _sec; // 24 * 60 * 60 == 86,400 sec == 24 hours
         USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     }
@@ -224,10 +224,10 @@ contract CallitFactory {
     /* PUBLIC - ACCESSORS
     /* -------------------------------------------------------- */
     // CALLIT
-    function getAccountMarkets(address _account) external view returns (ICallitLib.MARKET[] memory) {
-        require(_account != address(0), ' 0 address? ;[+] ');
-        return ACCT_MARKETS[_account];
-    }
+    // function getAccountMarkets(address _account) external view returns (ICallitLib.MARKET[] memory) {
+    //     require(_account != address(0), ' 0 address? ;[+] ');
+    //     return ACCT_MARKETS[_account];
+    // }
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
@@ -405,16 +405,16 @@ contract CallitFactory {
         (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
-        // calc target usd price for _ticket (in order to bring this market to price parity)
-        //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
-        //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
-        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
-        uint64 ticketTargetPriceUSD = VAULT._getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
+        // // calc target usd price for _ticket (in order to bring this market to price parity)
+        // //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
+        // //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
+        // // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
+        // uint64 ticketTargetPriceUSD = VAULT._getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
 
-        // (uint64 tokensToMint, uint64 gross_stab_amnt_out, uint64 total_usd_cost, uint64 net_usd_profits) = _performTicketMintaAndDexSell(_ticket, ticketTargetPriceUSD, mark.marketResults.resultTokenUsdStables[tickIdx], mark.marketResults.resultTokenLPs[tickIdx], mark.marketResults.resultTokenRouters[tickIdx], PERC_ARB_EXE_FEE);
-        (uint64 tokensToMint, uint64 total_usd_cost) = VAULT._performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _ticket, msg.sender);
-        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT._performTicketMintedDexSell(mark, tickIdx, _ticket, VAULT.PERC_ARB_EXE_FEE(), tokensToMint, total_usd_cost, msg.sender);
-
+        // // (uint64 tokensToMint, uint64 gross_stab_amnt_out, uint64 total_usd_cost, uint64 net_usd_profits) = _performTicketMintaAndDexSell(_ticket, ticketTargetPriceUSD, mark.marketResults.resultTokenUsdStables[tickIdx], mark.marketResults.resultTokenLPs[tickIdx], mark.marketResults.resultTokenRouters[tickIdx], PERC_ARB_EXE_FEE);
+        // (uint64 tokensToMint, uint64 total_usd_cost) = VAULT._performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _ticket, msg.sender);
+        // (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT._performTicketMintedDexSell(mark, tickIdx, _ticket, VAULT.PERC_ARB_EXE_FEE(), tokensToMint, total_usd_cost, msg.sender);
+        (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, TICKET_MAKERS[_ticket], _ticket, MIN_USD_CALL_TICK_TARGET_PRICE);
         // mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt = _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_ARB_EXE()); // emit CallTokensEarned
 
