@@ -628,8 +628,16 @@ contract CallitFactory {
             // check for 'paid' MARKET_VOTE found in ACCT_MARKET_VOTES (& move to ACCT_MARKET_VOTES_PAID)
             //  NOTE: integration moves MARKET_VOTE that was just set as 'paid' above, to ACCT_MARKET_VOTES_PAID
             //   AND ... catches any 'prev-paid' MARKET_VOTEs lingering in non-paid ACCT_MARKET_VOTES array
-            if (m_vote.paid) { 
-                _moveMarketVoteIdxToPaid(m_vote, i);
+            if (m_vote.paid) { // NOTE: move this market vote index 'i', to paid
+                // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
+                // remove _idxMove MARKET_VOTE from ACCT_MARKET_VOTES[msg.sender]
+                //  by replacing it with the last element (then popping last element)
+                ACCT_MARKET_VOTES_PAID[msg.sender].push(m_vote);
+                uint64 lastIdx = uint64(ACCT_MARKET_VOTES[msg.sender].length) - 1;
+                if (i != lastIdx) { ACCT_MARKET_VOTES[msg.sender][i] = ACCT_MARKET_VOTES[msg.sender][lastIdx]; }
+                ACCT_MARKET_VOTES[msg.sender].pop(); // Remove the last element (now a duplicate)
+
+                // _moveMarketVoteIdxToPaid(m_vote, i); // 082224: removed from call stack
                 continue; // Skip 'i++'; continue w/ current idx, to check new item at position 'i'
             }
             unchecked {i++;}
@@ -666,18 +674,6 @@ contract CallitFactory {
         }
         
         revert(' market not found :( ');
-    }
-    function _moveMarketVoteIdxToPaid(ICallitLib.MARKET_VOTE storage _m_vote, uint64 _idxMove) private {
-        // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
-        ACCT_MARKET_VOTES_PAID[msg.sender].push(_m_vote);
-
-        // remove _idxMove MARKET_VOTE from ACCT_MARKET_VOTES[msg.sender]
-        //  by replacing it with the last element (then popping last element)
-        uint64 lastIdx = uint64(ACCT_MARKET_VOTES[msg.sender].length) - 1;
-        if (_idxMove != lastIdx) {
-            ACCT_MARKET_VOTES[msg.sender][_idxMove] = ACCT_MARKET_VOTES[msg.sender][lastIdx];
-        }
-        ACCT_MARKET_VOTES[msg.sender].pop(); // Remove the last element (now a duplicate)
     }
     function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private returns(uint64) {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
