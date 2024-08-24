@@ -41,7 +41,7 @@ contract CallitFactory {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public tVERSION = '0.6';
+    string public tVERSION = '0.7';
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
@@ -53,6 +53,7 @@ contract CallitFactory {
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
 
+    // note: makeNewMarket
     // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
     // address public NEW_TICK_UNISWAP_V2_ROUTER;
     // address public NEW_TICK_UNISWAP_V2_FACTORY;
@@ -88,6 +89,7 @@ contract CallitFactory {
     // used private only
     mapping(address => ICallitLib.MARKET_VOTE[]) public  ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
 
+    // note: makeNewMarket
     // // temp-arrays for 'makeNewMarket' support
     // address[] private resultOptionTokens;
     // address[] private resultTokenLPs;
@@ -194,6 +196,7 @@ contract CallitFactory {
         // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
         MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
     }
+    // note: makeNewMarket
     // function KEEPER_setNewTicketEnvironment(address _router, address _factory, address _usdStable, string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
     //     // max array size = 255 (uint8 loop)
     //     require(LIB._isAddressInArray(_router, VAULT.USWAP_V2_ROUTERS()) && LIB._isAddressInArray(_usdStable, VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|stable :() ');
