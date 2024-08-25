@@ -233,8 +233,10 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 # address public VAULT_ADDR = address(0xAbF4E00b848E06bb11Df56f54e81B47D5A584e50); // CallitVault v0.1
 # address public VAULT_ADDR = address(0xa8667527F00da10cadE9533952e069f5209273c2); // CallitVault v0.4
 # address public VAULT_ADDR = address(0xd6b7Fea23aD710037E3bA6b7850A8243Fb675eC2); // CallitVault v0.7
+#    Gas Used / Limit: 5,378,694 / 25,000,000
 #   GAS_LIMIT: 25,000,000 units
 #   MAX_FEE: 200,000 beats
 #   MAX_PRIOR_FEE: 24,000 beats
+
 
 
