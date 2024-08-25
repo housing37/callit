@@ -149,7 +149,7 @@ class myWEB3:
             self.GAS_LIMIT = _gas_limit
             # self.MAX_FEE = w3.to_wei('350_000', 'gwei')
             self.MAX_FEE = int(wei + (wei * _fee_perc_markup)) # dafaul to current gas price + 25%
-            self.MAX_PRIOR_FEE_RATIO = 40.0 # NOTE: w3.eth.max_priority_fee == 500 BEAT (always i guess?)
+            self.MAX_PRIOR_FEE_RATIO = 16000.0 # NOTE: w3.eth.max_priority_fee == 500 BEAT (always i guess?)
             self.MAX_PRIOR_FEE = int(w3.eth.max_priority_fee * self.MAX_PRIOR_FEE_RATIO)
         self.print_gas_params()
 
