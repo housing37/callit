@@ -44,9 +44,9 @@ interface ICallitDelegate {
                         uint256 _dtCallDeadline, 
                         uint256 _dtResultVoteStart, 
                         uint256 _dtResultVoteEnd, 
-                        string[] calldata _resultLabels, 
-                        string[] calldata _resultDescrs,
-                        uint256 _mark_num
+                        string[] calldata _resultLabels, // note: could possibly remove to save memory (ie. removed _resultDescrs succcessfully)
+                        uint256 _mark_num,
+                        address _sender
                         ) external returns(ICallitLib.MARKET memory);
     function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external;
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
@@ -263,7 +263,9 @@ contract CallitFactory {
         if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
 
         // save this market and emit log
-        ICallitLib.MARKET memory mark = DELEGATE.makeNewMarket(_name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, mark_num);
+        // note: could possibly remove '_resultLabels' to save memory (ie. removed _resultDescrs succcessfully)
+        ICallitLib.MARKET memory mark = DELEGATE.makeNewMarket(_name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark_num, msg.sender);
+        mark.marketResults.resultDescrs = _resultDescrs; // bc it won't fit in 'DELEGATE.makeNewMark' :/
         ACCT_MARKETS[msg.sender].push(mark);
 
         // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKERS mapping
@@ -327,8 +329,8 @@ contract CallitFactory {
 
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark,) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
-        require(mark.marketDatetimes.dtCallDeadline <= block.timestamp, ' _ticket call deadline not passed yet :(( ');
-        require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
+        require(mark.marketDatetimes.dtCallDeadline <= block.timestamp && mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls not ready yet | closed :( ');
+        // require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
         // note: loops through market pair addresses and pulls liquidity for each
         mark.marketUsdAmnts.usdAmntPrizePool = DELEGATE.closeMarketCallsForTicket(mark);

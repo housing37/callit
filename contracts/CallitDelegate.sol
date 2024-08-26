@@ -15,7 +15,7 @@ import "./ICallitLib.sol";
 import "./ICallitVault.sol";
 
 contract CallitDelegate {
-    string public constant tVERSION = '0.2';
+    string public constant tVERSION = '0.3';
     
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
@@ -112,9 +112,9 @@ contract CallitDelegate {
                             uint256 _dtCallDeadline, 
                             uint256 _dtResultVoteStart, 
                             uint256 _dtResultVoteEnd, 
-                            string[] calldata _resultLabels, 
-                            string[] calldata _resultDescrs,
-                            uint256 _mark_num
+                            string[] calldata _resultLabels, // note: could possibly remove to save memory (ie. removed _resultDescrs succcessfully)
+                            uint256 _mark_num,
+                            address _sender
                             ) external onlyFactory returns(ICallitLib.MARKET memory) { 
         // deduct 'market maker fees' from _usdAmntLP
         uint64 net_usdAmntLP = LIB._deductFeePerc(_usdAmntLP, PERC_MARKET_MAKER_FEE, _usdAmntLP);
@@ -125,7 +125,7 @@ contract CallitDelegate {
             (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
 
             // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
-            (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(msg.sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
+            (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
             address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
             
             // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
@@ -150,10 +150,10 @@ contract CallitDelegate {
         }
 
         // deduct full OG usd input from account balance
-        VAULT.edit_ACCT_USD_BALANCES(msg.sender, _usdAmntLP, false); // false = sub
+        VAULT.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
 
         // save this market and emit log
-        ICallitLib.MARKET memory mark = ICallitLib.MARKET({maker:msg.sender, 
+        ICallitLib.MARKET memory mark = ICallitLib.MARKET({maker:_sender, 
                                                 marketNum:_mark_num, 
                                                 name:_name,
 
@@ -164,7 +164,7 @@ contract CallitDelegate {
 
                                                 marketUsdAmnts:ICallitLib.MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), 
                                                 marketDatetimes:ICallitLib.MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), 
-                                                marketResults:ICallitLib.MARKET_RESULTS(_resultLabels, _resultDescrs, resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 
+                                                marketResults:ICallitLib.MARKET_RESULTS(_resultLabels, new string[](_resultLabels.length), resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 
                                                 winningVoteResultIdx:0, 
                                                 blockTimestamp:block.timestamp, 
                                                 blockNumber:block.number, 
