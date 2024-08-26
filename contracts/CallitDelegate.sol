@@ -15,7 +15,7 @@ import "./ICallitLib.sol";
 import "./ICallitVault.sol";
 
 contract CallitDelegate {
-    string public constant tVERSION = '0.1';
+    string public constant tVERSION = '0.2';
     
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
@@ -77,7 +77,7 @@ contract CallitDelegate {
         ONCE_ = false;
         _;
     }
-    function INIT_delegate() external onlyOnce {
+    function INIT_factory() external onlyOnce {
         require(FACT_ADDR == address(0), ' factor already set :) ');
         FACT_ADDR == msg.sender;
     }

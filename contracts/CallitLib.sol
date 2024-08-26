@@ -30,6 +30,8 @@ library CallitLib {
         disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
         return (ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _maker, _markNum, agreeCnt, disagreeCnt), agreeCnt, disagreeCnt);
     }
+    // LEFT OFF HERE ... this needs to be changed around to match current design
+    //  i think votes_held shoudl be an input parma and don't deal with decimals at all
     function _validVoteCount(uint256 _voterCallBal, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
         // if indeed locked && locked before _mark start time, calc & return active vote count
         if (_voterLockTime > 0 && _voterLockTime <= _markCreateTime) {

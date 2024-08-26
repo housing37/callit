@@ -17,19 +17,25 @@ pragma solidity ^0.8.24;
 
 // local _ $ npm install @openzeppelin/contracts
 // import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
-import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
-import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
+// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./CallitTicket.sol";
 import "./ICallitVault.sol"; // includes ICallitLib.sol
 
+interface ICallitToken {
+    function INIT_factory() external;
+    function mintCallToksEarned(address _receiver, uint256 _callAmnt) external returns(uint256);
+    function setCallTokenVoteLock(bool _lock) external;
+    function decimals() external pure returns (uint8);
+}
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
     function burnForWinLoseClaim(address _account, uint256 _amount) external;
     function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
-    function INIT_delegate() external;
+    function INIT_factory() external;
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                         uint64 _usdAmntLP, 
                         uint256 _dtCallDeadline, 
@@ -61,18 +67,20 @@ contract CallitFactory {
     address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     string public tVERSION = '0.8';
-    string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
-    string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
-    // string private TOK_SYMB = "CALL";
-    // string private TOK_NAME = "CALL-IT";
+    // string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
+    // string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
+    // // string private TOK_SYMB = "CALL";
+    // // string private TOK_NAME = "CALL-IT";
 
     /* GLOBALS (CALLIT) */
     address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
     address public VAULT_ADDR = address(0xa8667527F00da10cadE9533952e069f5209273c2); // CallitVault v0.4
-    address public DELEGATE_ADDR;
+    address public DELEGATE_ADDR; // needs init deploy
+    address public CALL_ADDR; // needs init deploy
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
     ICallitDelegate private DELEGATE = ICallitDelegate(DELEGATE_ADDR);
+    ICallitToken private CALL = ICallitToken(CALL_ADDR);
 
     // arb algorithm settings
     uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
@@ -135,13 +143,15 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
     // constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-    constructor(uint256 _initSupply) {     
+    constructor() {     
+        CALL.INIT_factory();
         VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR in VAULT
-        DELEGATE.INIT_delegate(); // set FACT_ADDR in DELEGATE
+        DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
 
         // set default globals
         KEEPER = msg.sender;
-        // _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
+
+        // NOTE: CALL initSupply is minted to msg.sender upon deploying CallitToken.sol
 
         // NOTE: whitelist stable & dex routers set in VAULT constructor
     }
@@ -179,12 +189,6 @@ contract CallitFactory {
         address prev = address(KEEPER);
         KEEPER = _newKeeper;
       //  emit KeeperTransfer(prev, KEEPER);
-    }
-    function KEEPER_setTokNameSymb(string memory _tok_name, string memory _tok_symb) external onlyKeeper() {
-        require(bytes(_tok_name).length > 0 && bytes(_tok_symb).length > 0, ' invalid input  :<> ');
-        TOK_NAME = _tok_name;
-        TOK_SYMB = _tok_symb;
-      //  emit TokenNameSymbolUpdated(TOK_NAME, TOK_SYMB);
     }
     function KEEPER_setVaultLib(address _vault, address _lib) external onlyKeeper {
         require(_vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
@@ -243,6 +247,7 @@ contract CallitFactory {
     }
     function setCallTokenVoteLock(bool _lock) external {
         ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
+        CALL.setCallTokenVoteLock(_lock); // set in CALL token contract
     }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _descr, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
@@ -371,6 +376,9 @@ contract CallitFactory {
         require(!is_maker && !is_caller, ' no self-voting :o ');
 
         // LEFT OFF HERE ... can't use LIB._validVoteCount until ERC20 integration is finalized
+        // LEFT OFF HERE ... this needs to be changed around to match current design
+        //  i think votes_held shoudl be an input parma and don't deal with decimals at all
+        //      (in _validVoteCount integration)
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         // uint64 vote_cnt = _validVoteCount(msg.sender, mark);
@@ -562,19 +570,16 @@ contract CallitFactory {
         
         revert(' market not found :( ');
     }
-    function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private returns(uint64) {
+    function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
-        // _mint(_receiver, _callAmnt);
-        uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
-        EARNED_CALL_VOTES[_receiver] += _callAmnt;
-
+        //  NOTE: _callAmnt decimals should be accounted for on factory invoking side
+        //      allows for factory minting fractions of a token if needed
+        CALL.mintCallToksEarned(_receiver, _callAmnt * 10**uint8(CALL.decimals())); 
+        uint256 prevEarned = EARNED_CALL_VOTES[_receiver];
+        EARNED_CALL_VOTES[_receiver] += _callAmnt; 
+        
         // emit log for call tokens earned
-      //  emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
-        return EARNED_CALL_VOTES[_receiver];
-        // NOTE: call tokens earned on ...
-        //  buyCallTicketWithPromoCode
-        //  closeMarketForTicket
-        //  claimTicketRewards
+        // emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
     }
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
