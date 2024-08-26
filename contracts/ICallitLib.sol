@@ -92,4 +92,15 @@ interface ICallitLib {
     function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
     function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
     function _remAddressFromArray(address _addr, address[] memory _arr) external pure returns (address[] memory);
+
+    // note: only these used in CallitFactory ... (maybe less after CallitDelegate integration)
+    // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
+    // function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
+    // function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool);
+    // function _generateAddressHash(address host, string memory uid) external pure returns (address);
+    // function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view returns(uint16);
+    // function _perc_of_uint64(uint32 _perc, uint64 _num) external pure returns (uint64);
+    // function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) external pure returns(uint64);
+    // function _uint64_from_uint256(uint256 value) external pure returns (uint64);
+    // function _perc_total_supply_owned(address _token, address _account) external view returns (uint64);
 }

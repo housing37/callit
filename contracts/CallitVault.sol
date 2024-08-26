@@ -22,7 +22,7 @@ import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Rout
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
-// import "./CallitTicket.sol";
+import "./CallitTicket.sol";
 import "./ICallitLib.sol";
 
 interface ICallitTicket {
@@ -32,7 +32,7 @@ interface ICallitTicket {
 }
 
 contract CallitVault {
-    string public constant tVERSION = '0.5';
+    string public constant tVERSION = '0.6';
 
     // default all fees to 0 (KEEPER setter available)
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
@@ -73,6 +73,7 @@ contract CallitVault {
     address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
     ICallitLib private LIB = ICallitLib(LIB_ADDR);
     address public FACT_ADDR;
+    address public DELEGATE_ADDR;
     bool private ONCE_ = true;
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
@@ -153,7 +154,7 @@ contract CallitVault {
         _;
     }
     modifier onlyFactory() {
-        require(msg.sender == FACT_ADDR || msg.sender == KEEPER, " !keeper & !fact :p");
+        require(msg.sender == FACT_ADDR || msg.sender == DELEGATE_ADDR || msg.sender == KEEPER, " !keeper & !fact :p");
         _;
     }
     modifier onlyOnce() {
@@ -162,9 +163,10 @@ contract CallitVault {
         _;
     }
 
-    function INIT_factory() external onlyOnce {
+    function INIT_factory(address _delegate) external onlyOnce {
         require(FACT_ADDR == address(0), ' factor already set :) ');
         FACT_ADDR == msg.sender;
+        DELEGATE_ADDR = _delegate;
     }
 
     /* -------------------------------------------------------- */
@@ -216,7 +218,8 @@ contract CallitVault {
             // withdraw LP from just _ticket (this might not be logical)
         }
     }
-    function KEEPER_setFactoryLib(address _fact, address _lib) external onlyKeeper {
+    function KEEPER_setDelegateFactoryLib(address _delegate, address _fact, address _lib) external onlyKeeper {
+        DELEGATE_ADDR = _delegate;
         FACT_ADDR = _fact;
         LIB_ADDR = _lib;
         LIB = ICallitLib(_lib);

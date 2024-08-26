@@ -31,7 +31,7 @@ interface ICallitVault {
     function RATIO_LP_TOK_PER_USD() external view returns(uint16);
     function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
 
-    function INIT_factory() external;
+    function INIT_factory(address _delegate) external;
     function deposit(address _depositor) external payable;
 
     // NOTE: legacy public globals
