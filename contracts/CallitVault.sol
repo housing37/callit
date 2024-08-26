@@ -348,14 +348,14 @@ contract CallitVault {
         IERC20(_mark.marketResults.resultTokenUsdStables[_tickIdx]).transfer(_arbExecuter, net_usd_profits);
         return (gross_stab_amnt_out, net_usd_profits);
     }
-    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, address _buyer) external onlyFactory returns(uint64, uint256) {
+    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, address _sender) external onlyFactory returns(uint64, uint256) {
         // NOTE: *WARNING* if this require fails ... 
         //  then this promo code cannot be used until PERC_PROMO_BUY_FEE is lowered accordingly
         require(_percReward + PERC_PROMO_BUY_FEE < 10000, ' buy promo fee perc mismatch :o ');
         // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
-        _payUsdReward(_buyer, usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
-        emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, _buyer, _ticket);
+        _payUsdReward(_sender, usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, _sender, _ticket);
 
         // deduct usdReward & promo buy fee _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
@@ -375,15 +375,15 @@ contract CallitVault {
             require(IERC20(_tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
         }
 
-        // swap remaining net_usdAmnt of tick_stable_tok for _ticket on DEX (_ticket receiver = _buyer)
+        // swap remaining net_usdAmnt of tick_stable_tok for _ticket on DEX (_ticket receiver = _sender)
         // address[] memory usd_tick_path = [tick_stable_tok, _ticket]; // ref: https://ethereum.stackexchange.com/a/28048
         address[] memory usd_tick_path = new address[](2);
         usd_tick_path[0] = _tick_stable_tok;
         usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
-        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, _buyer); // buyer = _receiver
+        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, _sender); // buyer = _receiver
 
         // deduct full OG input _usdAmnt from account balance
-        _edit_ACCT_USD_BALANCES(_buyer, _usdAmnt, false); // false = sub
+        _edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
 
         return (net_usdAmnt, tick_amnt_out);
     }
