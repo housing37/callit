@@ -80,6 +80,12 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
     /* -------------------------------------------------------- */
+    // function symbol() public view override returns (string memory) {
+    //     return TOK_SYMB;
+    // }
+    // function name() public view override returns (string memory) {
+    //     return TOK_NAME;
+    // }
     function burn(uint256 _burnAmnt) external {
         require(_burnAmnt > 0, ' burn nothing? :0 ');
         _burn(msg.sender, _burnAmnt); // NOTE: checks _balance[msg.sender]

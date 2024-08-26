@@ -20,8 +20,8 @@ pragma solidity ^0.8.24;
 // import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 // import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./CallitTicket.sol";
-import "./ICallitVault.sol"; // includes ICallitLib.sol
+import "./CallitTicket.sol"; // imports ERC20.sol -> IERC20.sol
+import "./ICallitVault.sol"; // imports ICallitLib.sol
 
 interface ICallitToken {
     function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
@@ -50,15 +50,11 @@ interface ICallitDelegate {
                         ) external returns(ICallitLib.MARKET memory);
     function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external;
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
-    // function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt) external returns(uint64, uint256);
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external returns(uint64);
-    function setAcctHandle(address _acct, string calldata _handle) external;
-    // function ACCT_HANDLES(address _key) external view returns(string memory); // public
-    
+    function setAcctHandle(address _acct, string calldata _handle) external;    
 }
 
-// contract CallitFactory is ERC20, Ownable {
 contract CallitFactory {
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
@@ -69,11 +65,7 @@ contract CallitFactory {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public tVERSION = '0.8';
-    // string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
-    // string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
-    // // string private TOK_SYMB = "CALL";
-    // // string private TOK_NAME = "CALL-IT";
+    string public tVERSION = '0.9';
 
     /* GLOBALS (CALLIT) */
     address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
@@ -99,12 +91,8 @@ contract CallitFactory {
     /* MAPPINGS (CALLIT) */
     // used externals only
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
-    // mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
     mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
-
-    // mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
-    // mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
 
     // used externals & private
     mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
@@ -145,7 +133,6 @@ contract CallitFactory {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
-    // constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
     constructor() {     
         CALL.INIT_factory();
         VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR in VAULT
@@ -205,15 +192,14 @@ contract CallitFactory {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
-    function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice) external {
+    function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
         MAX_EOA_MARKETS = _maxEoaMarkets;
         // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
         MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
-    }
-    function KEEPER_setDefaultVoteTime(uint256 _sec, bool _enable) external onlyKeeper {
-        SEC_DEFAULT_VOTE_TIME = _sec; // 24 * 60 * 60 == 86,400 sec == 24 hours
-        USE_SEC_DEFAULT_VOTE_TIME = _enable; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+
+        SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
+        USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     }
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
@@ -248,10 +234,6 @@ contract CallitFactory {
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
     }
-    // function setCallTokenVoteLock(bool _lock) external {
-    //     ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
-    //     CALL.setCallTokenVoteLock(_lock); // set in CALL token contract
-    // }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _descr, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
@@ -284,7 +266,7 @@ contract CallitFactory {
         ICallitLib.MARKET memory mark = DELEGATE.makeNewMarket(_name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, _resultDescrs, mark_num);
         ACCT_MARKETS[msg.sender].push(mark);
 
-        // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
+        // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKERS mapping
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
             // set ticket to maker mapping (additional access support)
             TICKET_MAKERS[mark.marketResults.resultOptionTokens[i]] = msg.sender;
@@ -377,10 +359,6 @@ contract CallitFactory {
         (bool is_maker, bool is_caller) = LIB._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
         require(!is_maker && !is_caller, ' no self-voting :o ');
 
-        // LEFT OFF HERE ... can't use LIB._validVoteCount until ERC20 integration is finalized
-        // LEFT OFF HERE ... this needs to be changed around to match current design
-        //  i think votes_held shoudl be an input parma and don't deal with decimals at all
-        //      (in _validVoteCount integration)
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         // uint64 vote_cnt = _validVoteCount(msg.sender, mark);
@@ -582,38 +560,4 @@ contract CallitFactory {
         // emit log for call tokens earned
         // emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
     }
-    /* -------------------------------------------------------- */
-    /* ERC20 - OVERRIDES                                        */
-    /* -------------------------------------------------------- */
-    // function symbol() public view override returns (string memory) {
-    //     return TOK_SYMB;
-    // }
-    // function name() public view override returns (string memory) {
-    //     return TOK_NAME;
-    // }
-    // function burn(uint64 _burnAmnt) external {
-    //     require(_burnAmnt > 0, ' burn nothing? :0 ');
-    //     _burn(msg.sender, _burnAmnt); // NOTE: checks _balance[msg.sender]
-    // }
-    // function decimals() public pure override returns (uint8) {
-    //     // return 6; // (6 decimals) 
-    //         // * min USD = 0.000001 (6 decimals) 
-    //         // uint16 max USD: ~0.06 -> 0.065535 (6 decimals)
-    //         // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals) _ max num: ~4B -> 4,294,967,295
-    //         // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
-    //     return 18; // (18 decimals) 
-    //         // * min USD = 0.000000000000000001 (18 decimals) 
-    //         // uint64 max USD: ~18 -> 18.446744073709551615 (18 decimals)
-    //         // uint128 max USD: ~340T -> 340,282,366,920,938,463,463.374607431768211455 (18 decimals)
-    // }
-    // function transferFrom(address from, address to, uint256 value) public override returns (bool) {
-    //     require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;) ');
-    //     // checks msg.sender 'allowance(from, msg.sender, value)' 
-    //     //  then invokes '_transfer(from, to, value)'
-    //     return super.transferFrom(from, to, value);
-    // }
-    // function transfer(address to, uint256 value) public override returns (bool) {
-    //     require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;0 ');
-    //     return super.transfer(to, value); // invokes '_transfer(msg.sender, to, value)'
-    // }
 }
