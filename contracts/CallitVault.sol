@@ -32,7 +32,7 @@ interface ICallitTicket {
 }
 
 contract CallitVault {
-    string public constant tVERSION = '0.6';
+    string public constant tVERSION = '0.8';
 
     // default all fees to 0 (KEEPER setter available)
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
@@ -94,9 +94,11 @@ contract CallitVault {
         require(_acct != address(0) && _usdAmnt > 0, ' invalid _acct | _usdAmnt :p ');
         _edit_ACCT_USD_BALANCES(_acct, _usdAmnt, _add);
     }
-    function set_ACCOUNTS(address[] calldata _accts) external onlyFactory() {
-        ACCOUNTS = _accts;
-    }
+    // LEFT OFF HERE  ... not sure why i added this at one point (but it causes the file size error 082624)
+    // function set_ACCOUNTS(address[] calldata _accts) external onlyFactory() {
+    //     ACCOUNTS = _accts;
+    // }
+
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -365,7 +367,9 @@ contract CallitVault {
         IERC20(_mark.marketResults.resultTokenUsdStables[_tickIdx]).transfer(_arbExecuter, net_usd_profits);
         return (gross_stab_amnt_out, net_usd_profits);
     }
-    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee, address _buyer) external onlyFactory returns(uint64, uint256) {
+    // function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, uint16 _percPromoBuyFee, address _buyer) external onlyFactory returns(uint64, uint256) {
+    function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, address _buyer) external onlyFactory returns(uint64, uint256) {
+        require(_percReward + PERC_PROMO_BUY_FEE < 10000, ' buy promo fee perc mismatch :o ');
         // calc influencer reward from _usdAmnt to send to promo.promotor
         uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
         _payUsdReward(_buyer, usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
@@ -373,7 +377,7 @@ contract CallitVault {
 
         // deduct usdReward & promo buy fee _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
-        net_usdAmnt = LIB._deductFeePerc(net_usdAmnt, _percPromoBuyFee, _usdAmnt);
+        net_usdAmnt = LIB._deductFeePerc(net_usdAmnt, PERC_PROMO_BUY_FEE, _usdAmnt);
 
         // verifiy this VAULT contract holds enough tick_stable_tok for DEX buy
         //  if not, swap another contract held stable that can indeed cover

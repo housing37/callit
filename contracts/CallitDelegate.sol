@@ -15,6 +15,7 @@ import "./ICallitLib.sol";
 import "./ICallitVault.sol";
 
 contract CallitDelegate {
+    string public constant tVERSION = '0.1';
     
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
@@ -243,13 +244,14 @@ contract CallitDelegate {
         return promo.usdTarget - promo.usdUsed;
     }
     // function buyCallTicketWithPromoCode(ICallitLib.MARKET memory _mark, uint64 _tickIdx, address _ticket, address _promoCodeHash, uint64 _usdAmnt) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
-    function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
+    // function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
+    function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _receiver) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
         // LEFT OFF HERE ... need to account for msg.sender being the EOA that called the factory
         //      ie. need a 'address _receiver' parameter or something like that
-        require(_ticket != address(0), ' invalid _ticket :-{} '); // note: TICKET_MAKERS[_ticket] checked in factory call
+        // require(_ticket != address(0), ' invalid _ticket :-{} '); // note: TICKET_MAKERS[_ticket] checked in factory call
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0) && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != msg.sender, ' invalid promo :-O ');
-        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
+        // require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
         // // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         // (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
@@ -266,18 +268,25 @@ contract CallitDelegate {
         //  - influencer gives out promoCodeHash for callers to use w/ this function to purchase any _ticket they want
         
         // verify perc calc/taking <= 100% of _usdAmnt
-        require(promo.percReward + VAULT.PERC_PROMO_BUY_FEE() < 10000, ' buy promo fee perc mismatch :o ');
+        // require(promo.percReward + VAULT.PERC_PROMO_BUY_FEE() < 10000, ' buy promo fee perc mismatch :o ');
 
-        // pay promotor usd reward & purchase msg.sender's tickets from DEX
-        (uint64 net_usdAmnt, uint256 tick_amnt_out) = VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, _usdStableResult, VAULT.PERC_PROMO_BUY_FEE(), msg.sender);
-        
-        // emit log
-      //  emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
 
         // update promo.usdUsed (add full OG input _usdAmnt)
         promo.usdUsed += _usdAmnt;
 
-        return (net_usdAmnt, tick_amnt_out);
+        // pay promotor usd reward & purchase msg.sender's tickets from DEX
+        // (uint64 net_usdAmnt, uint256 tick_amnt_out) = VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, _usdStableResult, VAULT.PERC_PROMO_BUY_FEE(), msg.sender);
+        // (uint64 net_usdAmnt, uint256 tick_amnt_out) = VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, _usdStableResult, _receiver);
+        return VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, _usdStableResult, _receiver);
+        
+
+        // emit log
+      //  emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
+
+        // // update promo.usdUsed (add full OG input _usdAmnt)
+        // promo.usdUsed += _usdAmnt;
+
+        // return (net_usdAmnt, tick_amnt_out);
         // // check if msg.sender earned $CALL tokens
         // if (_usdAmnt >= VAULT.RATIO_PROMO_USD_PER_CALL_MINT()) {
         //     // mint $CALL to msg.sender & log $CALL votes earned

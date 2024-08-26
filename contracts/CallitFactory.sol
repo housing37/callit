@@ -41,7 +41,8 @@ interface ICallitDelegate {
                         ) external returns(ICallitLib.MARKET memory);
     function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external;
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
-    function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt) external returns(uint64, uint256);
+    // function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt) external returns(uint64, uint256);
+    function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external returns(uint64);
     function setAcctHandle(address _acct, string calldata _handle) external;
     // function ACCT_HANDLES(address _key) external view returns(string memory); // public
@@ -422,12 +423,12 @@ contract CallitFactory {
     //     // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     // }
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
-        require(TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
-        // require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
+        // require(TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
+        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
         // ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         // require(promo.promotor != address(0) && promo.usdTarget - promo.usdUsed >= _usdAmnt, ' invalid promo :-O ');
         // require(promo.usdTarget - promo.usdUsed >= _usdAmnt, ' promo expired :( ' );
-        // require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
+        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
@@ -453,7 +454,8 @@ contract CallitFactory {
         // // pay promotor usd reward & purchase msg.sender's tickets from DEX
         // (uint64 net_usdAmnt, uint256 tick_amnt_out) = VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, mark.marketResults.resultTokenUsdStables[tickIdx], VAULT.PERC_PROMO_BUY_FEE(), msg.sender);
 
-        (uint64 net_usdAmnt, uint256 tick_amnt_out) = DELEGATE.buyCallTicketWithPromoCode(mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _promoCodeHash, _usdAmnt);
+        // (uint64 net_usdAmnt, uint256 tick_amnt_out) = DELEGATE.buyCallTicketWithPromoCode(mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _promoCodeHash, _usdAmnt);
+        (uint64 net_usdAmnt, uint256 tick_amnt_out) = DELEGATE.buyCallTicketWithPromoCode(mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _promoCodeHash, _usdAmnt, msg.sender);
 
         // emit log
       //  emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
