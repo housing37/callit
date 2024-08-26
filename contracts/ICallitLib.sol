@@ -85,24 +85,17 @@ interface ICallitLib {
     function _uint64_from_uint256(uint256 value) external pure returns (uint64);
     function _perc_total_supply_owned(address _token, address _account) external view returns (uint64);
 
-    // more than factory needs
-    // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
-    // function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64);
-    // function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
-    // function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view returns(uint16);
-    // function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external view returns(uint64, uint256);
-    // function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);
-    // function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256);
+    // note: only these used in CallitVault ...
+    function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
+    function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);
+    function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256);
+    function _remAddressFromArray(address _addr, address[] memory _arr) external pure returns (address[] memory);
 
-    // function _perc_total_supply_owned(address _token, address _account) external view returns (uint64);
-    // function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) external pure returns(uint64);
+    // note: only these used in CallitDelegate ...
+    function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external view returns(uint64, uint256);
+    function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory);
+
+    // more than factory & vault needs (maybe not used anywhere else)
     // function _isAddressInArray(address _addr, address[] memory _addrArr) external pure returns(bool);
-    // function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory);
-    // function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool);
-    // function _generateAddressHash(address host, string memory uid) external pure returns (address);
-    // function _perc_of_uint64(uint32 _perc, uint64 _num) external pure returns (uint64);
-    // function _uint64_from_uint256(uint256 value) external pure returns (uint64);
     // function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
-    // function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
-    // function _remAddressFromArray(address _addr, address[] memory _arr) external pure returns (address[] memory);
 }
