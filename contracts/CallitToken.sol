@@ -9,8 +9,16 @@
 //  uint32 max = ~4B -> 4,294,967,295
 //  uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
 pragma solidity ^0.8.24;
+
+// inherited contracts
+// import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; // deploy
+// import "@openzeppelin/contracts/access/Ownable.sol"; // deploy
+// import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
+
+// local _ $ npm install @openzeppelin/contracts
+import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
-import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
@@ -58,12 +66,17 @@ contract CallitToken is ERC20, Ownable {
         //      allows for factory minting fractions of a token if needed
         _mint(_receiver, _callAmnt);
     }
+
     /* -------------------------------------------------------- */
     /* PUBLIC SETTERS
     /* -------------------------------------------------------- */
     function setCallTokenVoteLock(bool _lock) external {
         ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
     }
+    function balanceOf_voteCnt(address _voter) external view returns(uint64) {
+        return _uint64_from_uint256(balanceOf(_voter) / 10**uint8(decimals())); // do not return decimals
+    }
+
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
     /* -------------------------------------------------------- */
@@ -93,4 +106,13 @@ contract CallitToken is ERC20, Ownable {
         return super.transfer(to, value); // invokes '_transfer(msg.sender, to, value)'
     }
 
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE HELPERS
+    /* -------------------------------------------------------- */
+    function _uint64_from_uint256(uint256 value) public pure returns (uint64) {
+        require(value <= type(uint64).max, "Value exceeds uint64 range :0 ");
+        uint64 convertedValue = uint64(value);
+        return convertedValue;
+    }
 } 

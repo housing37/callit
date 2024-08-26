@@ -19,24 +19,25 @@ import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
 contract CallitTicket is ERC20, Ownable {
+    string public tVERSION = '0.1';
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
-    address public VAULT;
+    address public VAULT_ADDR;
     event MintedForPriceParity(address _receiver, uint256 _amount);
     event BurnForWinClaim(address _account, uint256 _amount);
 
     constructor(uint256 _initSupply, address _vault, string memory _name, string memory _symbol) ERC20(_name, _symbol) Ownable(msg.sender) {
-        VAULT = _vault;
+        VAULT_ADDR = _vault;
         // NOTE: uint64 = ~18,000Q max
-        _mint(VAULT, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
+        _mint(VAULT_ADDR, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
     }
 
     function mintForPriceParity(address _receiver, uint256 _amount) external onlyOwner() {
         _mint(_receiver, _amount);
         emit MintedForPriceParity(_receiver, _amount);
     }
-    function burnForWinLoseClaim(address _account, uint256 _amount) external onlyOwner() {
-        _burn(_account, _amount); // NOTE: checks _balance[_account]
-        emit BurnForWinClaim(_account, _amount);
+    function burnForWinLoseClaim(address _account) external onlyOwner() {
+        _burn(_account, balanceOf(_account)); // NOTE: checks _balance[_account]
+        emit BurnForWinClaim(_account, balanceOf(_account));
     }
 }

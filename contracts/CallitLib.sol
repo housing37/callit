@@ -11,7 +11,7 @@ import "./ICallitLib.sol";
 
 pragma solidity ^0.8.20;
 library CallitLib {
-    string public constant tVERSION = '1.0';
+    string public constant tVERSION = '0.2';
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
 
     /* -------------------------------------------------------- */
@@ -30,14 +30,11 @@ library CallitLib {
         disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
         return (ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _maker, _markNum, agreeCnt, disagreeCnt), agreeCnt, disagreeCnt);
     }
-    // LEFT OFF HERE ... this needs to be changed around to match current design
-    //  i think votes_held shoudl be an input parma and don't deal with decimals at all
-    function _validVoteCount(uint256 _voterCallBal, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
+    function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
+        // NOTE: this function accounts for whole number votes (ie. no decimals)
         // if indeed locked && locked before _mark start time, calc & return active vote count
         if (_voterLockTime > 0 && _voterLockTime <= _markCreateTime) {
-            uint64 votes_earned = _votesEarned; // note: EARNED_CALL_VOTES stores uint64 type
-            uint64 votes_held = _uint64_from_uint256(_voterCallBal);
-            uint64 votes_active = votes_held >= votes_earned ? votes_earned : votes_held;
+            uint64 votes_active = votes_held >= _votesEarned ? _votesEarned : votes_held;
             return votes_active;
         }
         else

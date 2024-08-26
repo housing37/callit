@@ -24,14 +24,17 @@ import "./CallitTicket.sol";
 import "./ICallitVault.sol"; // includes ICallitLib.sol
 
 interface ICallitToken {
+    function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
     function INIT_factory() external;
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external returns(uint256);
     function setCallTokenVoteLock(bool _lock) external;
     function decimals() external pure returns (uint8);
+    // function balanceOf(address account) external returns(uint256);
+    function balanceOf_voteCnt(address _voter) external view returns(uint64);
 }
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
-    function burnForWinLoseClaim(address _account, uint256 _amount) external;
+    function burnForWinLoseClaim(address _account) external;
     function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
@@ -101,7 +104,7 @@ contract CallitFactory {
 
     // mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
-    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
+    // mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
 
     // used externals & private
     mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
@@ -245,10 +248,10 @@ contract CallitFactory {
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
     }
-    function setCallTokenVoteLock(bool _lock) external {
-        ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
-        CALL.setCallTokenVoteLock(_lock); // set in CALL token contract
-    }
+    // function setCallTokenVoteLock(bool _lock) external {
+    //     ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
+    //     CALL.setCallTokenVoteLock(_lock); // set in CALL token contract
+    // }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _descr, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
@@ -356,7 +359,7 @@ contract CallitFactory {
     }
     function castVoteForMarketTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
-        require(IERC20(_ticket).balanceOf(msg.sender) == 0, ' no self voting ;( ');
+        require(IERC20(_ticket).balanceOf(msg.sender) == 0, ' no votes ;( ');
 
         // algorithmic logic...
         //  - verify $CALL token held/locked through out this market time period
@@ -367,8 +370,7 @@ contract CallitFactory {
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark, uint16 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
-        require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp, ' market voting not started yet :p ');
-        require(mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' market voting ended :p ');
+        require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
 
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
         // (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
@@ -382,8 +384,8 @@ contract CallitFactory {
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         // uint64 vote_cnt = _validVoteCount(msg.sender, mark);
-        // uint64 vote_cnt = LIB._validVoteCount(balanceOf(msg.sender), EARNED_CALL_VOTES[msg.sender], ACCT_CALL_VOTE_LOCK_TIME[msg.sender], mark.blockTimestamp);
-        uint64 vote_cnt = 37;
+        uint64 vote_cnt = LIB._validVoteCount(CALL.balanceOf_voteCnt(msg.sender), EARNED_CALL_VOTES[msg.sender], CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
+        // uint64 vote_cnt = 37;
         require(vote_cnt > 0, ' invalid voter :{=} ');
 
         //  - store vote in struct MARKET
@@ -459,23 +461,22 @@ contract CallitFactory {
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET storage mark, uint64 tickIdx) = _getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
-        require(mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
-        require(!mark.live, ' market still live :o ' );
-        require(mark.winningVoteResultIdx == tickIdx, ' not a winner :( ');
+        require(!mark.live && mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market still live|voting ;) ');
 
         bool is_winner = mark.winningVoteResultIdx == tickIdx;
         if (is_winner) {
             // calc payout based on: _ticket.balanceOf(msg.sender) & mark.marketUsdAmnts.usdAmntPrizePool_net & _ticket.totalSupply();
             uint64 usdPerTicket = LIB._uint64_from_uint256(uint256(mark.marketUsdAmnts.usdAmntPrizePool_net) / IERC20(_ticket).totalSupply());
             uint64 usdPrizePoolShare = LIB._uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
+                // LEFT OFF HERE ... the above is decimals are still wrong 
+                //  (ie. cast to uint256 doesn't add extra zeros needed to cover decimals)
 
             // send payout to msg.sender
             usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, VAULT.PERC_WINNER_CLAIM_FEE(), usdPrizePoolShare);
             VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender);
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
-            uint64 perc_supply_owned = LIB._perc_total_supply_owned(_ticket, msg.sender);
-            if (perc_supply_owned >= VAULT.PERC_OF_LOSER_SUPPLY_EARN_CALL()) {
+            if (LIB._perc_total_supply_owned(_ticket, msg.sender) >= VAULT.PERC_OF_LOSER_SUPPLY_EARN_CALL()) {
                 // mint $CALL to loser msg.sender & log $CALL votes earned
                 _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_LOSER()); // emit CallTokensEarned
 
@@ -486,7 +487,7 @@ contract CallitFactory {
 
         // burn IERC20(_ticket).balanceOf(msg.sender)
         ICallitTicket cTicket = ICallitTicket(_ticket);
-        cTicket.burnForWinLoseClaim(msg.sender, cTicket.balanceOf(msg.sender));
+        cTicket.burnForWinLoseClaim(msg.sender);
 
         // log caller's review of market results
         (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
