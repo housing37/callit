@@ -48,7 +48,7 @@ interface ICallitDelegate {
                         string[] calldata _resultDescrs,
                         uint256 _mark_num
                         ) external returns(ICallitLib.MARKET memory);
-    function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external;
+    function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external;
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external returns(uint64);
@@ -203,7 +203,7 @@ contract CallitFactory {
     }
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
-        DELEGATE.initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward);
+        DELEGATE.initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
     //    emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
 

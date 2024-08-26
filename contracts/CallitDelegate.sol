@@ -50,9 +50,6 @@ contract CallitDelegate {
 
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
 
-
-    mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
-
     mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
 
     /* -------------------------------------------------------- */
@@ -110,15 +107,6 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     /* PUBLIC - FACTORY SUPPORT
     /* -------------------------------------------------------- */
-    // function setAcctHandle(address _acct, string calldata _handle) external onlyFactory {
-    function setAcctHandle(string calldata _handle) external {
-        address _acct = msg.sender;
-        require(bytes(_handle).length >= 1 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
-        if (LIB._validNonWhiteSpaceString(_handle))
-            ACCT_HANDLES[_acct] = _handle;
-        else
-            revert(' !blank space handles :-[=] ');     
-    }
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                             uint64 _usdAmntLP, 
                             uint256 _dtCallDeadline, 
@@ -162,7 +150,6 @@ contract CallitDelegate {
         }
 
         // deduct full OG usd input from account balance
-        // ACCT_USD_BALANCES[msg.sender] -= _usdAmntLP;
         VAULT.edit_ACCT_USD_BALANCES(msg.sender, _usdAmntLP, false); // false = sub
 
         // save this market and emit log
@@ -196,23 +183,23 @@ contract CallitDelegate {
 
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }
-    function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyFactory {
+    function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external onlyFactory {
         // no 2 percs taken out of promo buy
         require(VAULT.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
         require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= VAULT.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
         address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
         require(promo.promotor == address(0), ' promo already exists :-O ');
-        PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
+        PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, _sender, block.number);
     }
     function checkPromoBalance(address _promoCodeHash) external view onlyFactory returns(uint64) {
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0), ' invalid promo :-O ');
         return promo.usdTarget - promo.usdUsed;
     }
-    function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _receiver) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
+    function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _sender) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        require(promo.promotor != address(0) && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != msg.sender, ' invalid promo :-O ');
+        require(promo.promotor != address(0) && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != _sender, ' invalid promo :-O ');
 
         // NOTE: algorithmic logic...
         //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in PROMO struct for EOA influencer)
@@ -224,11 +211,11 @@ contract CallitDelegate {
         // update promo.usdUsed (add full OG input _usdAmnt)
         promo.usdUsed += _usdAmnt;
 
-        // pay promotor usd reward & purchase msg.sender's tickets from DEX
+        // pay promotor usd reward & purchase _sender's tickets from DEX
         //  NOTE: indeed verifies "_percReward + PERC_PROMO_BUY_FEE < 10000"
         // NOTE: *WARNING* if this require fails ... 
         //  then this promo code cannot be used until PERC_PROMO_BUY_FEE is lowered accordingly
-        return VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, _usdStableResult, _receiver);
+        return VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, _usdStableResult, _sender);
     }
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external onlyFactory returns(uint64) { // NOTE: !_deductFeePerc; reward mint
         // algorithmic logic...

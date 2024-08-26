@@ -20,6 +20,8 @@ import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 // import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "./ICallitLib.sol";
+
 contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS
@@ -32,6 +34,7 @@ contract CallitToken is ERC20, Ownable {
     address public FACT_ADDR;
     bool private ONCE_ = true;
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
+    mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
@@ -76,6 +79,13 @@ contract CallitToken is ERC20, Ownable {
     function balanceOf_voteCnt(address _voter) external view returns(uint64) {
         return _uint64_from_uint256(balanceOf(_voter) / 10**uint8(decimals())); // do not return decimals
     }
+    function setAcctHandle(string calldata _handle) external {
+        require(bytes(_handle).length >= 1 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
+        if (_validNonWhiteSpaceString(_handle))
+            ACCT_HANDLES[msg.sender] = _handle;
+        else
+            revert(' !blank space handles :-[=] ');     
+    }
 
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
@@ -116,9 +126,23 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PRIVATE HELPERS
     /* -------------------------------------------------------- */
-    function _uint64_from_uint256(uint256 value) public pure returns (uint64) {
+    function _uint64_from_uint256(uint256 value) private pure returns (uint64) { // from CallitLib.sol
         require(value <= type(uint64).max, "Value exceeds uint64 range :0 ");
         uint64 convertedValue = uint64(value);
         return convertedValue;
+    }
+    function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) { // from CallitLib.sol
+        for (uint8 i=0; i < bytes(_s).length;) {
+            if (bytes(_s)[i] != 0x20) {
+                // Found a non-space character, return true
+                return true; 
+            }
+            unchecked {
+                i++;
+            }
+        }
+
+        // found string with all whitespaces as chars
+        return false;
     }
 } 
