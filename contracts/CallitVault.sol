@@ -25,6 +25,10 @@ import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol"
 import "./CallitTicket.sol";
 import "./ICallitLib.sol";
 
+interface IERC20x {
+    function decimals() external pure returns (uint8);
+}
+
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
     // function burnForWinLoseClaim(address _account, uint256 _amount) external;
@@ -308,17 +312,17 @@ contract CallitVault {
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
-    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 ticketTargetPriceUSD, address _arbExecuter) private returns(uint64,uint64) {
+    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 _ticketTargetPriceUSD, address _arbExecuter) private returns(uint64,uint64) {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
-        uint256 _usdTickTargPrice = _normalizeStableAmnt(_usd_decimals(), ticketTargetPriceUSD, USD_STABLE_DECIMALS[_mark.marketResults.resultTokenUsdStables[_tickIdx]]);
-        uint64 /* ~18,000Q */ tokensToMint = _uint64_from_uint256(LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice));
+        uint256 _usdTickTargPrice_18 = _normalizeStableAmnt(_usd_decimals(), _ticketTargetPriceUSD, 18);
+        uint64 tokensToMint = _uint64_from_uint256(_normalizeStableAmnt(18, LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice_18), _usd_decimals()));
 
         // calc price to charge _arbExecuter for minting tokensToMint
         //  then deduct that amount from their account balance
-        uint64 total_usd_cost = ticketTargetPriceUSD * tokensToMint;
+        uint64 total_usd_cost = _ticketTargetPriceUSD * tokensToMint;
         if (_arbExecuter != KEEPER) { // free for KEEPER
             // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
-            //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = 'ticketTargetPriceUSD', from this contract
+            //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from this contract
             require(ACCT_USD_BALANCES[_arbExecuter] >= total_usd_cost, ' low balance :( ');
 
             // deduce that sale amount from their account balance
@@ -373,7 +377,7 @@ contract CallitVault {
         // address tick_stable_tok = mark.marketResults.resultTokenUsdStables[tickIdx]; // get _ticket assigned stable (DEX trade amountsIn)
         uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
         if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
-            uint64 net_usdAmnt_needed = net_usdAmnt - _uint64_from_uint256(contr_stab_bal);
+            uint64 net_usdAmnt_needed = net_usdAmnt - _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_tick_stable_tok).decimals(), contr_stab_bal, _usd_decimals()));
             (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
             emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
@@ -661,6 +665,7 @@ contract CallitVault {
         uint256 OG_stable_bal = IERC20(_usdStable).balanceOf(address(this));
 
         // Remove liquidity
+        // NOTE: amountToken1 = usd stable amount received (which is all we care about)
         (, uint256 amountToken1) = uniswapRouter.removeLiquidity(
             token0,
             token1,

@@ -93,7 +93,7 @@ interface ICallitLib {
     function _remAddressFromArray(address _addr, address[] memory _arr) external pure returns (address[] memory);
 
     // note: only these used in CallitDelegate ...
-    function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external view returns(uint64, uint256);
+    function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external pure returns(uint64, uint256);
     function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory);
 
     // more than factory & vault needs (maybe not used anywhere else)

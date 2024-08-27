@@ -334,7 +334,7 @@ contract CallitFactory {
         // require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
         // note: loops through market pair addresses and pulls liquidity for each
-        mark.marketUsdAmnts.usdAmntPrizePool = DELEGATE.closeMarketCallsForTicket(mark);
+        mark.marketUsdAmnts.usdAmntPrizePool = DELEGATE.closeMarketCallsForTicket(mark); // NOTE: write to market
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS()); // emit CallTokensEarned

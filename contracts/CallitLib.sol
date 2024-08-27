@@ -10,8 +10,13 @@ import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol"
 import "./ICallitLib.sol";
 
 pragma solidity ^0.8.20;
+
+interface IERC20x {
+    function decimals() external pure returns (uint8);
+}
+
 library CallitLib {
-    string public constant tVERSION = '0.2';
+    string public constant tVERSION = '0.3';
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
 
     /* -------------------------------------------------------- */
@@ -62,34 +67,45 @@ library CallitLib {
         return idxCurrHigh;
     }
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external pure returns(uint64, uint256) {
+        // NOTE: _usdAmntLP coming in from DELEGATE.makeNewMarket, will always be within uint64 range
         require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
         return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
+            // NOTE: _uint64_from_uint256 checked OK
     }
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256) {
-        // NOTE: _usdTargetPrice should already be normalized/matched to decimals of reserve1 in _pairAddress
+        // NOTE: chatGPT requirements ...
+        //  token0 in _pairAddr is an ERC20 with 18 decimal precision 
+        //  token1 in _pairAddr is an ERC20 usd stable token that may be any decimal precision 
+        //  _usdTargetPrice is already normalized to 18 decimals
+        // Step 1: Get the reserves from the pair contract
+        IUniswapV2Pair pair = IUniswapV2Pair(_pairAddr);
+        (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
 
-        // Assuming reserve0 is token and reserve1 is USD
-        (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddr).getReserves();
+        // Step 2: Get the decimal precision of token1 (the USD stable token)
+        IERC20x token1 = IERC20x(pair.token1());
+        uint8 token1Decimals = token1.decimals();
 
-        uint256 usdCurrentPrice = uint256(reserve1) * 1e18 / uint256(reserve0);
-        require(_usdTargetPrice < usdCurrentPrice, "Target price must be less than current price.");
+        // Step 3: Normalize reserve1 to 18 decimals
+        uint256 reserve1Normalized = uint256(reserve1) * (10**(18 - token1Decimals));
 
-        // Calculate the amount of tokens to mint
-        uint256 tokensToMint = (uint256(reserve1) * 1e18 / _usdTargetPrice) - uint256(reserve0);
+        // Step 4: Calculate the current price of token0 in terms of token1 (already normalized to 18 decimals)
+        uint256 currentPrice = reserve1Normalized * 1e18 / uint256(reserve0);
 
-        return tokensToMint;
+        // Step 5: Calculate the difference in price and the required amount of token0 to mint
+        if (_usdTargetPrice <= currentPrice) {
+            return 0; // No need to mint if target price is not higher
+        }
+
+        uint256 requiredMint = (reserve1Normalized * 1e18 / _usdTargetPrice) - uint256(reserve0);
+
+        return requiredMint;
     }
     // Option 1: Estimate the price using reserves
-    // function _estimateLastPriceForTCK(address _pairAddress, address _pairStable) private view returns (uint256) {
     function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256) {
         (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddress).getReserves();
         
         // Assuming token0 is the ERC20 token and token1 is the paired asset (e.g., ETH or a stablecoin)
         uint256 price = reserve1 * 1e18 / reserve0; // 1e18 for consistent decimals if token1 is ETH or a stablecoin
-        
-        // convert to contract '_usd_decimals()'
-        // uint64 price_ret = CALLIT_LIB._uint64_from_uint256(CALLIT_LIB._normalizeStableAmnt(USD_STABLE_DECIMALS[_pairStable], price, _usd_decimals()));
-        // return price_ret;
         return price;
     }
     function _perc_total_supply_owned(address _token, address _account) external view returns (uint64) {

@@ -14,6 +14,10 @@ import "./CallitTicket.sol";
 import "./ICallitLib.sol";
 import "./ICallitVault.sol";
 
+interface IERC20x {
+    function decimals() external pure returns (uint8);
+}
+
 contract CallitDelegate {
     string public constant tVERSION = '0.3';
     
@@ -235,10 +239,11 @@ contract CallitDelegate {
         address[] memory _ticketLPs = mark.marketResults.resultTokenLPs;
         uint64 usdAmntPrizePool = 0;
         for (uint16 i = 0; i < _ticketLPs.length;) { // MAX_RESULTS is uint16
+            // NOTE: amountToken1 = usd stable amount received (which is all we care about)
             uint256 amountToken1 = VAULT._exePullLiquidityFromLP(mark.marketResults.resultTokenRouters[i], _ticketLPs[i], mark.marketResults.resultOptionTokens[i], mark.marketResults.resultTokenUsdStables[i]);
 
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
-            usdAmntPrizePool += LIB._uint64_from_uint256(amountToken1); // NOTE: write to market
+            usdAmntPrizePool += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(IERC20x(mark.marketResults.resultTokenUsdStables[i]).decimals(), amountToken1, VAULT._usd_decimals())); 
 
             unchecked {
                 i++;

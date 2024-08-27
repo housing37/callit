@@ -78,6 +78,7 @@ contract CallitToken is ERC20, Ownable {
     }
     function balanceOf_voteCnt(address _voter) external view returns(uint64) {
         return _uint64_from_uint256(balanceOf(_voter) / 10**uint8(decimals())); // do not return decimals
+            // NOTE: _uint64_from_uint256 checks out OK
     }
     function setAcctHandle(string calldata _handle) external {
         require(bytes(_handle).length >= 1 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
