@@ -16,8 +16,8 @@ interface IERC20x {
 }
 
 library CallitLib {
-    string public constant tVERSION = '0.3';
-    address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
+    string public constant tVERSION = '0.4';
+    // address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
 
     /* -------------------------------------------------------- */
     /* PUBLIC

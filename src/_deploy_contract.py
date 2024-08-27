@@ -23,6 +23,8 @@ import _web3 # from web3 import Account, Web3, HTTPProvider
 LST_CONTR_ABI_BIN = [
     "../bin/contracts/CallitLib",
     "../bin/contracts/CallitVault",
+    "../bin/contracts/CallitDelegate",
+    "../bin/contracts/CallitToken",
     "../bin/contracts/CallitFactory",
 ]
 
@@ -238,6 +240,10 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 #   GAS_LIMIT: 25,000,000 units
 #   MAX_FEE: 200,000 beats
 #   MAX_PRIOR_FEE: 24,000 beats
+# address public LIB_ADDR = address(0x59183aDaF0bB8eC0991160de7445CC5A7c984f67); // CallitLib v0.4
+# address public VAULT_ADDR = address(0xd6698958e15EBc21b1C947a94ad93c476492878a); // CallitVault v0.10
+# address public DELEGATE_ADDR = address(0x2945E11a5645f9f4304D4356753f29D37dB2F656); // CallitDelegate v0.4
+# address public CALL_ADDR = address(0x711DD234082fD5392b9DE219D7f5aDf03a857961); // CallitToken v0.3
 
 
 
