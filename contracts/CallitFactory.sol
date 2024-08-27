@@ -26,7 +26,7 @@ import "./ICallitVault.sol"; // imports ICallitLib.sol
 interface ICallitToken {
     function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
     function INIT_factory() external;
-    function mintCallToksEarned(address _receiver, uint256 _callAmnt) external returns(uint256);
+    function mintCallToksEarned(address _receiver, uint256 _callAmnt) external;
     function setCallTokenVoteLock(bool _lock) external;
     function decimals() external pure returns (uint8);
     // function balanceOf(address account) external returns(uint256);
@@ -66,13 +66,15 @@ contract CallitFactory {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public tVERSION = '0.17';
+    string public tVERSION = '0.18';
 
     /* GLOBALS (CALLIT) */
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
     address public VAULT_ADDR = address(0x1E96e984B48185d63449d86Fb781E298Ac12FB49); // CallitVault v0.13
     address public DELEGATE_ADDR = address(0x8d823038d8a77eEBD8f407094464f0e911A571fe); // CallitDelegate v0.7
     address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
+    // address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
+    
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
     ICallitDelegate private DELEGATE = ICallitDelegate(DELEGATE_ADDR);
