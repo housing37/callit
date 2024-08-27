@@ -35,6 +35,7 @@ interface ICallitToken {
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
     function burnForWinLoseClaim(address _account) external;
+    function decimals() external pure returns (uint8);
     function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
@@ -446,14 +447,14 @@ contract CallitFactory {
         bool is_winner = mark.winningVoteResultIdx == tickIdx;
         if (is_winner) {
             // calc payout based on: _ticket.balanceOf(msg.sender) & mark.marketUsdAmnts.usdAmntPrizePool_net & _ticket.totalSupply();
-            uint64 usdPerTicket = LIB._uint64_from_uint256(uint256(mark.marketUsdAmnts.usdAmntPrizePool_net) / IERC20(_ticket).totalSupply());
-            uint64 usdPrizePoolShare = LIB._uint64_from_uint256(uint256(usdPerTicket) * IERC20(_ticket).balanceOf(msg.sender));
-                // LEFT OFF HERE ... the above is decimals are still wrong 
-                //  (ie. cast to uint256 doesn't add extra zeros needed to cover decimals)
+            //  usdPerTicket = net prize / _ticket totalSupply brought down to 6 decimals
+            //  NOTE: indeed normalizes to VAULT._usd_deciamls()
+            uint64 usdPerTicket = mark.marketUsdAmnts.usdAmntPrizePool_net / LIB._uint64_from_uint256(LIB._normalizeStableAmnt(ICallitTicket(_ticket).decimals(), IERC20(_ticket).totalSupply(), VAULT._usd_decimals()));
+            uint64 usdPrizePoolShare = usdPerTicket * LIB._uint64_from_uint256(LIB._normalizeStableAmnt(ICallitTicket(_ticket).decimals(), IERC20(_ticket).balanceOf(msg.sender), VAULT._usd_decimals()));
 
             // send payout to msg.sender
             usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, VAULT.PERC_WINNER_CLAIM_FEE(), usdPrizePoolShare);
-            VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender);
+            VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender); // emits 'transfer' event log
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
             if (LIB._perc_total_supply_owned(_ticket, msg.sender) >= VAULT.PERC_OF_LOSER_SUPPLY_EARN_CALL()) {

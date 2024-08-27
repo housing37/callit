@@ -84,7 +84,8 @@ interface ICallitLib {
     function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) external pure returns(uint64);
     function _uint64_from_uint256(uint256 value) external pure returns (uint64);
     function _perc_total_supply_owned(address _token, address _account) external view returns (uint64);
-
+    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
+    
     // note: only these used in CallitVault ...
     function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);
@@ -97,5 +98,5 @@ interface ICallitLib {
 
     // more than factory & vault needs (maybe not used anywhere else)
     // function _isAddressInArray(address _addr, address[] memory _addrArr) external pure returns(bool);
-    // function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
+    
 }

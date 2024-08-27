@@ -94,7 +94,8 @@ contract CallitVault {
         require(_acct != address(0) && _usdAmnt > 0, ' invalid _acct | _usdAmnt :p ');
         _edit_ACCT_USD_BALANCES(_acct, _usdAmnt, _add);
     }
-    // LEFT OFF HERE  ... not sure why i added this at one point (but it causes the file size error 082624)
+    // NOTE: not sure why i added this at one point (but it causes the file size error 082624)
+    //  perhaps it was for vault backup & restore ?
     // function set_ACCOUNTS(address[] calldata _accts) external onlyFactory() {
     //     ACCOUNTS = _accts;
     // }
@@ -582,6 +583,8 @@ contract CallitVault {
 
         // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
         IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
+
+        // LEFT OFF HERE ... maybe emit event log?
     }
     // note: migrate to CallitBank
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
