@@ -48,8 +48,8 @@ interface ICallitDelegate {
                         uint256 _mark_num,
                         address _sender
                         ) external returns(ICallitLib.MARKET memory);
-    function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external;
-    function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
+    // function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external;
+    // function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external returns(uint64);
     function setAcctHandle(address _acct, string calldata _handle) external;    
@@ -90,7 +90,7 @@ contract CallitFactory {
     
     /* MAPPINGS (CALLIT) */
     // used externals only
-    mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
+    // mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
     mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
@@ -153,10 +153,10 @@ contract CallitFactory {
         require(msg.sender == KEEPER, "!keeper :p");
         _;
     }
-    modifier onlyAdmin() {
-        require(msg.sender == KEEPER || ADMINS[msg.sender] == true, " !admin :p");
-        _;
-    }
+    // modifier onlyAdmin() {
+    //     require(msg.sender == KEEPER || ADMINS[msg.sender] == true, " !admin :p");
+    //     _;
+    // }
     
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER setters
@@ -188,10 +188,10 @@ contract CallitFactory {
         LIB_ADDR = _lib;
         LIB = ICallitLib(_lib);
     }
-    function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
-        require(_admin != address(0), ' !_admin :{+} ');
-        ADMINS[_admin] = _enable;
-    }
+    // function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
+    //     require(_admin != address(0), ' !_admin :{+} ');
+    //     ADMINS[_admin] = _enable;
+    // }
     function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
         MAX_EOA_MARKETS = _maxEoaMarkets;
@@ -201,11 +201,11 @@ contract CallitFactory {
         SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
         USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     }
-    // CALLIT admin
-    function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
-        DELEGATE.initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
-    //    emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
-    }
+    // // CALLIT admin
+    // function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
+    //     DELEGATE.initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
+    // //    emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
+    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
@@ -215,9 +215,9 @@ contract CallitFactory {
     //     require(_account != address(0), ' 0 address? ;[+] ');
     //     return ACCT_MARKETS[_account];
     // }
-    function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
-        return DELEGATE.checkPromoBalance(_promoCodeHash);
-    }
+    // function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
+    //     return DELEGATE.checkPromoBalance(_promoCodeHash);
+    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - UI (CALLIT)

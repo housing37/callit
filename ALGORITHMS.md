@@ -1,5 +1,19 @@
 # ALGORITHMS
 
+## .sol file contract external functions
+    - CallitFactory.sol
+    - CallitDelegate.sol
+        ADMIN_initPromoForWallet
+        checkPromoBalance
+    - CallitToken.sol
+        setCallTokenVoteLock
+        balanceOf_voteCnt
+        setAcctHandle
+    - CallitTicket.sol
+    - CallitVault.sol
+        deposit
+    - CallitLib.sol
+
 ## PROOF for '_getCallTicketUsdTargetPrice' -> input '_ticket'
     // ABSTRACT: arb execution algortihm that ensures all ticket prices stay below $1.00
     //              and sum of all ticket prices for any given market == $1.00

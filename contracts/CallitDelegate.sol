@@ -51,18 +51,25 @@ contract CallitDelegate {
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
 
     mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
+    mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
 
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
     // legacy
     event KeeperTransfer(address _prev, address _new);
+    // callit - promo
+    event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
 
     constructor() {
         KEEPER = msg.sender;
     }
     modifier onlyKeeper() {
         require(msg.sender == KEEPER, "!keeper :p");
+        _;
+    }
+    modifier onlyAdmin() {
+        require(msg.sender == KEEPER || ADMINS[msg.sender] == true, " !admin :p");
         _;
     }
     modifier onlyFactory() {
@@ -102,6 +109,21 @@ contract CallitDelegate {
         if (_keeperCheck > 0)
             KEEPER_CHECK = _keeperCheck;
         emit KeeperTransfer(prev, KEEPER);
+    }
+    function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
+        require(_admin != address(0), ' !_admin :{+} ');
+        ADMINS[_admin] = _enable;
+    }
+    /* -------------------------------------------------------- */
+    /* PUBLIC - ADMIN SUPPORT
+    /* -------------------------------------------------------- */
+    // CALLIT admin
+    function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
+        address promoCodeHash = _initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
+        emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
+    }
+    function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
+        return _checkPromoBalance(_promoCodeHash);
     }
 
     /* -------------------------------------------------------- */
@@ -183,20 +205,6 @@ contract CallitDelegate {
 
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }
-    function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external onlyFactory {
-        // no 2 percs taken out of promo buy
-        require(VAULT.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
-        require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= VAULT.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
-        address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
-        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
-        require(promo.promotor == address(0), ' promo already exists :-O ');
-        PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, _sender, block.number);
-    }
-    function checkPromoBalance(address _promoCodeHash) external view onlyFactory returns(uint64) {
-        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        require(promo.promotor != address(0), ' invalid promo :-O ');
-        return promo.usdTarget - promo.usdUsed;
-    }
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _sender) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
         require(promo.promotor != address(0) && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != _sender, ' invalid promo :-O ');
@@ -238,5 +246,25 @@ contract CallitDelegate {
         }
 
         return usdAmntPrizePool;
+    }
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE SUPPORTING
+    /* -------------------------------------------------------- */
+    // function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external onlyFactory {
+    function _initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) private returns(address) {
+        // no 2 percs taken out of promo buy
+        require(VAULT.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
+        require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= VAULT.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
+        address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
+        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
+        require(promo.promotor == address(0), ' promo already exists :-O ');
+        PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, _sender, block.number);
+        return promoCodeHash;
+    }
+    function _checkPromoBalance(address _promoCodeHash) private view returns(uint64) {
+        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        require(promo.promotor != address(0), ' invalid promo :-O ');
+        return promo.usdTarget - promo.usdUsed;
     }
 }
