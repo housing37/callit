@@ -6,8 +6,30 @@ cStrDivider_1 = '#--------------------------------------------------------------
 
 from web3 import Account, Web3, HTTPProvider
 # from web3.middleware import geth_poa_middleware
-import os, datetime, time
+from datetime import datetime
 from _env import env
+import sys, os, traceback, time, pprint
+from attributedict.collections import AttributeDict # tx_receipt requirement
+
+#ref: https://stackoverflow.com/a/1278740/2298002
+def print_except(e, debugLvl=0):
+    #print(type(e), e.args, e)
+    if debugLvl >= 0:
+        print('', cStrDivider, f' Exception Caught _ e: {e}', cStrDivider, sep='\n')
+    if debugLvl >= 1:
+        print('', cStrDivider, f' Exception Caught _ type(e): {type(e)}', cStrDivider, sep='\n')
+    if debugLvl >= 2:
+        print('', cStrDivider, f' Exception Caught _ e.args: {e.args}', cStrDivider, sep='\n')
+    if debugLvl >= 3:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        strTrace = traceback.format_exc()
+        print('', cStrDivider, f' type: {exc_type}', f' file: {fname}', f' line_no: {exc_tb.tb_lineno}', f' traceback: {strTrace}', cStrDivider, sep='\n')
+
+
+def get_time_now(dt=True):
+    if dt: return '['+datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[0:-4]+']'
+    return '['+datetime.now().strftime("%H:%M:%S.%f")[0:-4]+']'
 
 class myWEB3:
     def __init__(self):
@@ -75,6 +97,7 @@ class myWEB3:
         sender_address, sender_secret   = self.inp_sel_sender()
         w3, account                     = self.init_web3()
         if _set_gas: gas_tup            = self.get_gas_settings(w3)
+        self.kill_nonce_attempt(account, w3) # clean mempool lock attempt
         return self
 
     def set_chain(self, _chain_sel):
@@ -135,6 +158,55 @@ class myWEB3:
         print(f'  selected {self.SENDER_ADDRESS}')
         return self.SENDER_ADDRESS, self.SENDER_SECRET
     
+    def kill_nonce_attempt(self, account:Account, w3:Web3): # clean mempool lock attempt
+        inp_go = input("\n Execute nonce kill attempt? [y/n]\n > ")
+        if inp_go.lower() != 'y' and inp_go != '1':
+            print(' nonce kill denied\n')
+            return
+        
+        # Set the transaction parameters
+        tx_nonce = w3.eth.get_transaction_count(account.address)
+        tx_params = {
+            'to': account.address,  # Sending to yourself
+            'value': w3.to_wei(1, 'ether'),  # Sending 1 ETH
+            'nonce': tx_nonce,  # Get the nonce
+            'chainId': self.CHAIN_ID  # Mainnet (1), Rinkeby (4), PulseChain (369), etc.
+        }
+        
+        # append gas params
+        lst_gas_params = [{'gas':self.GAS_LIMIT}, {'maxFeePerGas': self.MAX_FEE}, {'maxPriorityFeePerGas': self.MAX_PRIOR_FEE}]
+        for d in lst_gas_params: tx_params.update(d)
+
+        print(f'built tx w/ NONCE: {tx_nonce} ...')
+        print(f'signing and sending tx ... {get_time_now()}')
+        # Sign & send the transaction
+        signed_tx = account.sign_transaction(tx_params)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+        # Get the transaction hash
+        print(cStrDivider_1, f'waiting for receipt ... {get_time_now()}', sep='\n')
+        print(f'    tx_hash: {tx_hash.hex()}')
+
+        # Optionally, wait for the transaction to be mined
+        # Wait for the transaction to be mined
+        wait_time = 300 # sec
+        try:
+            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=wait_time)
+            print("Transaction confirmed in block:", tx_receipt.blockNumber, f' ... {get_time_now()}')
+        except Exception as e:
+            print(f"\n{get_time_now()}\n Transaction not confirmed within the specified timeout... wait_time: {wait_time}")
+            print_except(e)
+            exit(1)
+
+        # print incoming tx receipt (requires pprint & AttributeDict)
+        tx_receipt = AttributeDict(tx_receipt) # import required
+        tx_rc_print = pprint.PrettyPrinter().pformat(tx_receipt)
+        print(cStrDivider_1, f'RECEIPT:\n {tx_rc_print}', sep='\n')
+        print(cStrDivider_1, f"\n\n Contract deployed at address: {tx_receipt['contractAddress']}\n\n", sep='\n')
+        
+        print(f"Transaction receipt: {tx_receipt}")
+        print(cStrDivider_1, cStrDivider_1, sep='\n')
+
     def set_gas_params(self, w3, _gas_limit=6_000_000, _fee_perc_markup=0.55):
         print(f' setting default gas params ... (w/ fee % markup: {_fee_perc_markup})')
         if int(self.CHAIN_SEL) == 0:
@@ -148,9 +220,13 @@ class myWEB3:
             self.GAS_PRICE = w3.to_wei('0.0005', 'ether') # 'gasPrice' param fails on PC
             self.GAS_LIMIT = _gas_limit
             # self.MAX_FEE = w3.to_wei('350_000', 'gwei')
-            self.MAX_FEE = int(wei + (wei * _fee_perc_markup)) # dafaul to current gas price + 25%
-            self.MAX_PRIOR_FEE_RATIO = 16000.0 # NOTE: w3.eth.max_priority_fee == 500 BEAT (always i guess?)
-            self.MAX_PRIOR_FEE = int(w3.eth.max_priority_fee * self.MAX_PRIOR_FEE_RATIO)
+            self.MAX_FEE = int(wei + (wei * _fee_perc_markup)) # dafault to current gas price + _fee_perc_markup
+            self.MAX_PRIOR_FEE_RATIO = 0.99
+            self.MAX_PRIOR_FEE = int(self.MAX_FEE * self.MAX_PRIOR_FEE_RATIO) 
+            # self.MAX_PRIOR_FEE = int(w3.eth.max_priority_fee * self.MAX_PRIOR_FEE_RATIO) 
+                # NOTE: MAX_PRIOR_FEE_RATIO = 4000.0, results in MAX_PRIOR_FEE = 2_000_000 beat
+                #   HENCE, w3.eth.max_priority_fee == 500 BEAT (always i guess?)
+                
         self.print_gas_params()
 
     def get_gas_settings(self, w3):
@@ -190,7 +266,8 @@ class myWEB3:
         GAS_LIMIT: {self.GAS_LIMIT:,} units (amount of gas to use)
         MAX_FEE: {w3.from_wei(self.MAX_FEE, 'gwei'):,} beats (max price per unit) == {self.MAX_FEE:,} wei
         MAX_PRIOR_FEE: {w3.from_wei(self.MAX_PRIOR_FEE, 'gwei'):,} beats == {self.MAX_PRIOR_FEE:,} wei        
-        
+            *WARNING* ensure MAX_FEE >= MAX_PRIOR_FEE, or TX & EOA may lock in mempool
+            
         REQUIRED_BALANCE: {self.calc_req_bal(self.MAX_FEE, self.GAS_LIMIT)} PLS
             (for {self.GAS_LIMIT:,} gas units)
 
@@ -235,7 +312,7 @@ class myWEB3:
     
     def get_file_dt(self, file_path, both=False):
         if not os.path.exists(file_path): return "file does not exist"
-        ts = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
+        ts = datetime.fromtimestamp(os.path.getctime(file_path))
         # return ts.strftime("%Y-%m-%d %H:%M:%S.%s", time.localtime(ts))
         return ts.strftime("%Y-%m-%d %H:%M:%S")
         return datetime.datetime.fromtimestamp(os.path.getctime(file_path))
