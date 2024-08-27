@@ -19,8 +19,6 @@ interface IERC20x {
 }
 
 contract CallitDelegate {
-    string public constant tVERSION = '0.6';
-    
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
 
@@ -46,8 +44,9 @@ contract CallitDelegate {
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    address public LIB_ADDR = address(0x59183aDaF0bB8eC0991160de7445CC5A7c984f67); // CallitLib v0.4
-    address public VAULT_ADDR = address(0x03539AF4E8DC28E05d23FF97bB36e1578Fec6082); // CallitVault v0.12
+    string public constant tVERSION = '0.7';
+    address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
+    address public VAULT_ADDR = address(0x1E96e984B48185d63449d86Fb781E298Ac12FB49); // CallitVault v0.13
     address public FACT_ADDR; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
@@ -120,7 +119,7 @@ contract CallitDelegate {
     }
     function KEEPER_setContracts(address _fact, address _lib, address _vault) external onlyKeeper {
         FACT_ADDR = _fact;
-        
+
         LIB_ADDR = _lib;
         LIB = ICallitLib(_lib);
 
