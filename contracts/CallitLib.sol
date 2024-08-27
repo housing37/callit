@@ -11,12 +11,31 @@ import "./ICallitLib.sol";
 
 pragma solidity ^0.8.20;
 library CallitLib {
-    string public constant tVERSION = '0.2';
-    address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
+    string public constant tVERSION = '0.3';
+    // address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
 
     /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
+    function _getMarketForTicket(ICallitLib.MARKET[] memory markets, address _ticket) external pure returns(ICallitLib.MARKET memory, uint16) {
+        require(markets.length > 0 && _ticket != address(0), ' invalid _markets | _ticket ;:[=] ');
+
+        // NOTE: MAX_EOA_MARKETS is uint64
+        // NOTE: ICallitLib.MARKET[] storage markets = ACCT_MARKETS[_maker];
+        for (uint64 i = 0; i < markets.length;) {
+            // ICallitLib.MARKET memory mark = markets[i];
+            for (uint16 x = 0; x < markets[i].marketResults.resultOptionTokens.length;) {
+                if (markets[i].marketResults.resultOptionTokens[x] == _ticket)
+                    return (markets[i], x);
+                unchecked {x++;}
+            }   
+            unchecked {
+                i++;
+            }
+        }
+        
+        revert(' market not found :( ');
+    }
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
         uint64 agreeCnt = 0;
         uint64 disagreeCnt = 0;

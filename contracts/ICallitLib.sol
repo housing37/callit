@@ -74,6 +74,7 @@ interface ICallitLib {
         uint64 disagreeCnt;
     }
     // note: only these used in CallitFactory ... (maybe less after CallitDelegate integration)
+    function _getMarketForTicket(ICallitLib.MARKET[] memory markets, address _ticket) external pure returns(ICallitLib.MARKET memory, uint16);
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
     function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64);
     function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
