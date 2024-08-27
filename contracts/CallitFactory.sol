@@ -66,13 +66,13 @@ contract CallitFactory {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public tVERSION = '0.9';
+    string public tVERSION = '0.16';
 
     /* GLOBALS (CALLIT) */
-    address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
-    address public VAULT_ADDR = address(0xa8667527F00da10cadE9533952e069f5209273c2); // CallitVault v0.4
-    address public DELEGATE_ADDR; // needs init deploy
-    address public CALL_ADDR; // needs init deploy
+    address public LIB_ADDR = address(0x59183aDaF0bB8eC0991160de7445CC5A7c984f67); // CallitLib v0.4
+    address public VAULT_ADDR = address(0x03539AF4E8DC28E05d23FF97bB36e1578Fec6082); // CallitVault v0.12
+    address public DELEGATE_ADDR = address(0xCEDaa5E3D2FFe1DA3D37BdD8e1AeF5D7B98BdcEB); // CallitDelegate v0.6
+    address public CALL_ADDR = address(0xCbc5bC00294383a63551206E7b3276ABcf65CD33); // CallitToken v0.5
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
     ICallitDelegate private DELEGATE = ICallitDelegate(DELEGATE_ADDR);
@@ -134,17 +134,29 @@ contract CallitFactory {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
-    constructor() {     
-        CALL.INIT_factory();
-        VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR in VAULT
-        DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+    // constructor(uint64 _CALL_initSupply_noDecimals) {
+    constructor() {
+        // VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+        // DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+        // CALL.INIT_factory(); // set FACT_ADDR in CallitToken
 
         // set default globals
         KEEPER = msg.sender;
 
-        // NOTE: CALL initSupply is minted to msg.sender upon deploying CallitToken.sol
+        // // mint initial CALl to keeper
+        // _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
+
+        // NOTE: CALL initSupply is minted to KEEPER via _mintCallToksEarned (ie. CALL.mintCallToksEarned)
 
         // NOTE: whitelist stable & dex routers set in VAULT constructor
+    }
+    function KEEPER_initFactoryForContracts(uint64 _CALL_initSupply_noDecimals) external onlyKeeper {
+        VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+        DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+        CALL.INIT_factory(); // set FACT_ADDR in CallitToken
+
+        // mint initial CALl to keeper
+        _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
     }
 
     /* -------------------------------------------------------- */
@@ -165,29 +177,32 @@ contract CallitFactory {
     // legacy
     function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
         if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
-            require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
+            // require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
             payable(KEEPER).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
-            //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
-            require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
+            //  NOTE: _amount must be in uint precision to _erc20.decimals()
+            // require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
             IERC20(_erc20).transfer(KEEPER, _amount);
             // emit KeeperMaintenance(_erc20, _amount);
         }
     }
     function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
         require(_newKeeper != address(0), 'err: 0 address');
-        address prev = address(KEEPER);
+        // address prev = address(KEEPER);
         KEEPER = _newKeeper;
       //  emit KeeperTransfer(prev, KEEPER);
     }
-    function KEEPER_setVaultLib(address _vault, address _lib) external onlyKeeper {
+    function KEEPER_setContracts(address _delegate, address _vault, address _lib) external onlyKeeper {
         require(_vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
+        DELEGATE_ADDR = _delegate;
+        DELEGATE = ICallitDelegate(DELEGATE_ADDR);
+
         VAULT_ADDR = _vault;
-        VAULT = ICallitVault(_vault);
+        VAULT = ICallitVault(VAULT_ADDR);
 
         LIB_ADDR = _lib;
-        LIB = ICallitLib(_lib);
+        LIB = ICallitLib(LIB_ADDR);
     }
     // function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
     //     require(_admin != address(0), ' !_admin :{+} ');
@@ -226,10 +241,10 @@ contract CallitFactory {
     // handle contract USD value deposits (convert PLS to USD stable)
     receive() external payable {
         // extract PLS value sent
-        uint256 amntIn = msg.value; 
+        // uint256 amntIn = msg.value; 
 
         // send PLS to vault for processing (handle swap for usd stable)
-        VAULT.deposit{value: amntIn}(msg.sender);
+        VAULT.deposit{value: msg.value}(msg.sender);
 
       //  emit DepositReceived(msg.sender, amntIn, 0);
 

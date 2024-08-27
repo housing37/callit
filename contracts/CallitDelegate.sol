@@ -19,7 +19,7 @@ interface IERC20x {
 }
 
 contract CallitDelegate {
-    string public constant tVERSION = '0.3';
+    string public constant tVERSION = '0.6';
     
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
@@ -46,9 +46,9 @@ contract CallitDelegate {
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    address public FACT_ADDR;
-    address public LIB_ADDR = address(0x657428d6E3159D4a706C00264BD0DdFaf7EFaB7e); // CallitLib v1.0
-    address public VAULT_ADDR = address(0xa8667527F00da10cadE9533952e069f5209273c2); // CallitVault v0.4
+    address public LIB_ADDR = address(0x59183aDaF0bB8eC0991160de7445CC5A7c984f67); // CallitLib v0.4
+    address public VAULT_ADDR = address(0x03539AF4E8DC28E05d23FF97bB36e1578Fec6082); // CallitVault v0.12
+    address public FACT_ADDR; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
 
@@ -87,7 +87,7 @@ contract CallitDelegate {
     }
     function INIT_factory() external onlyOnce {
         require(FACT_ADDR == address(0), ' factor already set :) ');
-        FACT_ADDR == msg.sender;
+        FACT_ADDR = msg.sender;
     }
 
     /* -------------------------------------------------------- */
@@ -117,6 +117,15 @@ contract CallitDelegate {
     function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
+    }
+    function KEEPER_setContracts(address _fact, address _lib, address _vault) external onlyKeeper {
+        FACT_ADDR = _fact;
+        
+        LIB_ADDR = _lib;
+        LIB = ICallitLib(_lib);
+
+        VAULT_ADDR = _vault;
+        ICallitVault(VAULT_ADDR);
     }
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN SUPPORT

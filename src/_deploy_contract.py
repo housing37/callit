@@ -245,5 +245,10 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 # address public DELEGATE_ADDR = address(0x2945E11a5645f9f4304D4356753f29D37dB2F656); // CallitDelegate v0.4
 # address public CALL_ADDR = address(0x711DD234082fD5392b9DE219D7f5aDf03a857961); // CallitToken v0.3
 
+# address public LIB_ADDR = address(0x59183aDaF0bB8eC0991160de7445CC5A7c984f67); // CallitLib v0.4
+# address public VAULT_ADDR = address(0x03539AF4E8DC28E05d23FF97bB36e1578Fec6082); // CallitVault v0.12
+# address public DELEGATE_ADDR = address(0xCEDaa5E3D2FFe1DA3D37BdD8e1AeF5D7B98BdcEB); // CallitDelegate v0.6
+# address public CALL_ADDR = address(0xCbc5bC00294383a63551206E7b3276ABcf65CD33); // CallitToken v0.5
+
 
 

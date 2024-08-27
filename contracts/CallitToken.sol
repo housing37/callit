@@ -26,21 +26,24 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS
     /* -------------------------------------------------------- */
-    string public tVERSION = '0.1';
+    string public tVERSION = '0.5';
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
     // string private TOK_NAME = "CALL-IT VOTE";
-    address public FACT_ADDR;
     bool private ONCE_ = true;
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
+    address public FACT_ADDR; // set via INIT_factory()
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
     /* -------------------------------------------------------- */
-    constructor(uint256 _initSupply) ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-        _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
+    constructor() ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
+        // _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
+
+        // NOTE: init supply minted to KEEPER of FACTORY 
+        //  via FACTORY._mintCallToksEarned in FACTORY.constructor
     }
 
     /* -------------------------------------------------------- */
@@ -61,7 +64,10 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     function INIT_factory() external onlyOnce {
         require(FACT_ADDR == address(0), ' factor already set :) ');
-        FACT_ADDR == msg.sender;
+        FACT_ADDR = msg.sender;
+    }
+    function FACT_setContracts(address _fact) external onlyFactory {
+        FACT_ADDR = _fact;
     }
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external onlyFactory {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
