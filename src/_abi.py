@@ -4,6 +4,36 @@ cStrDivider = '#================================================================
 print('', cStrDivider, f'GO _ {__filename} -> starting IMPORTs & declaring globals', cStrDivider, sep='\n')
 cStrDivider_1 = '#----------------------------------------------------------------#'
 
+CALLIT_FUNC_MAP_READ = {
+    
+ 	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
+ 	"KEEPER()": ["862a179e", [], ['address']],
+    "TOK_WPLS()": ["fa4a9870", [], ['address']],
+    "BURN_ADDR()": ["783028a9", [], ['address']],
+    "tVERSION()": ["9a60f330", [], ['string']],
+    
+ 	"#------------IERC20------------#": ["xxxxxxxx", [], []], 
+    "balanceOf(address)": ["70a08231", ["address"], ['uint256']],
+    "decimals()": ["313ce567", [], ['uint8']],
+	"owner()": ["8da5cb5b", [], ['address']],
+    "name()": ["06fdde03", [], ['string']],
+    "symbol()": ["95d89b41", [], ['string']],
+    "totalSupply()": ["18160ddd", [], ['uint256']],
+}
+CALLIT_FUNC_MAP_WRITE = {
+ 	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
+    "KEEPER_maintenance(address,uint256)": ["72dc3b3f", ["address","uint256"], []], # gas used: ?
+    "KEEPER_withdraw(uint256)": ["cbf0d0d4", ["uint256"], []], 
+    "KEEPER_setKeeper(address)": ["11851737", ["address"], []], 
+
+ 	"#------------IERC20------------#": ["xxxxxxxx", [], []],
+    "allowance(address,address)": ["dd62ed3e", ["address","address"], []],
+    "approve(address,uint256)": ["095ea7b3", ["address","uint256"], []],
+    "transfer(address,uint256)": ["a9059cbb", ["address","uint256"], []],
+    "transferFrom(address,address,uint256)": ["23b872dd", ["address","address","uint256"], []],
+    "renounceOwnership()": ["715018a6", [], []],
+    "transferOwnership(address)": ["f2fde38b", ["address"], []],
+}
 AtropaMV_FUNC_MAP_READ = {
 	# READ
     "HASH_MV_MINT()": ["0e20d3ff", [], ['bytes4']],
