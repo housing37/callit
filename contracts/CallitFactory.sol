@@ -449,6 +449,8 @@ contract CallitFactory {
             // calc payout based on: _ticket.balanceOf(msg.sender) & mark.marketUsdAmnts.usdAmntPrizePool_net & _ticket.totalSupply();
             //  usdPerTicket = net prize / _ticket totalSupply brought down to 6 decimals
             //  NOTE: indeed normalizes to VAULT._usd_deciamls()
+            // NOTE: not log logging | storing usdPerTicket
+            // NOTE: not storing usdPrizePoolShare (but logged in 'transfer' emit)
             uint64 usdPerTicket = mark.marketUsdAmnts.usdAmntPrizePool_net / LIB._uint64_from_uint256(LIB._normalizeStableAmnt(ICallitTicket(_ticket).decimals(), IERC20(_ticket).totalSupply(), VAULT._usd_decimals()));
             uint64 usdPrizePoolShare = usdPerTicket * LIB._uint64_from_uint256(LIB._normalizeStableAmnt(ICallitTicket(_ticket).decimals(), IERC20(_ticket).balanceOf(msg.sender), VAULT._usd_decimals()));
 

@@ -152,7 +152,7 @@ library CallitLib {
         // Concatenate the address and the string, and then hash the result
         bytes32 hash = keccak256(abi.encodePacked(host, uid));
 
-        // LEFT OFF HERE ... is this a bug? 'uint160' ? shoudl be uint16? 
+        // NOTE: ... is this a bug? 'uint160' ? shoudl be uint16? 
         address generatedAddress = address(uint160(uint256(hash)));
         return generatedAddress;
     }

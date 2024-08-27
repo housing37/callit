@@ -58,6 +58,7 @@ contract CallitVault {
     uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
     uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
+        // NOTE: utilized in 'FACTORY.closeMarketForTicket'
         // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
         //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)
 
@@ -89,6 +90,8 @@ contract CallitVault {
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
     address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
+    mapping(address => address) private TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
+    
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external onlyFactory() {
         // NOTE: _usdAmnt must be in _usd_decimals() precision
         require(_acct != address(0) && _usdAmnt > 0, ' invalid _acct | _usdAmnt :p ');
@@ -202,13 +205,11 @@ contract CallitVault {
         emit DexRouterUpdated(_router, _add);
     }
     // callit
-    function KEEPER_withdrawTicketLP(address _ticket, bool _all) external view onlyKeeper {
+    function KEEPER_withdrawTicketLP(address _ticket) external onlyKeeper {
         require(_ticket != address(0), ' !_ticket indy :) ' );
-        if (_all) { // LEFT OFF HERE ...
-            // loop through market for _ticket and withdraw all LP
-        } else {
-            // withdraw LP from just _ticket (this might not be logical)
-        }
+        // NOTE: can only withdraw LP from one _ticket at a time
+        //  bc no current way to get market for _ticket (from FACTORY)
+        IERC20(TICK_PAIR_ADDR[_ticket]).transfer(KEEPER, IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
     }
     function KEEPER_setDelegateFactoryLib(address _delegate, address _fact, address _lib) external onlyKeeper {
         DELEGATE_ADDR = _delegate;
@@ -583,8 +584,6 @@ contract CallitVault {
 
         // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
         IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
-
-        // LEFT OFF HERE ... maybe emit event log?
     }
     // note: migrate to CallitBank
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
@@ -637,12 +636,8 @@ contract CallitVault {
         // For simplicity, we're returning a placeholder.
         // Retrieve the LP address
         address lpAddress = uniswapFactory.getPair(_token, _usdStable);
+        TICK_PAIR_ADDR[_token] = lpAddress; // log ticket to pair address mapping
         return lpAddress;
-
-        // NOTE: LEFT OFF HERE ... may need external support functions for LP & LP token maintence, etc.
-        //      similar to accessors that retrieve native and ERC20 tokens held by contract
-        //      maybe a function to trasnfer LP to an EOA
-        //      maybe a function to manually pull all LP into this contract (or a specific receiver)
     }
     function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) public onlyFactory returns(uint256) {
         // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(mark.resultTokenFactories[i]);
