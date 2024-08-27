@@ -133,30 +133,19 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
-    // NOTE: sets msg.sender to '_owner' ('Ownable' maintained)
-    // constructor(uint64 _CALL_initSupply_noDecimals) {
-    constructor() {
-        // VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
-        // DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
-        // CALL.INIT_factory(); // set FACT_ADDR in CallitToken
-
-        // set default globals
-        KEEPER = msg.sender;
-
-        // // mint initial CALl to keeper
-        // _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
-
-        // NOTE: CALL initSupply is minted to KEEPER via _mintCallToksEarned (ie. CALL.mintCallToksEarned)
-
-        // NOTE: whitelist stable & dex routers set in VAULT constructor
-    }
-    function KEEPER_initFactoryForContracts(uint64 _CALL_initSupply_noDecimals) external onlyKeeper {
+    constructor(uint64 _CALL_initSupply_noDecimals) {
         VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
         DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
         CALL.INIT_factory(); // set FACT_ADDR in CallitToken
 
+        // set default globals
+        KEEPER = msg.sender;
+
         // mint initial CALl to keeper
         _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
+
+        // NOTE: CALL initSupply is minted to KEEPER via _mintCallToksEarned (ie. CALL.mintCallToksEarned)
+        // NOTE: whitelist stable & dex routers set in VAULT constructor
     }
 
     /* -------------------------------------------------------- */
