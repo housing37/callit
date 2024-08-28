@@ -73,7 +73,7 @@ contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.15';
+    string public constant tVERSION = '0.16';
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
     address public FACT_ADDR; // set via INIT_factory(address _delegate)
     address public DELEGATE_ADDR; // set via INIT_factory(address _delegate)
@@ -127,8 +127,14 @@ contract CallitVault {
         _editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
 
         // add default routers: pulsex (x2)
-        _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
-        // _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
+        // _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
+        _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
+            // NOTE: bug_fix_082724
+            //  pulseX v1 was causing a failure when trying to swap 3000 PLS for ~1.04 weDAI
+            //      the swap function kept returning 0 as amountsOut (or something like that)
+            //  but pulseX v2 seems to be working fine
+            //      tried 2 times with 3_000 and 30_000 PLS (both went through fine)
+            //  *WARNING* should keep an eye on this
     }
 
     function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
