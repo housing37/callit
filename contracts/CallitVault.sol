@@ -73,7 +73,7 @@ contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.13';
+    string public constant tVERSION = '0.15';
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
     address public FACT_ADDR; // set via INIT_factory(address _delegate)
     address public DELEGATE_ADDR; // set via INIT_factory(address _delegate)
@@ -300,16 +300,13 @@ contract CallitVault {
         address usdStable = _getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
 
         // perform swap from PLS to stable & send to vault
-        uint256 stableAmntOut = _exeSwapPlsForStable(amntIn, usdStable); // _normalizeStableAmnt
-
-        // convert and set/update balance for this sender, ACCT_USD_BALANCES stores uint precision to 6 decimals
-        uint64 usdAmntConvert = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[usdStable], stableAmntOut, _usd_decimals()));
+        uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
 
         // use VAULT remote
-        _edit_ACCT_USD_BALANCES(_depositor, usdAmntConvert, true); // true = add
+        _edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
         ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
 
-        emit DepositReceived(_depositor, amntIn, usdAmntConvert);
+        emit DepositReceived(_depositor, amntIn, stableAmntOut);
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
@@ -450,8 +447,10 @@ contract CallitVault {
         return convertedValue;
     }
     function _edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
-        if (_add) ACCT_USD_BALANCES[_acct] += _usdAmnt;
-        else {
+        if (_add) {
+            require(_usdAmnt > 0, ' !add 0 :/ ' );
+            ACCT_USD_BALANCES[_acct] += _usdAmnt;
+        } else {
             require(ACCT_USD_BALANCES[_acct] >= _usdAmnt, ' !deduct low balance :{} ');
             ACCT_USD_BALANCES[_acct] -= _usdAmnt;    
         }
