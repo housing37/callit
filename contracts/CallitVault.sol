@@ -73,7 +73,7 @@ contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.16';
+    string public constant tVERSION = '0.17';
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
     address public FACT_ADDR; // set via INIT_factory(address _delegate)
     address public DELEGATE_ADDR; // set via INIT_factory(address _delegate)
@@ -88,6 +88,7 @@ contract CallitVault {
     mapping(address => uint64) public ACCT_USD_BALANCES; 
     mapping(address => uint8) public USD_STABLE_DECIMALS;
     address[] public USWAP_V2_ROUTERS;
+    mapping(address => address) public ROUTERS_TO_FACTORY;
 
     // NOTE: legacy private (was more secure; consider external KEEPER getter instead)
     address[] public ACCOUNTS; 
@@ -127,14 +128,20 @@ contract CallitVault {
         _editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
 
         // add default routers: pulsex (x2)
-        // _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), true); // pulseX v1, true = add
-        _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), true); // pulseX v2, true = add
+        _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), address(0x1715a3E4A142d8b698131108995174F37aEBA10D), true); // pulseX v1, true = add
+        _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), address(0x29eA7545DEf87022BAdc76323F373EA1e707C523), true); // pulseX v2, true = add
             // NOTE: bug_fix_082724
             //  pulseX v1 was causing a failure when trying to swap 3000 PLS for ~1.04 weDAI
             //      the swap function kept returning 0 as amountsOut (or something like that)
             //  but pulseX v2 seems to be working fine
             //      tried 2 times with 3_000 and 30_000 PLS (both went through fine)
             //  *WARNING* should keep an eye on this
+        
+            // NOTE: ref pc dex addresses
+            // ROUTER_pulsex_router02_v1='0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02' # PulseXRouter02 'v1' ref: https://www.irccloud.com/pastebin/6ftmqWuk
+            // FACTORY_pulsex_router_02_v1='0x1715a3E4A142d8b698131108995174F37aEBA10D'
+            // ROUTER_pulsex_router02_v2='0x165C3410fC91EF562C50559f7d2289fEbed552d9' # PulseXRouter02 'v2' ref: https://www.irccloud.com/pastebin/6ftmqWuk
+            // FACTORY_pulsex_router_02_v2='0x29eA7545DEf87022BAdc76323F373EA1e707C523'
     }
 
     function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
@@ -209,9 +216,9 @@ contract CallitVault {
         _editWhitelistStables(_usdStable, _decimals, _add);
         emit WhitelistStableUpdated(_usdStable, _decimals, _add);
     }
-    function KEEPER_editDexRouters(address _router, bool _add) external onlyKeeper {
+    function KEEPER_editDexRouters(address _router, address factory, bool _add) external onlyKeeper {
         require(_router != address(0x0), "0 address");
-        _editDexRouters(_router, _add);
+        _editDexRouters(_router, factory, _add);
         emit DexRouterUpdated(_router, _add);
     }
     // callit
@@ -221,7 +228,7 @@ contract CallitVault {
         //  bc no current way to get market for _ticket (from FACTORY)
         IERC20(TICK_PAIR_ADDR[_ticket]).transfer(KEEPER, IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
     }
-    function KEEPER_setContracts(address _delegate, address _fact, address _lib) external onlyKeeper {
+    function KEEPER_setContracts(address _fact, address _delegate, address _lib) external onlyKeeper {
         DELEGATE_ADDR = _delegate;
         FACT_ADDR = _fact;
 
@@ -496,12 +503,14 @@ contract CallitVault {
             WHITELIST_USD_STABLES = LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
         }
     }
-    function _editDexRouters(address _router, bool _add) private {
+    function _editDexRouters(address _router, address _factory, bool _add) private {
         require(_router != address(0x0), "0 address");
         if (_add) {
             USWAP_V2_ROUTERS = LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
+            ROUTERS_TO_FACTORY[_router] = _factory;
         } else {
             USWAP_V2_ROUTERS = LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
+            delete ROUTERS_TO_FACTORY[_router];
         }
     }
     function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {

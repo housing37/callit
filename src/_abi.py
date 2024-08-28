@@ -39,13 +39,13 @@ CALLIT_FUNC_MAP_WRITE = {
     
     "#------------DELEGATE------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
-    	# fact, lib, vault:
-		# 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x0f87803348386c38334dD898b10CD7857Dc40599 0xBA3ED9c7433CFa213289123f3b266D56141e674B
+    	# fact, vault, lib, :
+		# 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0xBA3ED9c7433CFa213289123f3b266D56141e674B 0x0f87803348386c38334dD898b10CD7857Dc40599
         
     "#------------VAULT------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
-    	# delegate, fact, lib:
-        # 0x8d823038d8a77eEBD8f407094464f0e911A571fe 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x0f87803348386c38334dD898b10CD7857Dc40599
+    	# fact, delegate, lib:
+        # 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x8d823038d8a77eEBD8f407094464f0e911A571fe 0x0f87803348386c38334dD898b10CD7857Dc40599
     
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_maintenance(address,uint256)": ["72dc3b3f", ["address","uint256"], []], # gas used: ?

@@ -40,13 +40,13 @@ contract CallitDelegate {
 
     address[] private resultTokenUsdStables;
     uint64 [] private resultTokenVotes;
-    address[] private newTickMaker;
+    // address[] private newTickMaker;
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.7';
+    string public constant tVERSION = '0.9';
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
-    address public VAULT_ADDR = address(0x1E96e984B48185d63449d86Fb781E298Ac12FB49); // CallitVault v0.13
+    address public VAULT_ADDR = address(0xBA3ED9c7433CFa213289123f3b266D56141e674B); // CallitVault v0.16
     address public FACT_ADDR; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
@@ -59,14 +59,27 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
-    // legacy
+    // legacy & callit promo
     event KeeperTransfer(address _prev, address _new);
-    // callit - promo
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
 
+    /* -------------------------------------------------------- */
+    /* CONSTRUTOR
+    /* -------------------------------------------------------- */
     constructor() {
+        // set KEEPER
         KEEPER = msg.sender;
+
+        // init settings for creating new CallitTicket.sol option results
+        //  NOTE: VAULT should already be initialized
+        NEW_TICK_UNISWAP_V2_ROUTER = VAULT.USWAP_V2_ROUTERS()[0];
+        NEW_TICK_UNISWAP_V2_FACTORY = VAULT.ROUTERS_TO_FACTORY(NEW_TICK_UNISWAP_V2_ROUTER);
+        NEW_TICK_USD_STABLE = VAULT.WHITELIST_USD_STABLES()[0];
     }
+
+    /* -------------------------------------------------------- */
+    /* MODIFIERS
+    /* -------------------------------------------------------- */
     modifier onlyKeeper() {
         require(msg.sender == KEEPER, "!keeper :p");
         _;
@@ -117,7 +130,7 @@ contract CallitDelegate {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
-    function KEEPER_setContracts(address _fact, address _lib, address _vault) external onlyKeeper {
+    function KEEPER_setContracts(address _fact, address _vault, address _lib) external onlyKeeper {
         FACT_ADDR = _fact;
 
         LIB_ADDR = _lib;
@@ -126,6 +139,15 @@ contract CallitDelegate {
         VAULT_ADDR = _vault;
         ICallitVault(VAULT_ADDR);
     }
+    function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
+        // max array size = 255 (uint8 loop)
+        // NOTE: if _router not mapped to a factory, then _router not in VAULT.USWAP_V2_ROUTERS
+        require(VAULT.ROUTERS_TO_FACTORY(_router) != address(0) && LIB._isAddressInArray(_usdStable, VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|factory|stable :() ');
+        NEW_TICK_UNISWAP_V2_ROUTER = _router;
+        NEW_TICK_UNISWAP_V2_FACTORY = VAULT.ROUTERS_TO_FACTORY(_router);
+        NEW_TICK_USD_STABLE = _usdStable;
+    }
+    
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN SUPPORT
     /* -------------------------------------------------------- */

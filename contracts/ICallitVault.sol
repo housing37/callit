@@ -38,6 +38,7 @@ interface ICallitVault {
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
     function USD_STABLE_DECIMALS(address _key) external view returns(uint8); // public
     function USWAP_V2_ROUTERS() external view returns(address[] memory); // public
+    function ROUTERS_TO_FACTORY(address _key) external view returns(address); // public
     function ACCOUNTS() external view returns(address[] memory); // private w/ public getter
     function WHITELIST_USD_STABLES() external view returns(address[] memory); // private w/ public getter
     function USD_STABLES_HISTORY() external view returns(address[] memory); // private w/ public getter
