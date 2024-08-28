@@ -44,9 +44,9 @@ contract CallitDelegate {
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.9';
+    string public constant tVERSION = '0.11';
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
-    address public VAULT_ADDR = address(0xBA3ED9c7433CFa213289123f3b266D56141e674B); // CallitVault v0.16
+    address public VAULT_ADDR = address(0x4fdF0a0775AfCD8a98Bf8D196dD055d6E954D36D); // CallitVault v0.18
     address public FACT_ADDR; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
@@ -72,9 +72,9 @@ contract CallitDelegate {
 
         // init settings for creating new CallitTicket.sol option results
         //  NOTE: VAULT should already be initialized
-        NEW_TICK_UNISWAP_V2_ROUTER = VAULT.USWAP_V2_ROUTERS()[0];
+        NEW_TICK_UNISWAP_V2_ROUTER = VAULT.USWAP_V2_ROUTERS(0);
         NEW_TICK_UNISWAP_V2_FACTORY = VAULT.ROUTERS_TO_FACTORY(NEW_TICK_UNISWAP_V2_ROUTER);
-        NEW_TICK_USD_STABLE = VAULT.WHITELIST_USD_STABLES()[0];
+        NEW_TICK_USD_STABLE = VAULT.WHITELIST_USD_STABLES(0);
     }
 
     /* -------------------------------------------------------- */
@@ -142,7 +142,7 @@ contract CallitDelegate {
     function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
         // max array size = 255 (uint8 loop)
         // NOTE: if _router not mapped to a factory, then _router not in VAULT.USWAP_V2_ROUTERS
-        require(VAULT.ROUTERS_TO_FACTORY(_router) != address(0) && LIB._isAddressInArray(_usdStable, VAULT.WHITELIST_USD_STABLES()), ' !whitelist router|factory|stable :() ');
+        require(VAULT.ROUTERS_TO_FACTORY(_router) != address(0) && LIB._isAddressInArray(_usdStable, VAULT.getWhitelistStables()), ' !whitelist router|factory|stable :() ');
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_UNISWAP_V2_FACTORY = VAULT.ROUTERS_TO_FACTORY(_router);
         NEW_TICK_USD_STABLE = _usdStable;

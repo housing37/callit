@@ -73,7 +73,7 @@ contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.17';
+    string public constant tVERSION = '0.19';
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
     address public FACT_ADDR; // set via INIT_factory(address _delegate)
     address public DELEGATE_ADDR; // set via INIT_factory(address _delegate)
@@ -128,7 +128,7 @@ contract CallitVault {
         _editWhitelistStables(address(0xefD766cCb38EaF1dfd701853BFCe31359239F305), 18, true); // weDAI, decs, true = add
 
         // add default routers: pulsex (x2)
-        _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), address(0x1715a3E4A142d8b698131108995174F37aEBA10D), true); // pulseX v1, true = add
+        // _editDexRouters(address(0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02), address(0x1715a3E4A142d8b698131108995174F37aEBA10D), true); // pulseX v1, true = add
         _editDexRouters(address(0x165C3410fC91EF562C50559f7d2289fEbed552d9), address(0x29eA7545DEf87022BAdc76323F373EA1e707C523), true); // pulseX v2, true = add
             // NOTE: bug_fix_082724
             //  pulseX v1 was causing a failure when trying to swap 3000 PLS for ~1.04 weDAI
@@ -205,7 +205,7 @@ contract CallitVault {
             KEEPER_CHECK = _keeperCheck;
         emit KeeperTransfer(prev, KEEPER);
     }
-    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64, uint256) {
+    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64) {
         require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
         if (_history)
             return _collectiveStableBalances(USD_STABLES_HISTORY);
@@ -486,13 +486,13 @@ contract CallitVault {
         }
         return owed_bal;
     }
-    function _collectiveStableBalances(address[] memory _stables) private view returns (uint64, uint64, int64, uint256) {
+    function _collectiveStableBalances(address[] memory _stables) private view returns (uint64, uint64, int64) {
         uint64 gross_bal = _grossStableBalance(_stables);
         uint64 owed_bal = _owedStableBalance();
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
         // return (gross_bal, owed_bal, net_bal, totalSupply());
-        return (gross_bal, owed_bal, net_bal, IERC20(FACT_ADDR).totalSupply());
-        
+        // return (gross_bal, owed_bal, net_bal, IERC20(FACT_ADDR).totalSupply());
+        return (gross_bal, owed_bal, net_bal);
     }
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
         if (_add) {

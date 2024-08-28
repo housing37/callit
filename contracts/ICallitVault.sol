@@ -34,18 +34,20 @@ interface ICallitVault {
     function INIT_factory(address _delegate) external;
     function deposit(address _depositor) external payable;
 
+    function getWhitelistStables() external view returns (address[] memory);
+
     // NOTE: legacy public globals
+    function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
+    function WHITELIST_USD_STABLES(uint256 _idx) external view returns(address); // private w/ public getter
+    function USD_STABLES_HISTORY(uint256 _idx) external view returns(address); // private w/ public getter
+    function USWAP_V2_ROUTERS(uint256 _idx) external view returns(address); // public
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
     function USD_STABLE_DECIMALS(address _key) external view returns(uint8); // public
-    function USWAP_V2_ROUTERS() external view returns(address[] memory); // public
     function ROUTERS_TO_FACTORY(address _key) external view returns(address); // public
-    function ACCOUNTS() external view returns(address[] memory); // private w/ public getter
-    function WHITELIST_USD_STABLES() external view returns(address[] memory); // private w/ public getter
-    function USD_STABLES_HISTORY() external view returns(address[] memory); // private w/ public getter
-
+    
     // NOTE: new public helpers for legacy public globals
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
-    function set_ACCOUNTS(address[] calldata _accts) external;
+    // function set_ACCOUNTS(address[] calldata _accts) external;
     
     // NOTE: legacy private (now public)
     function _collectiveStableBalances(address[] memory _stables) external view returns (uint64, uint64, int64, uint256);
