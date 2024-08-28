@@ -258,46 +258,67 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 # address public VAULT_ADDR = address(0x1E96e984B48185d63449d86Fb781E298Ac12FB49); // CallitVault v0.13
 # address public DELEGATE_ADDR = address(0x8d823038d8a77eEBD8f407094464f0e911A571fe); // CallitDelegate v0.7
 # address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
-# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
+# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitFactory v0.18
 
 # address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
 # address public VAULT_ADDR = address(0x26c7C431534b4E6b2bF1b9ebc5201bEf2f8477F5); // CallitVault v0.14
 # address public DELEGATE_ADDR = address(0x8d823038d8a77eEBD8f407094464f0e911A571fe); // CallitDelegate v0.7
 # address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
-# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
+# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitFactory v0.18
 
 # address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
 # address public VAULT_ADDR = address(0xb39EF1b589B4409e9EEE6BDd37c7C63c7095c41a); // CallitVault v0.15
 # address public DELEGATE_ADDR = address(0x8d823038d8a77eEBD8f407094464f0e911A571fe); // CallitDelegate v0.7
 # address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
-# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
+# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitFactory v0.18
 
 #--------------------------------------------------------------------------------------------------------------#
 # address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
 # address public VAULT_ADDR = address(0xBA3ED9c7433CFa213289123f3b266D56141e674B); // CallitVault v0.16
 # address public DELEGATE_ADDR = address(0x8d823038d8a77eEBD8f407094464f0e911A571fe); // CallitDelegate v0.7
 # address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
-# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
+# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitFactory v0.18
 
 #--------------------------------------------------------------------------------------------------------------#
 # address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
-# address public VAULT_ADDR = address(0x1985fF1eDa386e43224F6fAb3e5A8829911A3DFa); // CallitVault v0.19
+# address public VAULT_ADDR = address(0x1985fF1eDa386e43224F6fAb3e5A8829911A3DFa); // CallitVault v0.19 (wiped)
 # address public DELEGATE_ADDR = address(0x0061e3F653cEc349e52A516db992b1b2e8cC795F); // CallitDelegate v0.12
 # address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
-# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
+# address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitFactory v0.18
 
 #-----------------------------------------------------------------------------------------------------------#
 # address public LIB_ADDR = address(0xD85b3FE914BC1cE98f9e79C6ac847DA090ce709e); // CallitLib v0.7
-# address public VAULT_ADDR = address(0xD3B393E6279ED74fC447292F80C41634ee0c1B6C); // CallitVault v0.20
+# address public VAULT_ADDR = address(0xD3B393E6279ED74fC447292F80C41634ee0c1B6C); // CallitVault v0.20 (wiped)
 # address public DELEGATE_ADDR = address(0xaFc6d7D0e4A4494b3c2FAad365fb5DEC0345eb6F); // CallitDelegate v0.13
 # address public CALL_ADDR = address(0x781DebCbF5cb15fFF1944Fd6B1E8193365AE7046); // CallitToken v0.7
-# address public FACT_ADDR = address(0x39327e074a2A65F6eE4bf9D3DdC89105eFe15e7E); // CallitToken v0.19
+# address public FACT_ADDR = address(0x39327e074a2A65F6eE4bf9D3DdC89105eFe15e7E); // CallitFactory v0.19
+
+#-----------------------------------------------------------------------------------------------------------#
+# address public LIB_ADDR = address(0x9c673684999f8432e53C0E8906c5a51Ab7a025c3); // CallitLib v0.8
+# address public VAULT_ADDR = address(0xc98ef085E50C74083115E2EdC65416b846A079A6); // CallitVault v0.21
+# address public DELEGATE_ADDR = address(0xB3a3602ae7A94852Cf1022250Ac6e5b21C51068b); // CallitDelegate v0.14
+# address public CALL_ADDR = address(0x295862D4F7E13fd1981Bc22cB3a3c47180Da2358); // CallitToken v0.8
+# address public FACT_ADDR = address(0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428); // CallitFactory v0.20
+
+#-----------------------------------------------------------------------------------------------------------#
+# address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
+# address public VAULT_ADDR = address(0xc98ef085E50C74083115E2EdC65416b846A079A6); // CallitVault v0.21
+# address public DELEGATE_ADDR = address(0xB3a3602ae7A94852Cf1022250Ac6e5b21C51068b); // CallitDelegate v0.14
+# address public CALL_ADDR = address(0x295862D4F7E13fd1981Bc22cB3a3c47180Da2358); // CallitToken v0.8
+# address public FACT_ADDR = address(0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428); // CallitFactory v0.20
+
+#-----------------------------------------------------------------------------------------------------------#
+# address public LIB_ADDR = address(); // CallitLib v0.7
+# address public VAULT_ADDR = address(); // CallitVault v0.20
+# address public DELEGATE_ADDR = address(); // CallitDelegate v0.13
+# address public CALL_ADDR = address(); // CallitToken v0.7
+# address public FACT_ADDR = address(); // CallitFactory v0.19
 
 
 #--------------------------------------------------------------------------------------------------------------#
 #--------------------------------------------------------------------------------------------------------------#
 # tmark_0
-# 10392
+# 1039332
 # 1693191781
 # 1693192781
 # 1693193781

@@ -88,7 +88,7 @@ interface ICallitLib {
 
     // note: only these used in CallitDelegate ...
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external pure returns(uint64, uint256);
-    function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external view returns(string memory, string memory);
+    function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external returns(string memory, string memory);
     function _isAddressInArray(address _addr, address[] memory _addrArr) external pure returns(bool);
     
 }

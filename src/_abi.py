@@ -38,19 +38,19 @@ CALLIT_FUNC_MAP_READ = {
 }
 CALLIT_FUNC_MAP_WRITE = {
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
-    "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
+    "KEEPER_setContracts(address,address,address,address)": ["05943cc3", ["address","address","address","address"], []], 
     	# delegate, vault, lib:
-        # 0x0061e3F653cEc349e52A516db992b1b2e8cC795F 0x1985fF1eDa386e43224F6fAb3e5A8829911A3DFa 0x0f87803348386c38334dD898b10CD7857Dc40599
+        # 0xB3a3602ae7A94852Cf1022250Ac6e5b21C51068b 0xc98ef085E50C74083115E2EdC65416b846A079A6 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E 0
     
     "#------------DELEGATE------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
     	# fact, vault, lib, :
-		# 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x1985fF1eDa386e43224F6fAb3e5A8829911A3DFa 0x0f87803348386c38334dD898b10CD7857Dc40599
+		# 0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428 0xc98ef085E50C74083115E2EdC65416b846A079A6 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
         
     "#------------VAULT------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
     	# fact, delegate, lib:
-        # 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x0061e3F653cEc349e52A516db992b1b2e8cC795F 0x0f87803348386c38334dD898b10CD7857Dc40599
+        # 0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428 0xB3a3602ae7A94852Cf1022250Ac6e5b21C51068b 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
     
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_maintenance(address,uint256)": ["72dc3b3f", ["address","uint256"], []], # gas used: ?

@@ -1,5 +1,56 @@
 # .sol function hash mappings
 
+## CallitLib.sol
+    {
+        "a8850d39": "_addAddressToArraySafe(address,address[],bool)",
+        "08d3a5ff": "_addressIsMarketMakerOrCaller(address,address,address[])",
+        "c80bad13": "_calculateTokensToMint(address,uint256)",
+        "7403eac9": "_deductFeePerc(uint64,uint16,uint64)",
+        "bda722a3": "_estimateLastPriceForTCK(address)",
+        "c3a300a3": "_genTokenNameSymbol(address,uint256,uint16,string,string)",
+        "19d50305": "_generateAddressHash(address,string)",
+        "277d195d": "_getAmountsForInitLP(uint256,uint256,uint32)",
+        "9aa304b2": "_getWinningVoteIdxForMarket(uint64[])",
+        "a8509565": "_isAddressInArray(address,address[])",
+        "6278752d": "_logMarketResultReview(address,uint256,ICallitLib.MARKET_REVIEW[],bool)",
+        "19db68d9": "_normalizeStableAmnt(uint8,uint256,uint8)",
+        "0995e7bf": "_perc_of_uint64(uint32,uint64)",
+        "c8c25894": "_perc_of_uint64_unchecked(uint32,uint64)",
+        "2a9c544c": "_perc_total_supply_owned(address,address)",
+        "466816b3": "_remAddressFromArray(address,address[])",
+        "d39fdbb7": "_uint64_from_uint256(uint256)",
+        "2e440bcd": "_validNonWhiteSpaceString(string)",
+        "0dc5fd07": "_validVoteCount(uint64,uint64,uint256,uint256)",
+        "9a60f330": "tVERSION()"
+    }
+
+## CallitToken.sol
+    {
+        "84991745": "mintCallToksEarned(address,uint256)",
+        "f27c2fc8": "ACCT_CALL_VOTE_LOCK_TIME(address)",
+        "fd695121": "ACCT_HANDLES(address)",
+        "d1db38d4": "FACT_ADDR()",
+        "32954c54": "FACT_setContracts(address)",
+        "f30d4546": "INIT_factory()",
+        "dd62ed3e": "allowance(address,address)",
+        "095ea7b3": "approve(address,uint256)",
+        "70a08231": "balanceOf(address)",
+        "61d0c3d0": "balanceOf_voteCnt(address)",
+        "42966c68": "burn(uint256)",
+        "313ce567": "decimals()",
+        "06fdde03": "name()",
+        "8da5cb5b": "owner()",
+        "715018a6": "renounceOwnership()",
+        "4a9d2f0a": "setAcctHandle(string)",
+        "4805d092": "setCallTokenVoteLock(bool)",
+        "95d89b41": "symbol()",
+        "9a60f330": "tVERSION()",
+        "18160ddd": "totalSupply()",
+        "a9059cbb": "transfer(address,uint256)",
+        "23b872dd": "transferFrom(address,address,uint256)",
+        "f2fde38b": "transferOwnership(address)"
+    }
+
 ## CallitVault.sol
     {
         "9032bcc8": "ACCOUNTS(uint256)",
@@ -86,35 +137,35 @@
         "9a60f330": "tVERSION()"
     }
 ## CallitFactory.sol
-    {
-        "11851737": "KEEPER_setKeeper(address)",
-        "0cfc0598": "ACCT_MARKETS(address,uint256)",
-        "e0199969": "ACCT_MARKET_REVIEWS(address,uint256)",
-        "927270cb": "ACCT_MARKET_VOTES_PAID(address,uint256)",
-        "049191ae": "CALL_ADDR()",
-        "24a8eb9d": "DELEGATE_ADDR()",
-        "cad8b94d": "EARNED_CALL_VOTES(address)",
-        "862a179e": "KEEPER()",
-        "72dc3b3f": "KEEPER_maintenance(address,uint256)",
-        "6b3891ef": "KEEPER_setContracts(address,address,address)",
-        "559c36b3": "KEEPER_setMarketSettings(uint16,uint64,uint64,uint256,bool)",
-        "9b05a663": "LIB_ADDR()",
-        "485d44c5": "MAX_EOA_MARKETS()",
-        "0c806736": "MAX_RESULTS()",
-        "5799ebb7": "MIN_USD_CALL_TICK_TARGET_PRICE()",
-        "8da4fb23": "MIN_USD_MARK_LIQ()",
-        "2dda1682": "SEC_DEFAULT_VOTE_TIME()",
-        "68f38bd1": "TICKET_MAKERS(address)",
-        "fb5e54f8": "USE_SEC_DEFAULT_VOTE_TIME()",
-        "d440c3c6": "VAULT_ADDR()",
-        "5a505989": "buyCallTicketWithPromoCode(address,address,uint64)",
-        "06bfc575": "castVoteForMarketTicket(address)",
-        "d16aca12": "claimTicketRewards(address,bool)",
-        "e41356f3": "claimVoterRewards()",
-        "00fa1b81": "closeMarketCallsForTicket(address)",
-        "8be58395": "closeMarketForTicket(address)",
-        "b12524d6": "exeArbPriceParityForTicket(address)",
-        "ce448595": "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])",
-        "cb73f3ee": "setMarketInfo(address,string,string,string)",
-        "9a60f330": "tVERSION()"
-    }
+{
+	"11851737": "KEEPER_setKeeper(address)",
+	"0cfc0598": "ACCT_MARKETS(address,uint256)",
+	"e0199969": "ACCT_MARKET_REVIEWS(address,uint256)",
+	"927270cb": "ACCT_MARKET_VOTES_PAID(address,uint256)",
+	"049191ae": "CALL_ADDR()",
+	"24a8eb9d": "DELEGATE_ADDR()",
+	"cad8b94d": "EARNED_CALL_VOTES(address)",
+	"862a179e": "KEEPER()",
+	"72dc3b3f": "KEEPER_maintenance(address,uint256)",
+	"05943cc3": "KEEPER_setContracts(address,address,address,address)",
+	"559c36b3": "KEEPER_setMarketSettings(uint16,uint64,uint64,uint256,bool)",
+	"9b05a663": "LIB_ADDR()",
+	"485d44c5": "MAX_EOA_MARKETS()",
+	"0c806736": "MAX_RESULTS()",
+	"5799ebb7": "MIN_USD_CALL_TICK_TARGET_PRICE()",
+	"8da4fb23": "MIN_USD_MARK_LIQ()",
+	"2dda1682": "SEC_DEFAULT_VOTE_TIME()",
+	"68f38bd1": "TICKET_MAKERS(address)",
+	"fb5e54f8": "USE_SEC_DEFAULT_VOTE_TIME()",
+	"d440c3c6": "VAULT_ADDR()",
+	"5a505989": "buyCallTicketWithPromoCode(address,address,uint64)",
+	"06bfc575": "castVoteForMarketTicket(address)",
+	"d16aca12": "claimTicketRewards(address,bool)",
+	"e41356f3": "claimVoterRewards()",
+	"00fa1b81": "closeMarketCallsForTicket(address)",
+	"8be58395": "closeMarketForTicket(address)",
+	"b12524d6": "exeArbPriceParityForTicket(address)",
+	"ce448595": "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])",
+	"cb73f3ee": "setMarketInfo(address,string,string,string)",
+	"9a60f330": "tVERSION()"
+}
