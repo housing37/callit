@@ -5,12 +5,22 @@ print('', cStrDivider, f'GO _ {__filename} -> starting IMPORTs & declaring globa
 cStrDivider_1 = '#----------------------------------------------------------------#'
 
 CALLIT_FUNC_MAP_READ = {
-    
+    "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
+    "VAULT_ADDR()": ["d440c3c6", [], ['address']],
+
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
  	"KEEPER()": ["862a179e", [], ['address']],
     "TOK_WPLS()": ["fa4a9870", [], ['address']],
     "BURN_ADDR()": ["783028a9", [], ['address']],
     "tVERSION()": ["9a60f330", [], ['string']],
+    
+    "USWAP_V2_ROUTERS(uint256)": ["ee80b054", ["uint256"], ['address']],
+    "ACCT_USD_BALANCES(address)": ["c67483dc", ["address"], ['uint64']],
+    "USD_STABLE_DECIMALS(address)": ["7f8754f4", ["address"], ['uint8']],
+    "getAccounts()": ["8a48ac03", [], ['address[]']],
+    "getUsdStablesHistory()": ["d4155f07", [], ['address[]']],
+    "getWhitelistStables()": ["00f403e8", [], ['address[]']],
+    "getDexRouters()": ["ba41debb", [], ['address[]']],
     
  	"#------------IERC20------------#": ["xxxxxxxx", [], []], 
     "balanceOf(address)": ["70a08231", ["address"], ['uint256']],
@@ -21,6 +31,12 @@ CALLIT_FUNC_MAP_READ = {
     "totalSupply()": ["18160ddd", [], ['uint256']],
 }
 CALLIT_FUNC_MAP_WRITE = {
+    "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
+    "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], # delegate, vault, lib
+    
+    "#------------DELEGATE------------#": ["xxxxxxxx", [], []], 
+    "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], # fact, lib, vault
+    
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_maintenance(address,uint256)": ["72dc3b3f", ["address","uint256"], []], # gas used: ?
     "KEEPER_withdraw(uint256)": ["cbf0d0d4", ["uint256"], []], 

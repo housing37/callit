@@ -167,8 +167,10 @@ class myWEB3:
         # Set the transaction parameters
         tx_nonce = w3.eth.get_transaction_count(account.address)
         tx_params = {
-            'to': account.address,  # Sending to yourself
-            'value': w3.to_wei(1, 'ether'),  # Sending 1 ETH
+            # 'to': account.address,  # Sending to yourself
+            # 'to': "0x26c7C431534b4E6b2bF1b9ebc5201bEf2f8477F5",  # Sending to vault
+            'to': "0x86726f5a4525D83a5dd136744A844B14Eb0f880c",  # Sending to factory
+            'value': w3.to_wei(3000, 'ether'),  # Sending 1 ETH
             'nonce': tx_nonce,  # Get the nonce
             'chainId': self.CHAIN_ID  # Mainnet (1), Rinkeby (4), PulseChain (369), etc.
         }

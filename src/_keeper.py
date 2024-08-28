@@ -453,7 +453,7 @@ def go_select_contract(_is_write=False):
     # list contract abi's from _abi.py
     lst_contr_select = ['CALLIT++']
     lst_abi_read = [_abi.CALLIT_FUNC_MAP_READ]
-    lst_abi_write = [_abi.CALLIT_FUNC_MAP_READ]
+    lst_abi_write = [_abi.CALLIT_FUNC_MAP_WRITE]
     
     str_inp = "\n Select contract func list to use ..."
     for i,v in enumerate(lst_contr_select):
