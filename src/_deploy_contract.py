@@ -37,8 +37,10 @@ def init_web3():
     global W3_, ABI_FILE, BIN_FILE, CONTRACT
     # init W3_, user select abi to deploy, generate contract & deploy
     W3_ = _web3.myWEB3().init_inp()
-    ABI_FILE, BIN_FILE = W3_.inp_sel_abi_bin(LST_CONTR_ABI_BIN) # returns .abi|bin
+    ABI_FILE, BIN_FILE, idx_contr = W3_.inp_sel_abi_bin(LST_CONTR_ABI_BIN) # returns .abi|bin
     CONTRACT = W3_.add_contract_deploy(ABI_FILE, BIN_FILE)
+    contr_name = LST_CONTR_ABI_BIN[idx_contr].split('/')[-1]
+    return contr_name
 
 def estimate_gas(contract, contract_args=[]):
     global W3_, ABI_FILE, BIN_FILE, CONTRACT
@@ -97,24 +99,26 @@ def get_gas_params_lst(rpc_url, min_params=False, max_params=False, def_params=T
     else:
         return [{'gas':gas_limit}]
 
-def generate_contructor():
-    constr_args = []
-    print()
-    while True:
-        arg = input(' Add constructor arg (use -1 to end):\n  > ')
-        if arg == '-1': break
-        if arg.isdigit(): arg = int(arg)
-        constr_args.append(arg)
-    return constr_args
+# def generate_contructor():
+#     constr_args = []
+#     print()
+#     while True:
+#         arg = input(' Add constructor arg (use -1 to end):\n  > ')
+#         if arg == '-1': break
+#         if arg.isdigit(): arg = int(arg)
+#         constr_args.append(arg)
+#     return constr_args
 
 def main():
+    import _keeper
     global W3_, ABI_FILE, BIN_FILE, CONTRACT
-    init_web3()
+    contr_name = init_web3()
     print(f'\nDEPLOYING bytecode: {BIN_FILE}')
     print(f'DEPLOYING abi: {ABI_FILE}')
     assert input('\n (1) procced? [y/n]\n  > ') == 'y', "aborted...\n"
 
-    constr_args = generate_contructor() # 0x78b48b71C8BaBd02589e3bAe82238EC78966290c
+    # constr_args, = generate_contructor(f'{contr_name}.constructor(...)') # 0x78b48b71C8BaBd02589e3bAe82238EC78966290c
+    constr_args, _ = _keeper.go_enter_func_params(f'{contr_name}.constructor(...)')
     print(f'  using "constructor({", ".join(map(str, constr_args))})"')
     assert input(f'\n (2) procced? [y/n] _ {get_time_now()}\n  > ') == 'y', "aborted...\n"
 
@@ -281,6 +285,13 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 # address public DELEGATE_ADDR = address(0x0061e3F653cEc349e52A516db992b1b2e8cC795F); // CallitDelegate v0.12
 # address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
 # address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
+
+#-----------------------------------------------------------------------------------------------------------#
+# address public LIB_ADDR = address(0xD85b3FE914BC1cE98f9e79C6ac847DA090ce709e); // CallitLib v0.7
+# address public VAULT_ADDR = address(0xD3B393E6279ED74fC447292F80C41634ee0c1B6C); // CallitVault v0.20
+# address public DELEGATE_ADDR = address(0xaFc6d7D0e4A4494b3c2FAad365fb5DEC0345eb6F); // CallitDelegate v0.13
+# address public CALL_ADDR = address(0x781DebCbF5cb15fFF1944Fd6B1E8193365AE7046); // CallitToken v0.7
+# address public FACT_ADDR = address(0x39327e074a2A65F6eE4bf9D3DdC89105eFe15e7E); // CallitToken v0.19
 
 
 #--------------------------------------------------------------------------------------------------------------#

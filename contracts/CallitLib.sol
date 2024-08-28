@@ -16,7 +16,7 @@ interface IERC20x {
 }
 
 library CallitLib {
-    string public constant tVERSION = '0.6';
+    string public constant tVERSION = '0.7';
     event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */

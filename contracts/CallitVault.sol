@@ -72,8 +72,8 @@ contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.19';
-    address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
+    string public constant tVERSION = '0.20';
+    address public LIB_ADDR = address(0xD85b3FE914BC1cE98f9e79C6ac847DA090ce709e); // CallitLib v0.7
     address public FACT_ADDR; // set via INIT_factory(address _delegate)
     address public DELEGATE_ADDR; // set via INIT_factory(address _delegate)
     ICallitLib private LIB = ICallitLib(LIB_ADDR);

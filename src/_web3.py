@@ -121,7 +121,7 @@ class myWEB3:
         assert 0 <= int(idx) < len(_lst_abi_bin), 'Invalid input, aborting...\n'
         abi_bin = str(_lst_abi_bin[int(idx)]) # get selected index
         print(f'  selected abi|bin: {abi_bin}')
-        return abi_bin+'.abi', abi_bin+'.bin'
+        return abi_bin+'.abi', abi_bin+'.bin', int(idx)
 
     def add_contract_deploy(self, _abi_file, _bin_file):
         assert self.W3 != None, 'err: web3 not initialzed'
