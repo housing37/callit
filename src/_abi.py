@@ -5,6 +5,10 @@ print('', cStrDivider, f'GO _ {__filename} -> starting IMPORTs & declaring globa
 cStrDivider_1 = '#----------------------------------------------------------------#'
 
 CALLIT_FUNC_MAP_READ = {
+
+	"#------------multi------------#": ["xxxxxxxx", [], []],     
+	"FACT_ADDR()": ["d1db38d4", [], ['address']],
+    
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
     "VAULT_ADDR()": ["d440c3c6", [], ['address']],
     

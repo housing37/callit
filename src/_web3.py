@@ -167,16 +167,16 @@ class myWEB3:
         # Set the transaction parameters
         tx_nonce = w3.eth.get_transaction_count(account.address)
         tx_params = {
-            # 'to': account.address,  # Sending to yourself
+            'to': account.address,  # Sending to yourself
             # 'to': "0x26c7C431534b4E6b2bF1b9ebc5201bEf2f8477F5",  # Sending to vault
-            'to': "0x86726f5a4525D83a5dd136744A844B14Eb0f880c",  # Sending to factory
-            'value': w3.to_wei(3000, 'ether'),  # Sending 1 ETH
+            # 'to': "0x86726f5a4525D83a5dd136744A844B14Eb0f880c",  # Sending to factory
+            'value': w3.to_wei(300, 'ether'),  # Sending 1 ETH
             'nonce': tx_nonce,  # Get the nonce
             'chainId': self.CHAIN_ID  # Mainnet (1), Rinkeby (4), PulseChain (369), etc.
         }
         
         # append gas params
-        lst_gas_params = [{'gas':self.GAS_LIMIT}, {'maxFeePerGas': self.MAX_FEE}, {'maxPriorityFeePerGas': self.MAX_PRIOR_FEE}]
+        lst_gas_params = [{'gas':self.GAS_LIMIT}, {'maxFeePerGas': self.MAX_FEE}, {'maxPriorityFeePerGas': int(self.MAX_FEE * self.MAX_PRIOR_FEE_RATIO)}]
         for d in lst_gas_params: tx_params.update(d)
 
         print(f'built tx w/ NONCE: {tx_nonce} ...')

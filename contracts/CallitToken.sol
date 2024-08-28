@@ -20,8 +20,6 @@ import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 // import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./ICallitLib.sol";
-
 contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS

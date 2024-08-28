@@ -16,8 +16,9 @@ interface IERC20x {
 }
 
 library CallitLib {
-    string public constant tVERSION = '0.5';
+    string public constant tVERSION = '0.6';
     // address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
+    event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */
     /* PUBLIC
@@ -133,21 +134,29 @@ library CallitLib {
         }
         return false;
     }
-    function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory) { 
+    // function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory) { 
+    function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external returns(string memory, string memory) { 
+        emit StepLog('step', 0, '', '');
         // Concatenate to form symbol & name
         // string memory last4 = _getLast4Chars(_maker);
         // Convert the last 2 bytes (4 characters) of the address to a string
         bytes memory addrBytes = abi.encodePacked(_maker);
         bytes memory last4 = new bytes(4);
-
+        
+        emit StepLog('step', 1, '', '');
+        
         last4[0] = addrBytes[18];
         last4[1] = addrBytes[19];
         last4[2] = addrBytes[20];
         last4[3] = addrBytes[21];
 
+        emit StepLog('step', 2, '', '');
+
         // return string(last4);
         string memory tokenSymbol = string(abi.encodePacked(_nameSeed, last4, _markNum, string(abi.encodePacked(_resultNum))));
         string memory tokenName = string(abi.encodePacked(_symbSeed, " ", last4, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
+
+        emit StepLog('step', 3, tokenSymbol, tokenName);
         return (tokenName, tokenSymbol);
     }
     function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool) {

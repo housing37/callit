@@ -26,6 +26,7 @@ import "./ICallitVault.sol"; // imports ICallitLib.sol
 interface ICallitToken {
     function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
     function INIT_factory() external;
+    function FACT_setContracts(address _fact) external;
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external;
     function setCallTokenVoteLock(bool _lock) external;
     function decimals() external pure returns (uint8);
@@ -184,8 +185,8 @@ contract CallitFactory {
         KEEPER = _newKeeper;
       //  emit KeeperTransfer(prev, KEEPER);
     }
-    function KEEPER_setContracts(address _delegate, address _vault, address _lib) external onlyKeeper {
-        require(_vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
+    function KEEPER_setContracts(address _delegate, address _vault, address _lib, address _newFact) external onlyKeeper {
+        require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
         DELEGATE_ADDR = _delegate;
         DELEGATE = ICallitDelegate(DELEGATE_ADDR);
 
@@ -194,6 +195,9 @@ contract CallitFactory {
 
         LIB_ADDR = _lib;
         LIB = ICallitLib(LIB_ADDR);
+
+        if (_newFact != address(0))
+            CALL.FACT_setContracts(_newFact);
     }
     // function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
     //     require(_admin != address(0), ' !_admin :{+} ');
