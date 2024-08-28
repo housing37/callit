@@ -44,9 +44,9 @@ contract CallitDelegate {
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.11';
+    string public constant tVERSION = '0.12';
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
-    address public VAULT_ADDR = address(0x4fdF0a0775AfCD8a98Bf8D196dD055d6E954D36D); // CallitVault v0.18
+    address public VAULT_ADDR = address(0x1985fF1eDa386e43224F6fAb3e5A8829911A3DFa); // CallitVault v0.19
     address public FACT_ADDR; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);

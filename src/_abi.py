@@ -16,6 +16,7 @@ CALLIT_FUNC_MAP_READ = {
     "getUsdStablesHistory()": ["d4155f07", [], ['address[]']],
     "getWhitelistStables()": ["00f403e8", [], ['address[]']],
     "getDexRouters()": ["ba41debb", [], ['address[]']],
+	"KEEPER_collectiveStableBalances(bool,uint256)": ["cf0c8683", ['bool','uint256'], ['uint64','uint64','int64']],
     
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
  	"KEEPER()": ["862a179e", [], ['address']],
@@ -35,17 +36,17 @@ CALLIT_FUNC_MAP_WRITE = {
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
     	# delegate, vault, lib:
-        # 0x8d823038d8a77eEBD8f407094464f0e911A571fe 0xBA3ED9c7433CFa213289123f3b266D56141e674B 0x0f87803348386c38334dD898b10CD7857Dc40599
+        # 0x0061e3F653cEc349e52A516db992b1b2e8cC795F 0x1985fF1eDa386e43224F6fAb3e5A8829911A3DFa 0x0f87803348386c38334dD898b10CD7857Dc40599
     
     "#------------DELEGATE------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
     	# fact, vault, lib, :
-		# 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0xBA3ED9c7433CFa213289123f3b266D56141e674B 0x0f87803348386c38334dD898b10CD7857Dc40599
+		# 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x1985fF1eDa386e43224F6fAb3e5A8829911A3DFa 0x0f87803348386c38334dD898b10CD7857Dc40599
         
     "#------------VAULT------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
     	# fact, delegate, lib:
-        # 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x8d823038d8a77eEBD8f407094464f0e911A571fe 0x0f87803348386c38334dD898b10CD7857Dc40599
+        # 0x86726f5a4525D83a5dd136744A844B14Eb0f880c 0x0061e3F653cEc349e52A516db992b1b2e8cC795F 0x0f87803348386c38334dD898b10CD7857Dc40599
     
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_maintenance(address,uint256)": ["72dc3b3f", ["address","uint256"], []], # gas used: ?
