@@ -28,8 +28,8 @@ ROUTER_pulsex_router02_vX='0xa619F23c632CA9f36CD4Dcea6272E1eA174aAC27' # PulseXS
 ROUTER_9INCH_PC = '0xeB45a3c4aedd0F47F345fB4c8A1802BB5740d725'
 
 # pulsechain dex router factories
-FACTORY_pulsex_router_02_v1='0x1715a3e4a142d8b698131108995174f37aeba10d'
-FACTORY_pulsex_router_02_v2='0x29ea7545def87022badc76323f373ea1e707c523'
+FACTORY_pulsex_router_02_v1='0x1715a3E4A142d8b698131108995174F37aEBA10D'
+FACTORY_pulsex_router_02_v2='0x29eA7545DEf87022BAdc76323F373EA1e707C523'
 
 
 #------------------------------------------------------------#
