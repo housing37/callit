@@ -17,7 +17,6 @@ interface ICallitLib {
         address maker; // EOA market maker
         uint256 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
         string name; // display name for this market (maybe auto-generate w/ )
-        // MARKET_INFO marketInfo;
         string category;
         string rules;
         string imgUrl;
@@ -29,11 +28,6 @@ interface ICallitLib {
         uint256 blockNumber; // block number this market was created
         bool live;
     }
-    // struct MARKET_INFO {
-    //     string category;
-    //     string rules;
-    //     string imgUrl;
-    // }
     struct MARKET_USD_AMNTS {
         uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
         uint64 usdAmntPrizePool; // default 0, until market voting ends

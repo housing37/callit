@@ -13,12 +13,10 @@ pragma solidity ^0.8.24;
 // inherited contracts
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; // deploy
 // import "@openzeppelin/contracts/access/Ownable.sol"; // deploy
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
-// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */

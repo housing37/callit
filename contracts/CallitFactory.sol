@@ -11,14 +11,10 @@
 pragma solidity ^0.8.24;
 
 // inherited contracts
-// import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; // deploy
-// import "@openzeppelin/contracts/access/Ownable.sol"; // deploy
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
+//  none
 
 // local _ $ npm install @openzeppelin/contracts
-// import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
-// import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
-// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+//  none
 
 import "./CallitTicket.sol"; // imports ERC20.sol -> IERC20.sol
 import "./ICallitVault.sol"; // imports ICallitLib.sol
@@ -30,7 +26,6 @@ interface ICallitToken {
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external;
     function setCallTokenVoteLock(bool _lock) external;
     function decimals() external pure returns (uint8);
-    // function balanceOf(address account) external returns(uint256);
     function balanceOf_voteCnt(address _voter) external view returns(uint64);
 }
 interface ICallitTicket {
@@ -50,8 +45,6 @@ interface ICallitDelegate {
                         uint256 _mark_num,
                         address _sender
                         ) external returns(ICallitLib.MARKET memory);
-    // function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external;
-    // function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external returns(uint64);
     function setAcctHandle(address _acct, string calldata _handle) external;    
@@ -67,8 +60,7 @@ contract CallitFactory {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public tVERSION = '0.18';
-
+    
     /* GLOBALS (CALLIT) */
     address public LIB_ADDR = address(0x0f87803348386c38334dD898b10CD7857Dc40599); // CallitLib v0.5
     address public VAULT_ADDR = address(0x1E96e984B48185d63449d86Fb781E298Ac12FB49); // CallitVault v0.13
@@ -76,6 +68,7 @@ contract CallitFactory {
     address public CALL_ADDR = address(0x35BEDeA0404Bba218b7a27AEDf3d32E08b1dD34F); // CallitToken v0.6
     // address public FACT_ADDR = address(0x86726f5a4525D83a5dd136744A844B14Eb0f880c); // CallitToken v0.18
     
+    string public tVERSION = '0.18';
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
     ICallitDelegate private DELEGATE = ICallitDelegate(DELEGATE_ADDR);
@@ -94,7 +87,6 @@ contract CallitFactory {
     
     /* MAPPINGS (CALLIT) */
     // used externals only
-    // mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
     mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
@@ -129,17 +121,15 @@ contract CallitFactory {
     // event VoterRewardsClaimed(address _claimer, uint64 _usdRewardOwed, uint64 _usdRewardOwed_net);
     // event CallTokensEarned(address _sedner, address _receiver, uint64 _callAmntEarned, uint64 _callPrevBal, uint64 _callCurrBal);
 
-    // /* -------------------------------------------------------- */
-    // /* STRUCTS (CALLIT)
-    // /* -------------------------------------------------------- */
-
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
-    constructor(uint64 _CALL_initSupply_noDecimals) {
-        VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
-        DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
-        CALL.INIT_factory(); // set FACT_ADDR in CallitToken
+    constructor(uint64 _CALL_initSupply_noDecimals, bool _initFact) {
+        if (_initFact) {
+            VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+            DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+            CALL.INIT_factory(); // set FACT_ADDR in CallitToken
+        }
 
         // set default globals
         KEEPER = msg.sender;
@@ -158,10 +148,6 @@ contract CallitFactory {
         require(msg.sender == KEEPER, "!keeper :p");
         _;
     }
-    // modifier onlyAdmin() {
-    //     require(msg.sender == KEEPER || ADMINS[msg.sender] == true, " !admin :p");
-    //     _;
-    // }
     
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER setters
@@ -199,10 +185,6 @@ contract CallitFactory {
         if (_newFact != address(0))
             CALL.FACT_setContracts(_newFact);
     }
-    // function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
-    //     require(_admin != address(0), ' !_admin :{+} ');
-    //     ADMINS[_admin] = _enable;
-    // }
     function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
         MAX_EOA_MARKETS = _maxEoaMarkets;
@@ -212,23 +194,6 @@ contract CallitFactory {
         SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
         USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
     }
-    // // CALLIT admin
-    // function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
-    //     DELEGATE.initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
-    // //    emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
-    // }
-
-    /* -------------------------------------------------------- */
-    /* PUBLIC - ACCESSORS
-    /* -------------------------------------------------------- */
-    // CALLIT
-    // function getAccountMarkets(address _account) external view returns (ICallitLib.MARKET[] memory) {
-    //     require(_account != address(0), ' 0 address? ;[+] ');
-    //     return ACCT_MARKETS[_account];
-    // }
-    // function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
-    //     return DELEGATE.checkPromoBalance(_promoCodeHash);
-    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - UI (CALLIT)
@@ -374,9 +339,7 @@ contract CallitFactory {
 
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
-        // uint64 vote_cnt = _validVoteCount(msg.sender, mark);
         uint64 vote_cnt = LIB._validVoteCount(CALL.balanceOf_voteCnt(msg.sender), EARNED_CALL_VOTES[msg.sender], CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
-        // uint64 vote_cnt = 37;
         require(vote_cnt > 0, ' invalid voter :{=} ');
 
         //  - store vote in struct MARKET

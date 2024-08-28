@@ -31,11 +31,16 @@ interface IERC20x {
 
 interface ICallitTicket {
     function mintForPriceParity(address _receiver, uint256 _amount) external;
-    // function burnForWinLoseClaim(address _account, uint256 _amount) external;
     function balanceOf(address account) external returns(uint256);
 }
 
 contract CallitVault {
+    /* -------------------------------------------------------- */
+    /* GLOBALS (STORAGE)
+    /* -------------------------------------------------------- */
+    address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
+    // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
+
     // default all fees to 0 (KEEPER setter available)
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
     uint16 public PERC_PROMO_BUY_FEE; // note: yes other % fee (promo.percReward)
@@ -63,12 +68,6 @@ contract CallitVault {
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
         // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
         //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)
-
-    /* -------------------------------------------------------- */
-    /* GLOBALS (STORAGE)
-    /* -------------------------------------------------------- */
-    address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
-    // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
 
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
@@ -266,8 +265,9 @@ contract CallitVault {
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
         MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     }
+
     /* -------------------------------------------------------- */
-    /* PUBLIC - SUPPORTING
+    /* PUBLIC - ACCESSORS
     /* -------------------------------------------------------- */
     function _usd_decimals() public pure returns (uint8) {
         return 6; // (6 decimals) 
@@ -276,10 +276,6 @@ contract CallitVault {
             // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals)
             // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     }
-    /* -------------------------------------------------------- */
-    /* PUBLIC - ACCESSORS
-    /* -------------------------------------------------------- */
-    // legacy
     function getAccounts() external view returns (address[] memory) {
         return ACCOUNTS;
     }
@@ -294,7 +290,7 @@ contract CallitVault {
     }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - SUPPORTING (CALLIT market management) _ // note: migrate to CallitVault (ALL)
+    /* PUBLIC - SUPPORTING (CALLIT market management)
     /* -------------------------------------------------------- */
     // handle contract USD value deposits (convert PLS to USD stable)
     receive() external payable {
@@ -436,7 +432,7 @@ contract CallitVault {
     }
 
     /* -------------------------------------------------------- */
-    /* PRIVATE - SUPPORTING (legacy) _ // note: migrate to CallitBank (ALL)
+    /* PRIVATE - SUPPORTING (legacy)
     /* -------------------------------------------------------- */
     function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) private pure returns (uint256) {
         require(_fromDecimals > 0 && _toDecimals > 0, 'err: invalid _from|toDecimals');
