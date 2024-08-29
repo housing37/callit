@@ -31,6 +31,7 @@ interface ICallitVault {
     function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
 
     function INIT_factory(address _delegate) external;
+    function KEEPER_setContracts(address _fact, address _delegate, address _lib) external;
     function deposit(address _depositor) external payable;
 
     function getWhitelistStables() external view returns (address[] memory);

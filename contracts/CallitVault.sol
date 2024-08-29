@@ -227,7 +227,7 @@ contract CallitVault {
         //  bc no current way to get market for _ticket (from FACTORY)
         IERC20(TICK_PAIR_ADDR[_ticket]).transfer(KEEPER, IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
     }
-    function KEEPER_setContracts(address _fact, address _delegate, address _lib) external onlyKeeper {
+    function KEEPER_setContracts(address _fact, address _delegate, address _lib) external onlyFactory() {
         DELEGATE_ADDR = _delegate;
         FACT_ADDR = _fact;
 

@@ -36,6 +36,7 @@ interface ICallitTicket {
 }
 interface ICallitDelegate {
     function INIT_factory() external;
+    function KEEPER_setContracts(address _fact, address _vault, address _lib) external;
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                         uint64 _usdAmntLP, 
                         uint256 _dtCallDeadline, 
@@ -173,15 +174,20 @@ contract CallitFactory {
     }
     function KEEPER_setContracts(address _delegate, address _vault, address _lib, address _newFact) external onlyKeeper {
         require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
+        LIB_ADDR = _lib;
+        LIB = ICallitLib(LIB_ADDR);
+
         DELEGATE_ADDR = _delegate;
         DELEGATE = ICallitDelegate(DELEGATE_ADDR);
 
         VAULT_ADDR = _vault;
         VAULT = ICallitVault(VAULT_ADDR);
 
-        LIB_ADDR = _lib;
-        LIB = ICallitLib(LIB_ADDR);
+        // update VAULT & DELEGATE to sync accordingly
+        DELEGATE.KEEPER_setContracts(address(this), _vault, _lib);
+        VAULT.KEEPER_setContracts(address(this), _delegate, _lib);
 
+        // update CallitToken.sol, only if address is not 0
         if (_newFact != address(0))
             CALL.FACT_setContracts(_newFact);
     }

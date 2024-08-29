@@ -130,7 +130,7 @@ contract CallitDelegate {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
-    function KEEPER_setContracts(address _fact, address _vault, address _lib) external onlyKeeper {
+    function KEEPER_setContracts(address _fact, address _vault, address _lib) external onlyFactory() {
         FACT_ADDR = _fact;
 
         LIB_ADDR = _lib;
