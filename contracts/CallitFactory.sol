@@ -181,13 +181,19 @@ contract CallitFactory {
         VAULT_ADDR = _vault;
         VAULT = ICallitVault(VAULT_ADDR);
 
-        // update VAULT & DELEGATE to sync accordingly
-        DELEGATE.KEEPER_setContracts(address(this), VAULT_ADDR, LIB_ADDR);
-        VAULT.KEEPER_setContracts(address(this), DELEGATE_ADDR, LIB_ADDR);
-
-        // update CallitToken.sol, only if address is not 0
-        if (_newFact != address(0))
+        // update support contracts accordingly
+        if (_newFact != address(0)) {
+            // update support contracts w/ new FACTORY address in support contracts
+            DELEGATE.KEEPER_setContracts(_newFact, VAULT_ADDR, LIB_ADDR);
+            VAULT.KEEPER_setContracts(_newFact, DELEGATE_ADDR, LIB_ADDR);
             CALL.FACT_setContracts(_newFact, VAULT_ADDR);
+        } else {
+            // update support contracts w/ current FACTORY address
+            DELEGATE.KEEPER_setContracts(address(this), VAULT_ADDR, LIB_ADDR);
+            VAULT.KEEPER_setContracts(address(this), DELEGATE_ADDR, LIB_ADDR);
+            CALL.FACT_setContracts(address(this), VAULT_ADDR);
+        }
+            
     }
     function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
