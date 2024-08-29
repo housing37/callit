@@ -53,7 +53,7 @@ CALLIT_FUNC_MAP_READ = {
 CALLIT_FUNC_MAP_WRITE = {
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_setContracts(address,address,address,address)": ["05943cc3", ["address","address","address","address"], []], # FACTORY: delegate, vault, lib, _newFact
-		# > 0x17E66C5629943AB17497bf56cc77A5FB83DbC565 0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4 0xcFFE32D8207d9B03B80c2a56cc5E681C35EBcD4e 0
+		# > 0x17E66C5629943AB17497bf56cc77A5FB83DbC565 0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4 0xAb2ce52Ed5C3952a1A36F17f2C7c59984866d753 0
     "KEEPER_setMarketSettings(uint16,uint64,uint64,uint256,bool)": ["559c36b3", ["uint16","uint64","uint64","uint256","bool"], []],
     "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])": ["ce448595", ["string","uint64","uint256","uint256","uint256","string[]","string[]"], []],
     "setMarketInfo(address,string,string,string)": ["cb73f3ee", ["address","string","string","string"], []],

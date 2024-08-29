@@ -22,7 +22,7 @@ import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Rout
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
-import "./CallitTicket.sol";
+// import "./CallitTicket.sol";
 import "./ICallitLib.sol";
 
 interface IERC20x {

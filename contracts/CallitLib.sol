@@ -16,7 +16,7 @@ interface IERC20x {
 }
 
 library CallitLib {
-    string public constant tVERSION = '0.10';
+    string public constant tVERSION = '0.14';
     event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */
@@ -135,33 +135,45 @@ library CallitLib {
     }
     // function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external pure returns(string memory, string memory) { 
     function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external returns(string memory, string memory) { 
-        emit StepLog('step', 0, '', '');
-        // Concatenate to form symbol & name
-        // string memory last4 = _getLast4Chars(_maker);
-        // Convert the last 2 bytes (4 characters) of the address to a string
-        bytes memory addrBytes = abi.encodePacked(_maker);
-        bytes memory last4 = new bytes(4);
-        
-        emit StepLog('step', 1, '', '');
-        
-        // for (uint256 i = 0; i < 4; i++) {
-        //     last4[i] = addrBytes[addrBytes.length - 4 + i];
-        // }
-        // last4[0] = addrBytes[18];
-        // last4[1] = addrBytes[19];
-        // last4[2] = addrBytes[20];
-        // last4[3] = addrBytes[21];
-        last4 = "37";
+        // string memory tokenSymbol = string(abi.encodePacked(_nameSeed, tVERSION, _markNum, string(abi.encodePacked(_resultNum))));
+        // string memory tokenName = string(abi.encodePacked(_symbSeed, " ", tVERSION, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
+        // string memory tokenSymbol = string(abi.encodePacked(_nameSeed));
+        // string memory tokenName = string(abi.encodePacked(_symbSeed));
+        // emit StepLog('step', 3, tokenSymbol, tokenName);
+        // return (tokenName, tokenSymbol);
+        return ("tTICKET_0", "tTCK0");
 
-        emit StepLog('step', 2, '', '');
-
-        // return string(last4);
-        string memory tokenSymbol = string(abi.encodePacked(_nameSeed, last4, _markNum, string(abi.encodePacked(_resultNum))));
-        string memory tokenName = string(abi.encodePacked(_symbSeed, " ", last4, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
-
-        emit StepLog('step', 3, tokenSymbol, tokenName);
-        return (tokenName, tokenSymbol);
+            // string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
+            // string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     }
+    // function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external returns(string memory, string memory) { 
+    //     emit StepLog('step', 0, '', '');
+    //     // Concatenate to form symbol & name
+    //     // string memory last4 = _getLast4Chars(_maker);
+    //     // Convert the last 2 bytes (4 characters) of the address to a string
+    //     bytes memory addrBytes = abi.encodePacked(_maker);
+    //     bytes memory last4 = new bytes(4);
+        
+    //     emit StepLog('step', 1, '', '');
+        
+    //     // for (uint256 i = 0; i < 4; i++) {
+    //     //     last4[i] = addrBytes[addrBytes.length - 4 + i];
+    //     // }
+    //     // last4[0] = addrBytes[18];
+    //     // last4[1] = addrBytes[19];
+    //     // last4[2] = addrBytes[20];
+    //     // last4[3] = addrBytes[21];
+    //     last4 = "37";
+
+    //     emit StepLog('step', 2, '', '');
+
+    //     // return string(last4);
+    //     string memory tokenSymbol = string(abi.encodePacked(_nameSeed, last4, _markNum, string(abi.encodePacked(_resultNum))));
+    //     string memory tokenName = string(abi.encodePacked(_symbSeed, " ", last4, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
+
+    //     emit StepLog('step', 3, tokenSymbol, tokenName);
+    //     return (tokenName, tokenSymbol);
+    // }
     function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool) {
         for (uint8 i=0; i < bytes(_s).length;) {
             if (bytes(_s)[i] != 0x20) {

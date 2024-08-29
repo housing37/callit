@@ -11,12 +11,12 @@
 pragma solidity ^0.8.24;
 
 // inherited contracts
-//  none
+// import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 
 // local _ $ npm install @openzeppelin/contracts
-//  none
+import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./CallitTicket.sol"; // imports ERC20.sol -> IERC20.sol
+// import "./CallitTicket.sol"; // imports ERC20.sol -> IERC20.sol
 import "./ICallitVault.sol"; // imports ICallitLib.sol
 
 interface ICallitToken {
@@ -29,7 +29,7 @@ interface ICallitToken {
     function balanceOf_voteCnt(address _voter) external view returns(uint64);
 }
 interface ICallitTicket {
-    function mintForPriceParity(address _receiver, uint256 _amount) external;
+    // function mintForPriceParity(address _receiver, uint256 _amount) external;
     function burnForWinLoseClaim(address _account) external;
     function decimals() external pure returns (uint8);
     function balanceOf(address account) external returns(uint256);
