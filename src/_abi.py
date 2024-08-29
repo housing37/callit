@@ -10,7 +10,21 @@ CALLIT_FUNC_MAP_READ = {
 	"FACT_ADDR()": ["d1db38d4", [], ['address']],
     
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
+    "CALL_ADDR()": ["049191ae", [], ['address']],
+    "DELEGATE_ADDR()": ["24a8eb9d", [], ['address']],
     "VAULT_ADDR()": ["d440c3c6", [], ['address']],
+    "LIB_ADDR()": ["9b05a663", [], ['address']],
+    "EARNED_CALL_VOTES(address)": ["cad8b94d", ["address"], ['uint64']],
+    "MAX_EOA_MARKETS()": ["485d44c5", [], ['uint64']],
+    "MAX_RESULTS()": ["0c806736", [], ['uint16']],
+    "MIN_USD_CALL_TICK_TARGET_PRICE()": ["5799ebb7", [], ['uint64']],
+    "MIN_USD_MARK_LIQ()": ["8da4fb23", [], ['uint64']],
+    "SEC_DEFAULT_VOTE_TIME()": ["2dda1682", [], ['uint256']],
+    "USE_SEC_DEFAULT_VOTE_TIME()": ["fb5e54f8", [], ['bool']],
+	# "ACCT_MARKETS(address,uint256)": ["0cfc0598", ["address","uint256"], []], # mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
+    # "ACCT_MARKET_REVIEWS(address,uint256)": ["e0199969", ["address","uint256"], []], # mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    # "ACCT_MARKET_VOTES_PAID(address,uint256)": ["927270cb", ["address","uint256"], []], # mapping(address => ICallitLib.MARKET_VOTE[]) public  ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
+    # "TICKET_MAKERS(address)": ["68f38bd1", ["address"], []], # mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
     
 	"#------------VAULT------------#": ["xxxxxxxx", [], []], 
     "USWAP_V2_ROUTERS(uint256)": ["ee80b054", ["uint256"], ['address']],
@@ -38,19 +52,29 @@ CALLIT_FUNC_MAP_READ = {
 }
 CALLIT_FUNC_MAP_WRITE = {
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
+	# delegate, vault, lib:
+	# 0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94 0x3B3fec46400885e766D5AFDCd74085db92608E1E 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E 0
     "KEEPER_setContracts(address,address,address,address)": ["05943cc3", ["address","address","address","address"], []], 
-    	# delegate, vault, lib:
-        # 0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94 0x3B3fec46400885e766D5AFDCd74085db92608E1E 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E 0
+    "KEEPER_setMarketSettings(uint16,uint64,uint64,uint256,bool)": ["559c36b3", ["uint16","uint64","uint64","uint256","bool"], []],
+    "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])": ["ce448595", ["string","uint64","uint256","uint256","uint256","string[]","string[]"], []],
+    "setMarketInfo(address,string,string,string)": ["cb73f3ee", ["address","string","string","string"], []],
+    "buyCallTicketWithPromoCode(address,address,uint64)": ["5a505989", ["address","address","uint64"], []],
+    "castVoteForMarketTicket(address)": ["06bfc575", ["address"], []],
+    "claimTicketRewards(address,bool)": ["d16aca12", ["address","bool"], []],
+    "claimVoterRewards()": ["e41356f3", [], []],
+    "closeMarketCallsForTicket(address)": ["00fa1b81", ["address"], []],
+    "closeMarketForTicket(address)": ["8be58395", ["address"], []],
+    "exeArbPriceParityForTicket(address)": ["b12524d6", ["address"], []],
     
     "#------------DELEGATE------------#": ["xxxxxxxx", [], []], 
+	# fact, vault, lib, :
+	# 0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428 0x3B3fec46400885e766D5AFDCd74085db92608E1E 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
-    	# fact, vault, lib, :
-		# 0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428 0x3B3fec46400885e766D5AFDCd74085db92608E1E 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
-        
+
     "#------------VAULT------------#": ["xxxxxxxx", [], []], 
+	# fact, delegate, lib:
+	# 0x7683DF731Efc78708cDe3aa0B01089b13606358E 0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
     "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
-    	# fact, delegate, lib:
-        # 0x7683DF731Efc78708cDe3aa0B01089b13606358E 0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
     
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_maintenance(address,uint256)": ["72dc3b3f", ["address","uint256"], []], # gas used: ?
