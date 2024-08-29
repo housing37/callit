@@ -63,12 +63,12 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.23';
+    string public tVERSION = '0.24';
     address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
-    address public VAULT_ADDR = address(0x3B3fec46400885e766D5AFDCd74085db92608E1E); // CallitVault v0.22
-    address public DELEGATE_ADDR = address(0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94); // CallitDelegate v0.15
-    address public CALL_ADDR = address(0x628dF5Ec8885eDbf0D95e3702Ced54862EaA770c); // CallitToken v0.10
-    // address public FACT_ADDR = address(0x72125112935bbe8de729F229371B54cB013E0312); // CallitFactory v0.21
+    address public VAULT_ADDR = address(0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4); // CallitVault v0.23
+    address public DELEGATE_ADDR = address(0x17E66C5629943AB17497bf56cc77A5FB83DbC565); // CallitDelegate v0.16
+    address public CALL_ADDR = address(0xBdefa6d27A22A6A376859e78E9bAe8E9ED445C5c); // CallitToken v0.11
+    // address public FACT_ADDR = address(0x69F65544e92c7E099170a85078dfAcAF8381436d); // CallitFactory v0.24
     
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
@@ -181,19 +181,15 @@ contract CallitFactory {
         VAULT_ADDR = _vault;
         VAULT = ICallitVault(VAULT_ADDR);
 
-        // update support contracts accordingly
-        if (_newFact != address(0)) {
-            // update support contracts w/ new FACTORY address in support contracts
-            DELEGATE.KEEPER_setContracts(_newFact, VAULT_ADDR, LIB_ADDR);
-            VAULT.KEEPER_setContracts(_newFact, DELEGATE_ADDR, LIB_ADDR);
-            CALL.FACT_setContracts(_newFact, VAULT_ADDR);
-        } else {
-            // update support contracts w/ current FACTORY address
-            DELEGATE.KEEPER_setContracts(address(this), VAULT_ADDR, LIB_ADDR);
-            VAULT.KEEPER_setContracts(address(this), DELEGATE_ADDR, LIB_ADDR);
-            CALL.FACT_setContracts(address(this), VAULT_ADDR);
+        // if no _newFact, update support contracts w/ current FACTORY address
+        if (_newFact == address(0)) {
+            _newFact = address(this); 
         }
-            
+
+        // update support contracts w/ new addresses accordingly
+        DELEGATE.KEEPER_setContracts(_newFact, VAULT_ADDR, LIB_ADDR);
+        VAULT.KEEPER_setContracts(_newFact, DELEGATE_ADDR, LIB_ADDR);
+        CALL.FACT_setContracts(_newFact, VAULT_ADDR);            
     }
     function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
