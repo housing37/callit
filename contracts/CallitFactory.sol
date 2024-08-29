@@ -63,11 +63,11 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.21';
+    string public tVERSION = '0.23';
     address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
     address public VAULT_ADDR = address(0x3B3fec46400885e766D5AFDCd74085db92608E1E); // CallitVault v0.22
     address public DELEGATE_ADDR = address(0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94); // CallitDelegate v0.15
-    address public CALL_ADDR = address(0xa457A0Bba1f8d2A31fAB7bFfE397325a26BbFc22); // CallitToken v0.9
+    address public CALL_ADDR = address(0x628dF5Ec8885eDbf0D95e3702Ced54862EaA770c); // CallitToken v0.10
     // address public FACT_ADDR = address(0x72125112935bbe8de729F229371B54cB013E0312); // CallitFactory v0.21
     
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
@@ -125,12 +125,10 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
-    constructor(uint64 _CALL_initSupply_noDecimals, bool _initFact) {
-        if (_initFact) {
-            VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
-            DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
-            CALL.INIT_factory(); // set FACT_ADDR in CallitToken
-        }
+    constructor(uint64 _CALL_initSupply_noDecimals, bool _initVault, bool _initDeleg, bool _initCall) {
+        if (_initVault) VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+        if (_initDeleg) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+        if (_initCall)  CALL.INIT_factory(); // set FACT_ADDR in CallitToken
 
         // set default globals
         KEEPER = msg.sender;
