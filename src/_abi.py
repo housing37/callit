@@ -52,9 +52,8 @@ CALLIT_FUNC_MAP_READ = {
 }
 CALLIT_FUNC_MAP_WRITE = {
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
-	# delegate, vault, lib:
-	# 0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94 0x3B3fec46400885e766D5AFDCd74085db92608E1E 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E 0
-    "KEEPER_setContracts(address,address,address,address)": ["05943cc3", ["address","address","address","address"], []], 
+    "KEEPER_setContracts(address,address,address,address)": ["05943cc3", ["address","address","address","address"], []], # FACTORY: delegate, vault, lib, _newFact
+		# > 0x17E66C5629943AB17497bf56cc77A5FB83DbC565 0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4 0xcFFE32D8207d9B03B80c2a56cc5E681C35EBcD4e 0
     "KEEPER_setMarketSettings(uint16,uint64,uint64,uint256,bool)": ["559c36b3", ["uint16","uint64","uint64","uint256","bool"], []],
     "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])": ["ce448595", ["string","uint64","uint256","uint256","uint256","string[]","string[]"], []],
     "setMarketInfo(address,string,string,string)": ["cb73f3ee", ["address","string","string","string"], []],
@@ -66,15 +65,10 @@ CALLIT_FUNC_MAP_WRITE = {
     "closeMarketForTicket(address)": ["8be58395", ["address"], []],
     "exeArbPriceParityForTicket(address)": ["b12524d6", ["address"], []],
     
-    "#------------DELEGATE------------#": ["xxxxxxxx", [], []], 
-	# fact, vault, lib, :
-	# 0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428 0x3B3fec46400885e766D5AFDCd74085db92608E1E 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
-    "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
-
-    "#------------VAULT------------#": ["xxxxxxxx", [], []], 
-	# fact, delegate, lib:
-	# 0x7683DF731Efc78708cDe3aa0B01089b13606358E 0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
-    "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], 
+    "#------------DELEGATE|VAULT------------#": ["xxxxxxxx", [], []], 	
+    "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], # DELEGATE: fact, vault, lib
+    "KEEPER_setContracts(address,address,address)": ["6b3891ef", ["address","address","address"], []], # VAULT: fact, delegate, lib
+    	# > 0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428 0x3B3fec46400885e766D5AFDCd74085db92608E1E 0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E
     
  	"#------------LEGACY------------#": ["xxxxxxxx", [], []], 
     "KEEPER_maintenance(address,uint256)": ["72dc3b3f", ["address","uint256"], []], # gas used: ?

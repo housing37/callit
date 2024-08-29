@@ -16,7 +16,7 @@ interface IERC20x {
 }
 
 library CallitLib {
-    string public constant tVERSION = '0.9';
+    string public constant tVERSION = '0.10';
     event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */
@@ -144,13 +144,14 @@ library CallitLib {
         
         emit StepLog('step', 1, '', '');
         
-        for (uint256 i = 0; i < 4; i++) {
-            last4[i] = addrBytes[addrBytes.length - 4 + i];
-        }
+        // for (uint256 i = 0; i < 4; i++) {
+        //     last4[i] = addrBytes[addrBytes.length - 4 + i];
+        // }
         // last4[0] = addrBytes[18];
         // last4[1] = addrBytes[19];
         // last4[2] = addrBytes[20];
         // last4[3] = addrBytes[21];
+        last4 = "37";
 
         emit StepLog('step', 2, '', '');
 
