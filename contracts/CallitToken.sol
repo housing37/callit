@@ -18,11 +18,13 @@ pragma solidity ^0.8.24;
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
+import "./ICallitVault.sol";
+
 contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS
     /* -------------------------------------------------------- */
-    string public tVERSION = '0.8';
+    string public tVERSION = '0.10';
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
@@ -30,7 +32,10 @@ contract CallitToken is ERC20, Ownable {
     bool private ONCE_ = true;
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
+
+    address public VAULT_ADDR = address(0x3B3fec46400885e766D5AFDCd74085db92608E1E); // CallitVault v0.22
     address public FACT_ADDR; // set via INIT_factory()
+    ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
@@ -56,14 +61,27 @@ contract CallitToken is ERC20, Ownable {
     }
 
     /* -------------------------------------------------------- */
+    /* PUBLIC - UI (CALLIT)
+    /* -------------------------------------------------------- */
+    // handle contract USD value deposits (convert PLS to USD stable)
+    // extract & send PLS to vault for processing (handle swap for usd stable)
+    receive() external payable {        
+        uint256 amntIn = msg.value; 
+        VAULT.deposit{value: amntIn}(msg.sender);
+        // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
+    }
+
+    /* -------------------------------------------------------- */
     /* FACTORY SUPPORT
     /* -------------------------------------------------------- */
     function INIT_factory() external onlyOnce {
         require(FACT_ADDR == address(0), ' factor already set :) ');
         FACT_ADDR = msg.sender;
     }
-    function FACT_setContracts(address _fact) external onlyFactory {
+    function FACT_setContracts(address _fact, address _vault) external onlyFactory {
         FACT_ADDR = _fact;
+        VAULT_ADDR = _vault;
+        ICallitVault(VAULT_ADDR);
     }
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external onlyFactory {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned

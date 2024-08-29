@@ -308,6 +308,13 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 # address public FACT_ADDR = address(0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428); // CallitFactory v0.20
 
 #-----------------------------------------------------------------------------------------------------------#
+# address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
+# address public VAULT_ADDR = address(0x3B3fec46400885e766D5AFDCd74085db92608E1E); // CallitVault v0.22
+# address public DELEGATE_ADDR = address(0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94); // CallitDelegate v0.15
+# address public CALL_ADDR = address(0xa457A0Bba1f8d2A31fAB7bFfE397325a26BbFc22); // CallitToken v0.9
+# address public FACT_ADDR = address(0x72125112935bbe8de729F229371B54cB013E0312); // CallitFactory v0.21
+
+#-----------------------------------------------------------------------------------------------------------#
 # address public LIB_ADDR = address(); // CallitLib v0.7
 # address public VAULT_ADDR = address(); // CallitVault v0.20
 # address public DELEGATE_ADDR = address(); // CallitDelegate v0.13

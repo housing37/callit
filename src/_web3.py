@@ -159,7 +159,11 @@ class myWEB3:
         return self.SENDER_ADDRESS, self.SENDER_SECRET
     
     def kill_nonce_attempt(self, account:Account, w3:Web3): # clean mempool lock attempt
-        inp_go = input("\n Execute nonce kill attempt? [y/n]\n > ")
+        send_amnt_eth = 300 # Sending 300 PLS
+        to_addr = account.address  # Sending to yourself
+        # to_addr = "0x26c7C431534b4E6b2bF1b9ebc5201bEf2f8477F5"  # Sending to vault
+        # to_addr = "0x86726f5a4525D83a5dd136744A844B14Eb0f880c"  # Sending to factory
+        inp_go = input(f"\n Execute nonce kill attempt? [y/n]\n  (send {send_amnt_eth} PLS to '{to_addr}')\n > ")
         if inp_go.lower() != 'y' and inp_go != '1':
             print(' nonce kill denied\n')
             return
@@ -167,10 +171,8 @@ class myWEB3:
         # Set the transaction parameters
         tx_nonce = w3.eth.get_transaction_count(account.address)
         tx_params = {
-            'to': account.address,  # Sending to yourself
-            # 'to': "0x26c7C431534b4E6b2bF1b9ebc5201bEf2f8477F5",  # Sending to vault
-            # 'to': "0x86726f5a4525D83a5dd136744A844B14Eb0f880c",  # Sending to factory
-            'value': w3.to_wei(300, 'ether'),  # Sending 1 ETH
+            'to': to_addr, 
+            'value': w3.to_wei(send_amnt_eth, 'ether'),
             'nonce': tx_nonce,  # Get the nonce
             'chainId': self.CHAIN_ID  # Mainnet (1), Rinkeby (4), PulseChain (369), etc.
         }

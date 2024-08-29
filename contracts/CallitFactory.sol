@@ -22,7 +22,7 @@ import "./ICallitVault.sol"; // imports ICallitLib.sol
 interface ICallitToken {
     function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
     function INIT_factory() external;
-    function FACT_setContracts(address _fact) external;
+    function FACT_setContracts(address _fact, address _vault) external;
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external;
     function setCallTokenVoteLock(bool _lock) external;
     function decimals() external pure returns (uint8);
@@ -63,12 +63,12 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.20';
-    address public LIB_ADDR = address(0x9c673684999f8432e53C0E8906c5a51Ab7a025c3); // CallitLib v0.8
-    address public VAULT_ADDR = address(0xc98ef085E50C74083115E2EdC65416b846A079A6); // CallitVault v0.21
-    address public DELEGATE_ADDR = address(0xB3a3602ae7A94852Cf1022250Ac6e5b21C51068b); // CallitDelegate v0.14
-    address public CALL_ADDR = address(0x295862D4F7E13fd1981Bc22cB3a3c47180Da2358); // CallitToken v0.8
-    // address public FACT_ADDR = address(0xD4d9bA09DBB97889e7A15eCb7c1FeE8366ed3428); // CallitFactory v0.20
+    string public tVERSION = '0.21';
+    address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
+    address public VAULT_ADDR = address(0x3B3fec46400885e766D5AFDCd74085db92608E1E); // CallitVault v0.22
+    address public DELEGATE_ADDR = address(0x2E175DBC91c9a50424BF29A023E5eEDB47b6dB94); // CallitDelegate v0.15
+    address public CALL_ADDR = address(0xa457A0Bba1f8d2A31fAB7bFfE397325a26BbFc22); // CallitToken v0.9
+    // address public FACT_ADDR = address(0x72125112935bbe8de729F229371B54cB013E0312); // CallitFactory v0.21
     
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
@@ -184,12 +184,12 @@ contract CallitFactory {
         VAULT = ICallitVault(VAULT_ADDR);
 
         // update VAULT & DELEGATE to sync accordingly
-        DELEGATE.KEEPER_setContracts(address(this), _vault, _lib);
-        VAULT.KEEPER_setContracts(address(this), _delegate, _lib);
+        DELEGATE.KEEPER_setContracts(address(this), VAULT_ADDR, LIB_ADDR);
+        VAULT.KEEPER_setContracts(address(this), DELEGATE_ADDR, LIB_ADDR);
 
         // update CallitToken.sol, only if address is not 0
         if (_newFact != address(0))
-            CALL.FACT_setContracts(_newFact);
+            CALL.FACT_setContracts(_newFact, VAULT_ADDR);
     }
     function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
