@@ -63,12 +63,12 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.24';
-    address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
+    string public tVERSION = '0.26';
+    address public LIB_ADDR = address(0xAb2ce52Ed5C3952a1A36F17f2C7c59984866d753); // CallitLib v0.14
     address public VAULT_ADDR = address(0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4); // CallitVault v0.23
-    address public DELEGATE_ADDR = address(0x17E66C5629943AB17497bf56cc77A5FB83DbC565); // CallitDelegate v0.16
+    address public DELEGATE_ADDR = address(0x7c5A1eE5963e791018e2B4AcCD4E77dcC97a969F); // CallitDelegate v0.17
     address public CALL_ADDR = address(0xBdefa6d27A22A6A376859e78E9bAe8E9ED445C5c); // CallitToken v0.11
-    // address public FACT_ADDR = address(0x69F65544e92c7E099170a85078dfAcAF8381436d); // CallitFactory v0.24
+    // address public FACT_ADDR = address(0x233d822548b71545d706Fe0Fef3796b58e9141A5); // CallitFactory v0.25
     
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
     ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
@@ -170,26 +170,46 @@ contract CallitFactory {
         KEEPER = _newKeeper;
       //  emit KeeperTransfer(prev, KEEPER);
     }
-    function KEEPER_setContracts(address _delegate, address _vault, address _lib, address _newFact) external onlyKeeper {
-        require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
-        LIB_ADDR = _lib;
-        LIB = ICallitLib(LIB_ADDR);
+    function KEEPER_setContracts(address _CALL, address _delegate, address _vault, address _lib, address _fact, bool _new) external onlyKeeper {
+        // require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
 
-        DELEGATE_ADDR = _delegate;
-        DELEGATE = ICallitDelegate(DELEGATE_ADDR);
-
-        VAULT_ADDR = _vault;
-        VAULT = ICallitVault(VAULT_ADDR);
-
-        // if no _newFact, update support contracts w/ current FACTORY address
-        if (_newFact == address(0)) {
-            _newFact = address(this); 
+        // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
+        if (_CALL != address(0)) {
+            if (_new) CALL.INIT_factory(); // set FACT_ADDR in CallitToken
+            else {
+                CALL_ADDR = _CALL;
+                CALL = ICallitToken(CALL_ADDR);
+            }
+        }
+        if (_delegate != address(0)) {
+            if (_new) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+            else {
+                DELEGATE_ADDR = _delegate;
+                DELEGATE = ICallitDelegate(DELEGATE_ADDR);
+            }   
+        }
+        if (_vault != address(0)) {
+            if (_new) VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+            else {
+                VAULT_ADDR = _vault;
+                VAULT = ICallitVault(VAULT_ADDR);
+            }
+        }
+        if (_lib != address(0)) {
+            LIB_ADDR = _lib;
+            LIB = ICallitLib(LIB_ADDR);
         }
 
-        // update support contracts w/ new addresses accordingly
-        DELEGATE.KEEPER_setContracts(_newFact, VAULT_ADDR, LIB_ADDR);
-        VAULT.KEEPER_setContracts(_newFact, DELEGATE_ADDR, LIB_ADDR);
-        CALL.FACT_setContracts(_newFact, VAULT_ADDR);            
+        // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
+        //  if no _fact, update support contracts w/ current FACTORY address
+        if (_fact == address(0)) {
+            _fact = address(this); 
+        }
+
+        // update support contracts w/ new|OG addies accordingly
+        CALL.FACT_setContracts(_fact, VAULT_ADDR);       
+        DELEGATE.KEEPER_setContracts(_fact, VAULT_ADDR, LIB_ADDR);
+        VAULT.KEEPER_setContracts(_fact, DELEGATE_ADDR, LIB_ADDR);
     }
     function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have

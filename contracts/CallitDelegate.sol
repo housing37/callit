@@ -44,8 +44,8 @@ contract CallitDelegate {
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.16';
-    address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
+    string public constant tVERSION = '0.17';
+    address public LIB_ADDR = address(0xAb2ce52Ed5C3952a1A36F17f2C7c59984866d753); // CallitLib v0.14
     address public VAULT_ADDR = address(0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4); // CallitVault v0.23
     address public FACT_ADDR; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(LIB_ADDR);
@@ -181,8 +181,9 @@ contract CallitDelegate {
             (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
 
             // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
-            (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
+            // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
+            // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
+            address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), FACT_ADDR, "tTICKET_0", "tTCK0"));
             
             // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
             address pairAddr = VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
