@@ -189,14 +189,17 @@ contract CallitFactory {
         // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
         // EOA may send _new = true to invoke 'INI_factory' for new contract deployments
         if (_CALL != address(0)) {
+            CALL_ADDR = _CALL;
             CALL = ICallitToken(address(_CALL));
             if (_new) CALL.INIT_factory(); // set FACT_ADDR in CallitToken
         }
         if (_delegate != address(0)) {
+            DELEGATE_ADDR = _delegate;
             DELEGATE = ICallitDelegate(address(_delegate));
             if (_new) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
         }
         if (_vault != address(0)) {
+            VAULT_ADDR = _vault;
             VAULT = ICallitVault(address(_vault));
             if (_new) {
                 require(_delegate != address(0), ' !_delegate for new vault :: ');
@@ -204,6 +207,7 @@ contract CallitFactory {
             }
         }
         if (_lib != address(0)) {
+            LIB_ADDR = _lib;
             LIB = ICallitLib(address(_lib));
         }
 

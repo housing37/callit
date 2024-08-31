@@ -44,7 +44,7 @@ contract CallitDelegate {
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.19';
+    string public constant tVERSION = '0.20';
     address public LIB_ADDR = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
     address public VAULT_ADDR = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
     address public FACT_ADDR; // set via INIT_factory()
@@ -178,7 +178,7 @@ contract CallitDelegate {
                             uint256 _mark_num,
                             address _sender
                             ) external onlyFactory returns(ICallitLib.MARKET memory,uint256) { 
-        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmntLP, ' low balance ;{ ');
+        require(VAULT.ACCT_USD_BALANCES(_sender) >= _usdAmntLP, ' low balance ;{ ');
         require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // check for admin defualt vote time, update _dtResultVoteEnd accordingly
