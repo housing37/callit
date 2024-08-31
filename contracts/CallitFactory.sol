@@ -14,11 +14,16 @@ pragma solidity ^0.8.24;
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 
 // local _ $ npm install @openzeppelin/contracts
-import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // import "./CallitTicket.sol"; // imports ERC20.sol -> IERC20.sol
 import "./ICallitVault.sol"; // imports ICallitLib.sol
 
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external returns(uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+}
 interface ICallitToken {
     function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
     function INIT_factory() external;
@@ -35,6 +40,8 @@ interface ICallitTicket {
     function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
+    function ACCT_MARKET_REVIEWS(address _key) external view returns(ICallitLib.MARKET_REVIEW[] memory);
+    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external;
     function INIT_factory() external;
     function KEEPER_setContracts(address _fact, address _vault, address _lib) external;
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
@@ -63,7 +70,13 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.26';
+    string public tVERSION = '0.27';
+    // ICallitLib   private LIB = ICallitLib(address(0xAb2ce52Ed5C3952a1A36F17f2C7c59984866d753)); // CallitLib v0.14
+    // ICallitVault private VAULT = ICallitVault(address(0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4)); // CallitVault v0.23
+    // ICallitDelegate private DELEGATE = ICallitDelegate(address(0x7c5A1eE5963e791018e2B4AcCD4E77dcC97a969F)); // CallitDelegate v0.17
+    // ICallitToken private CALL = ICallitToken(address(0xBdefa6d27A22A6A376859e78E9bAe8E9ED445C5c)); // CallitToken v0.11
+    // // address public FACT_ADDR = address(0x233d822548b71545d706Fe0Fef3796b58e9141A5); // CallitFactory v0.25
+
     address public LIB_ADDR = address(0xAb2ce52Ed5C3952a1A36F17f2C7c59984866d753); // CallitLib v0.14
     address public VAULT_ADDR = address(0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4); // CallitVault v0.23
     address public DELEGATE_ADDR = address(0x7c5A1eE5963e791018e2B4AcCD4E77dcC97a969F); // CallitDelegate v0.17
@@ -75,21 +88,21 @@ contract CallitFactory {
     ICallitDelegate private DELEGATE = ICallitDelegate(DELEGATE_ADDR);
     ICallitToken private CALL = ICallitToken(CALL_ADDR);
 
-    // arb algorithm settings
-    uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+    // // arb algorithm settings
+    // uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
 
     // market settings
-    bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
-    uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+    // bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    // uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
+    // uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
+    // uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
         // NOTE: additional launch security: caps EOA $CALL earned to 255
         //  but also limits the EOA following (KEEPER setter available; should raise after launch)
     
     /* MAPPINGS (CALLIT) */
     // used externals only
     mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
-    mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    // mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     // used externals & private
     mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
@@ -126,7 +139,7 @@ contract CallitFactory {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     constructor(uint64 _CALL_initSupply_noDecimals, bool _initVault, bool _initDeleg, bool _initCall) {
-        if (_initVault) VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+        if (_initVault) VAULT.INIT_factory(address(DELEGATE)); // set FACT_ADDR & DELEGATE_ADDR in VAULT
         if (_initDeleg) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
         if (_initCall)  CALL.INIT_factory(); // set FACT_ADDR in CallitToken
 
@@ -175,29 +188,30 @@ contract CallitFactory {
 
         // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
         if (_CALL != address(0)) {
-            if (_new) CALL.INIT_factory(); // set FACT_ADDR in CallitToken
+            if (_new) 
+                CALL.INIT_factory(); // set FACT_ADDR in CallitToken
             else {
-                CALL_ADDR = _CALL;
-                CALL = ICallitToken(CALL_ADDR);
+                CALL = ICallitToken(address(_CALL));
             }
         }
         if (_delegate != address(0)) {
-            if (_new) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+            if (_new) 
+                DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
             else {
-                DELEGATE_ADDR = _delegate;
-                DELEGATE = ICallitDelegate(DELEGATE_ADDR);
+                DELEGATE = ICallitDelegate(address(_delegate));
             }   
         }
         if (_vault != address(0)) {
-            if (_new) VAULT.INIT_factory(DELEGATE_ADDR); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+            if (_new) {
+                require(_delegate != address(0), ' !_delegate fo new vault :: ');
+                VAULT.INIT_factory(address(_delegate)); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+            } 
             else {
-                VAULT_ADDR = _vault;
-                VAULT = ICallitVault(VAULT_ADDR);
+                VAULT = ICallitVault(address(_vault));
             }
         }
         if (_lib != address(0)) {
-            LIB_ADDR = _lib;
-            LIB = ICallitLib(LIB_ADDR);
+            LIB = ICallitLib(address(_lib));
         }
 
         // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
@@ -207,19 +221,20 @@ contract CallitFactory {
         }
 
         // update support contracts w/ new|OG addies accordingly
-        CALL.FACT_setContracts(_fact, VAULT_ADDR);       
-        DELEGATE.KEEPER_setContracts(_fact, VAULT_ADDR, LIB_ADDR);
-        VAULT.KEEPER_setContracts(_fact, DELEGATE_ADDR, LIB_ADDR);
+        CALL.FACT_setContracts(_fact, address(VAULT));       
+        DELEGATE.KEEPER_setContracts(_fact, address(VAULT), address(LIB));
+        VAULT.KEEPER_setContracts(_fact, address(DELEGATE), address(LIB));
     }
-    function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
-        MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
-        MAX_EOA_MARKETS = _maxEoaMarkets;
-        // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-        MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
+    // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
+    // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
+    //     MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
+    //     MAX_EOA_MARKETS = _maxEoaMarkets;
+    //     // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+    //     MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
 
-        SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
-        USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    }
+    //     SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
+    //     USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - UI (CALLIT)
@@ -254,15 +269,15 @@ contract CallitFactory {
                             ) external { 
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
         require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmntLP, ' low balance ;{ ');
-        require(2 <= _resultLabels.length && _resultLabels.length <= MAX_RESULTS && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
+        require(2 <= _resultLabels.length && _resultLabels.length <= VAULT.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
         require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // initilize/validate market number for struct MARKET tracking
         uint256 mark_num = ACCT_MARKETS[msg.sender].length;
-        require(mark_num <= MAX_EOA_MARKETS, ' > MAX_EOA_MARKETS :O ');
+        require(mark_num <= VAULT.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
         
         // check for admin defualt vote time, update _dtResultVoteEnd accordingly
-        if (USE_SEC_DEFAULT_VOTE_TIME) _dtResultVoteEnd = _dtResultVoteStart + SEC_DEFAULT_VOTE_TIME;
+        if (VAULT.USE_SEC_DEFAULT_VOTE_TIME()) _dtResultVoteEnd = _dtResultVoteStart + VAULT.SEC_DEFAULT_VOTE_TIME();
 
         // save this market and emit log
         // note: could possibly remove '_resultLabels' to save memory (ie. removed _resultDescrs succcessfully)
@@ -313,7 +328,8 @@ contract CallitFactory {
         // calc target usd price for _ticket (in order to bring this market to price parity)
         //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
         //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
-        (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE, msg.sender);
+        // (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE, msg.sender);
+        (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, msg.sender);
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_ARB_EXE()); // emit CallTokensEarned
@@ -472,8 +488,11 @@ contract CallitFactory {
         cTicket.burnForWinLoseClaim(msg.sender);
 
         // log caller's review of market results
-        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
-        ACCT_MARKET_REVIEWS[mark.maker].push(marketReview);
+        // (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
+        // ACCT_MARKET_REVIEWS[mark.maker].push(marketReview);
+        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, DELEGATE.ACCT_MARKET_REVIEWS(mark.maker), _resultAgree);
+        DELEGATE.pushAcctMarketReview(marketReview, mark.maker);        
+        
       //  emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, agreeCnt, disagreeCnt);
           
         // emit log event for claimed ticket
@@ -522,8 +541,8 @@ contract CallitFactory {
         }
 
         // deduct fees and pay voter rewards
-        uint64 usdRewardOwed_net = LIB._deductFeePerc(usdRewardOwed, VAULT.PERC_VOTER_CLAIM_FEE(), usdRewardOwed);
-        VAULT._payUsdReward(msg.sender, usdRewardOwed_net, msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        // uint64 usdRewardOwed_net = LIB._deductFeePerc(usdRewardOwed, VAULT.PERC_VOTER_CLAIM_FEE(), usdRewardOwed);
+        VAULT._payUsdReward(msg.sender, LIB._deductFeePerc(usdRewardOwed, VAULT.PERC_VOTER_CLAIM_FEE(), usdRewardOwed), msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
         // emit log for rewards claimed
       //  emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);

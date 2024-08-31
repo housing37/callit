@@ -44,7 +44,7 @@ contract CallitDelegate {
 
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.17';
+    string public constant tVERSION = '0.18';
     address public LIB_ADDR = address(0xAb2ce52Ed5C3952a1A36F17f2C7c59984866d753); // CallitLib v0.14
     address public VAULT_ADDR = address(0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4); // CallitVault v0.23
     address public FACT_ADDR; // set via INIT_factory()
@@ -56,6 +56,12 @@ contract CallitDelegate {
     mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
 
+    mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+
+    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external onlyFactory {
+        require(_marketMaker != address(0), ' !_marketMaker :- ');
+        ACCT_MARKET_REVIEWS[_marketMaker].push(_marketReview);
+    }
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */

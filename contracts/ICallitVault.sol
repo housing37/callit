@@ -3,9 +3,15 @@ pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
 
 interface ICallitVault {
-    function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external returns(uint64, uint64, uint64, uint64, uint64);
+    // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external returns(uint64, uint64, uint64, uint64, uint64);
+    function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external returns(uint64, uint64, uint64, uint64, uint64);
 
     // more migration from factory attempts
+    function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
+    function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
+    function MAX_RESULTS() external view returns(uint16);
+    function MAX_EOA_MARKETS() external view returns(uint64);   
+
     // default all fees to 0 (KEEPER setter available)
     function PERC_MARKET_MAKER_FEE() external view returns(uint16);
     function PERC_PROMO_BUY_FEE() external view returns(uint16);

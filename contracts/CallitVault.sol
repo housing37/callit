@@ -72,7 +72,7 @@ contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.23';
+    string public constant tVERSION = '0.24';
     address public LIB_ADDR = address(0xEf2ED160EfF99971804D4630e361D9B155Bc7c0E); // CallitLib v0.9
     address public FACT_ADDR; // set via INIT_factory(address _delegate)
     address public DELEGATE_ADDR; // set via INIT_factory(address _delegate)
@@ -96,6 +96,25 @@ contract CallitVault {
 
     mapping(address => address) private TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
     
+    // arb algorithm settings
+    // market settings
+    uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+    bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
+    uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
+    uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+
+    // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
+    function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {
+        // MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
+        // MAX_EOA_MARKETS = _maxEoaMarkets;
+        // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+        MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
+
+        // SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
+        USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    }
+
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external onlyFactory() {
         // NOTE: _usdAmnt must be in _usd_decimals() precision
         require(_acct != address(0) && _usdAmnt > 0, ' invalid _acct | _usdAmnt :p ');
@@ -143,11 +162,14 @@ contract CallitVault {
             // FACTORY_pulsex_router_02_v2='0x29eA7545DEf87022BAdc76323F373EA1e707C523'
     }
 
-    function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
+    // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
+    function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
         // calc target usd price for _ticket (in order to bring this market to price parity)
         //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
         //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
-        uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, _minUsdTargPrice);
+        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, _minUsdTargPrice);
+        uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
+        
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         //  mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
@@ -175,7 +197,7 @@ contract CallitVault {
     }
 
     function INIT_factory(address _delegate) external onlyOnce {
-        require(FACT_ADDR == address(0), ' factor already set :) ');
+        require(FACT_ADDR == address(0) && _delegate != address(0), ' fact already set | !_delegate :) ');
         FACT_ADDR = msg.sender;
         DELEGATE_ADDR = _delegate;
     }
