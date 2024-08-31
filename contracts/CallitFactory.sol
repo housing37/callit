@@ -52,7 +52,7 @@ interface ICallitDelegate {
                         string[] calldata _resultLabels, // note: could possibly remove to save memory (ie. removed _resultDescrs succcessfully)
                         uint256 _mark_num,
                         address _sender
-                        ) external returns(ICallitLib.MARKET memory);
+                        ) external returns(ICallitLib.MARKET memory,uint256);
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external returns(uint64);
     function setAcctHandle(address _acct, string calldata _handle) external;    
@@ -187,27 +187,20 @@ contract CallitFactory {
         // require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
 
         // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
+        // EOA may send _new = true to invoke 'INI_factory' for new contract deployments
         if (_CALL != address(0)) {
-            if (_new) 
-                CALL.INIT_factory(); // set FACT_ADDR in CallitToken
-            else {
-                CALL = ICallitToken(address(_CALL));
-            }
+            CALL = ICallitToken(address(_CALL));
+            if (_new) CALL.INIT_factory(); // set FACT_ADDR in CallitToken
         }
         if (_delegate != address(0)) {
-            if (_new) 
-                DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
-            else {
-                DELEGATE = ICallitDelegate(address(_delegate));
-            }   
+            DELEGATE = ICallitDelegate(address(_delegate));
+            if (_new) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
         }
         if (_vault != address(0)) {
+            VAULT = ICallitVault(address(_vault));
             if (_new) {
-                require(_delegate != address(0), ' !_delegate fo new vault :: ');
+                require(_delegate != address(0), ' !_delegate for new vault :: ');
                 VAULT.INIT_factory(address(_delegate)); // set FACT_ADDR & DELEGATE_ADDR in VAULT
-            } 
-            else {
-                VAULT = ICallitVault(address(_vault));
             }
         }
         if (_lib != address(0)) {
@@ -220,7 +213,7 @@ contract CallitFactory {
             _fact = address(this); 
         }
 
-        // update support contracts w/ new|OG addies accordingly
+        // update support contracts w/ OG|new addies accordingly
         CALL.FACT_setContracts(_fact, address(VAULT));       
         DELEGATE.KEEPER_setContracts(_fact, address(VAULT), address(LIB));
         VAULT.KEEPER_setContracts(_fact, address(DELEGATE), address(LIB));
@@ -268,20 +261,16 @@ contract CallitFactory {
                             string[] calldata _resultDescrs
                             ) external { 
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
-        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmntLP, ' low balance ;{ ');
         require(2 <= _resultLabels.length && _resultLabels.length <= VAULT.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
-        require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // initilize/validate market number for struct MARKET tracking
         uint256 mark_num = ACCT_MARKETS[msg.sender].length;
         require(mark_num <= VAULT.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
-        
-        // check for admin defualt vote time, update _dtResultVoteEnd accordingly
-        if (VAULT.USE_SEC_DEFAULT_VOTE_TIME()) _dtResultVoteEnd = _dtResultVoteStart + VAULT.SEC_DEFAULT_VOTE_TIME();
 
         // save this market and emit log
         // note: could possibly remove '_resultLabels' to save memory (ie. removed _resultDescrs succcessfully)
-        ICallitLib.MARKET memory mark = DELEGATE.makeNewMarket(_name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark_num, msg.sender);
+        // ICallitLib.MARKET memory mark = DELEGATE.makeNewMarket(_name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark_num, msg.sender);
+        (ICallitLib.MARKET memory mark, uint256 dtResultVoteEnd_)= DELEGATE.makeNewMarket(_name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark_num, msg.sender);
         mark.marketResults.resultDescrs = _resultDescrs; // bc it won't fit in 'DELEGATE.makeNewMark' :/
         ACCT_MARKETS[msg.sender].push(mark);
 

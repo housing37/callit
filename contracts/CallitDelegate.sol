@@ -177,7 +177,13 @@ contract CallitDelegate {
                             string[] calldata _resultLabels, // note: could possibly remove to save memory (ie. removed _resultDescrs succcessfully)
                             uint256 _mark_num,
                             address _sender
-                            ) external onlyFactory returns(ICallitLib.MARKET memory) { 
+                            ) external onlyFactory returns(ICallitLib.MARKET memory,uint256) { 
+        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmntLP, ' low balance ;{ ');
+        require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
+
+        // check for admin defualt vote time, update _dtResultVoteEnd accordingly
+        if (VAULT.USE_SEC_DEFAULT_VOTE_TIME()) _dtResultVoteEnd = _dtResultVoteStart + VAULT.SEC_DEFAULT_VOTE_TIME();
+
         // deduct 'market maker fees' from _usdAmntLP
         uint64 net_usdAmntLP = LIB._deductFeePerc(_usdAmntLP, PERC_MARKET_MAKER_FEE, _usdAmntLP);
 
@@ -242,7 +248,7 @@ contract CallitDelegate {
         delete resultTokenUsdStables;
         delete resultTokenVotes;
 
-        return mark;
+        return (mark,_dtResultVoteEnd);
 
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }
