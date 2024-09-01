@@ -70,23 +70,17 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.28';
-    // ICallitLib   private LIB = ICallitLib(address(0xAb2ce52Ed5C3952a1A36F17f2C7c59984866d753)); // CallitLib v0.14
-    // ICallitVault private VAULT = ICallitVault(address(0x30cD1A302193C776f0570Ec590f1D4dA3042cAc4)); // CallitVault v0.23
-    // ICallitDelegate private DELEGATE = ICallitDelegate(address(0x7c5A1eE5963e791018e2B4AcCD4E77dcC97a969F)); // CallitDelegate v0.17
-    // ICallitToken private CALL = ICallitToken(address(0xBdefa6d27A22A6A376859e78E9bAe8E9ED445C5c)); // CallitToken v0.11
-    // // address public FACT_ADDR = address(0x233d822548b71545d706Fe0Fef3796b58e9141A5); // CallitFactory v0.25
-
-    address public LIB_ADDR = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public VAULT_ADDR = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
-    address public DELEGATE_ADDR = address(0x5CB8d4071007EEC51412F46D2Df89c4FEd6A00AE); // CallitDelegate v0.19
-    address public CALL_ADDR = address(0xf5Ad4e325C9E953fc890C7f00b4DC2E16C56F533); // CallitToken v0.12
-    // address public FACT_ADDR = address(0x233d822548b71545d706Fe0Fef3796b58e9141A5); // CallitFactory v0.25
+    string public tVERSION = '0.30';
+    address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
+    address public ADDR_VAULT = address(0xa967654c53F28281560589F89C61bAd0Dd6de3f0); // CallitVault v0.27
+    address public ADDR_DELEGATE = address(0xcc884b22BE2D81D15c803aa47ff02f0a40A6Dd0D); // CallitDelegate v0.21
+    address public ADDR_CALL = address(0xf5Ad4e325C9E953fc890C7f00b4DC2E16C56F533); // CallitToken v0.12
+    // address public ADDR_FACT = address(0xa72fcf6C1F9ebbBA50B51e2e0081caf3BCEa69aA); // CallitFactory v0.28
     
-    ICallitLib   private LIB = ICallitLib(LIB_ADDR);
-    ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
-    ICallitDelegate private DELEGATE = ICallitDelegate(DELEGATE_ADDR);
-    ICallitToken private CALL = ICallitToken(CALL_ADDR);
+    ICallitLib   private LIB = ICallitLib(ADDR_LIB);
+    ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
+    ICallitDelegate private DELEGATE = ICallitDelegate(ADDR_DELEGATE);
+    ICallitToken private CALL = ICallitToken(ADDR_CALL);
 
     // // arb algorithm settings
     // uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
@@ -139,15 +133,19 @@ contract CallitFactory {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     constructor(uint64 _CALL_initSupply_noDecimals, bool _initVault, bool _initDeleg, bool _initCall) {
-        if (_initVault) VAULT.INIT_factory(address(DELEGATE)); // set FACT_ADDR & DELEGATE_ADDR in VAULT
-        if (_initDeleg) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
-        if (_initCall)  CALL.INIT_factory(); // set FACT_ADDR in CallitToken
-
         // set default globals
         KEEPER = msg.sender;
 
-        // mint initial CALl to keeper
-        _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
+        // init factories in support contracts (based on active debug status)
+        //  note: all should init during production deployment
+        if (_initVault) VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
+        if (_initDeleg) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
+        if (_initCall)  {
+            CALL.INIT_factory(); // set ADDR_FACT in CallitToken
+
+            // mint initial CALl to keeper
+            _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
+        }
 
         // NOTE: CALL initSupply is minted to KEEPER via _mintCallToksEarned (ie. CALL.mintCallToksEarned)
         // NOTE: whitelist stable & dex routers set in VAULT constructor
@@ -189,25 +187,26 @@ contract CallitFactory {
         // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
         // EOA may send _new = true to invoke 'INI_factory' for new contract deployments
         if (_CALL != address(0)) {
-            CALL_ADDR = _CALL;
+            ADDR_CALL = _CALL;
             CALL = ICallitToken(address(_CALL));
-            if (_new) CALL.INIT_factory(); // set FACT_ADDR in CallitToken
+            if (_new) CALL.INIT_factory(); // set ADDR_FACT in CallitToken
+            // LEFT OFF HERE ... if we are INIT_factory on CALL, then we need to mint as well (like in constructor)
         }
         if (_delegate != address(0)) {
-            DELEGATE_ADDR = _delegate;
+            ADDR_DELEGATE = _delegate;
             DELEGATE = ICallitDelegate(address(_delegate));
-            if (_new) DELEGATE.INIT_factory(); // set FACT_ADDR in DELEGATE
+            if (_new) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
         }
         if (_vault != address(0)) {
-            VAULT_ADDR = _vault;
+            ADDR_VAULT = _vault;
             VAULT = ICallitVault(address(_vault));
             if (_new) {
                 require(_delegate != address(0), ' !_delegate for new vault :: ');
-                VAULT.INIT_factory(address(_delegate)); // set FACT_ADDR & DELEGATE_ADDR in VAULT
+                VAULT.INIT_factory(address(_delegate)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
             }
         }
         if (_lib != address(0)) {
-            LIB_ADDR = _lib;
+            ADDR_LIB = _lib;
             LIB = ICallitLib(address(_lib));
         }
 
