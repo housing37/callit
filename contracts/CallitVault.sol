@@ -35,6 +35,16 @@ interface ICallitTicket {
 }
 
 contract CallitVault {
+    /* _ ADMIN SUPPORT (legacy) _ */
+    address public KEEPER;
+    uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
+    bool private ONCE_ = true;
+    string public constant tVERSION = '0.27';
+    address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
+    address public ADDR_FACT; // set via INIT_factory(address _delegate)
+    address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
+    ICallitLib private LIB = ICallitLib(ADDR_LIB);
+    
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
     /* -------------------------------------------------------- */
@@ -67,18 +77,7 @@ contract CallitVault {
     uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
         // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
-        //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)
-
-    /* _ ADMIN SUPPORT (legacy) _ */
-    address public KEEPER;
-    uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.27';
-    address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public ADDR_FACT; // set via INIT_factory(address _delegate)
-    address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
-    ICallitLib private LIB = ICallitLib(ADDR_LIB);
-
-    bool private ONCE_ = true;
+        //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)    
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
