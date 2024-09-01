@@ -33,9 +33,9 @@ contract CallitToken is ERC20, Ownable {
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
 
-    address public VAULT_ADDR = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
-    address public FACT_ADDR; // set via INIT_factory()
-    ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
+    address public ADDR_VAULT = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
+    address public ADDR_FACT; // set via INIT_factory()
+    ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
@@ -51,7 +51,7 @@ contract CallitToken is ERC20, Ownable {
     /* MODIFIERS
     /* -------------------------------------------------------- */
     modifier onlyFactory() {
-        require(msg.sender == FACT_ADDR, " !fact :p ");
+        require(msg.sender == ADDR_FACT, " !fact :p ");
         _;
     }
     modifier onlyOnce() {
@@ -75,13 +75,13 @@ contract CallitToken is ERC20, Ownable {
     /* FACTORY SUPPORT
     /* -------------------------------------------------------- */
     function INIT_factory() external onlyOnce {
-        require(FACT_ADDR == address(0), ' factor already set :) ');
-        FACT_ADDR = msg.sender;
+        require(ADDR_FACT == address(0), ' factor already set :) ');
+        ADDR_FACT = msg.sender;
     }
     function FACT_setContracts(address _fact, address _vault) external onlyFactory {
-        FACT_ADDR = _fact;
-        VAULT_ADDR = _vault;
-        ICallitVault(VAULT_ADDR);
+        ADDR_FACT = _fact;
+        ADDR_VAULT = _vault;
+        VAULT = ICallitVault(ADDR_VAULT);
     }
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external onlyFactory {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned

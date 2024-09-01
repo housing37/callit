@@ -73,10 +73,10 @@ contract CallitVault {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     string public constant tVERSION = '0.27';
-    address public LIB_ADDR = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public FACT_ADDR; // set via INIT_factory(address _delegate)
-    address public DELEGATE_ADDR; // set via INIT_factory(address _delegate)
-    ICallitLib private LIB = ICallitLib(LIB_ADDR);
+    address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
+    address public ADDR_FACT; // set via INIT_factory(address _delegate)
+    address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
+    ICallitLib private LIB = ICallitLib(ADDR_LIB);
 
     bool private ONCE_ = true;
 
@@ -187,7 +187,7 @@ contract CallitVault {
         _;
     }
     modifier onlyFactory() {
-        require(msg.sender == FACT_ADDR || msg.sender == DELEGATE_ADDR || msg.sender == KEEPER, " !keeper & !fact :p");
+        require(msg.sender == ADDR_FACT || msg.sender == ADDR_DELEGATE || msg.sender == KEEPER, " !keeper & !fact :p");
         _;
     }
     modifier onlyOnce() {
@@ -197,9 +197,9 @@ contract CallitVault {
     }
 
     function INIT_factory(address _delegate) external onlyOnce {
-        require(FACT_ADDR == address(0) && _delegate != address(0), ' fact already set | !_delegate :) ');
-        FACT_ADDR = msg.sender;
-        DELEGATE_ADDR = _delegate;
+        require(ADDR_FACT == address(0) && _delegate != address(0), ' fact already set | !_delegate :) ');
+        ADDR_FACT = msg.sender;
+        ADDR_DELEGATE = _delegate;
     }
 
     /* -------------------------------------------------------- */
@@ -250,10 +250,10 @@ contract CallitVault {
         IERC20(TICK_PAIR_ADDR[_ticket]).transfer(KEEPER, IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
     }
     function KEEPER_setContracts(address _fact, address _delegate, address _lib) external onlyFactory() {
-        DELEGATE_ADDR = _delegate;
-        FACT_ADDR = _fact;
+        ADDR_DELEGATE = _delegate;
+        ADDR_FACT = _fact;
 
-        LIB_ADDR = _lib;
+        ADDR_LIB = _lib;
         LIB = ICallitLib(_lib);
     }
     function KEEPER_setMarketActionMints(uint32 _callPerArb, uint32 _callPerMarkCloseCalls, uint32 _callPerVote, uint32 _callPerMarkClose, uint64 _promoUsdPerCall, uint64 _minUsdPromoTarget) external onlyKeeper {
@@ -509,7 +509,7 @@ contract CallitVault {
         uint64 owed_bal = _owedStableBalance();
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
         // return (gross_bal, owed_bal, net_bal, totalSupply());
-        // return (gross_bal, owed_bal, net_bal, IERC20(FACT_ADDR).totalSupply());
+        // return (gross_bal, owed_bal, net_bal, IERC20(ADDR_FACT).totalSupply());
         return (gross_bal, owed_bal, net_bal);
     }
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates

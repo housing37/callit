@@ -189,8 +189,13 @@ contract CallitFactory {
         if (_CALL != address(0)) {
             ADDR_CALL = _CALL;
             CALL = ICallitToken(address(_CALL));
-            if (_new) CALL.INIT_factory(); // set ADDR_FACT in CallitToken
-            // LEFT OFF HERE ... if we are INIT_factory on CALL, then we need to mint as well (like in constructor)
+            if (_new) {
+                CALL.INIT_factory(); // set ADDR_FACT in CallitToken
+                
+                // mint initial CALl to keeper
+                _mintCallToksEarned(KEEPER, 37); // LEFT OFF HERE ... testing only (comment out for production)
+            }
+            
         }
         if (_delegate != address(0)) {
             ADDR_DELEGATE = _delegate;

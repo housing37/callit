@@ -19,6 +19,15 @@ interface IERC20x {
 }
 
 contract CallitDelegate {
+    /* GLOBALS (CALLIT) */
+    bool private ONCE_ = true;
+    string public constant tVERSION = '0.21';
+    address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
+    address public ADDR_VAULT = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
+    address public ADDR_FACT; // set via INIT_factory()
+    ICallitLib   private LIB = ICallitLib(ADDR_LIB);
+    ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
+    
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
 
@@ -41,15 +50,6 @@ contract CallitDelegate {
     address[] private resultTokenUsdStables;
     uint64 [] private resultTokenVotes;
     // address[] private newTickMaker;
-
-    /* GLOBALS (CALLIT) */
-    bool private ONCE_ = true;
-    string public constant tVERSION = '0.21';
-    address public LIB_ADDR = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public VAULT_ADDR = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
-    address public FACT_ADDR; // set via INIT_factory()
-    ICallitLib   private LIB = ICallitLib(LIB_ADDR);
-    ICallitVault private VAULT = ICallitVault(VAULT_ADDR);
 
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
 
@@ -95,7 +95,7 @@ contract CallitDelegate {
         _;
     }
     modifier onlyFactory() {
-        require(msg.sender == FACT_ADDR || msg.sender == KEEPER, " !keeper & !fact :p");
+        require(msg.sender == ADDR_FACT || msg.sender == KEEPER, " !keeper & !fact :p");
         _;
     }
     modifier onlyOnce() {
@@ -104,8 +104,8 @@ contract CallitDelegate {
         _;
     }
     function INIT_factory() external onlyOnce {
-        require(FACT_ADDR == address(0), ' factor already set :) ');
-        FACT_ADDR = msg.sender;
+        require(ADDR_FACT == address(0), ' factor already set :) ');
+        ADDR_FACT = msg.sender;
     }
 
     /* -------------------------------------------------------- */
@@ -137,13 +137,13 @@ contract CallitDelegate {
         ADMINS[_admin] = _enable;
     }
     function KEEPER_setContracts(address _fact, address _vault, address _lib) external onlyFactory() {
-        FACT_ADDR = _fact;
+        ADDR_FACT = _fact;
 
-        LIB_ADDR = _lib;
-        LIB = ICallitLib(_lib);
+        ADDR_LIB = _lib;
+        LIB = ICallitLib(ADDR_LIB);
 
-        VAULT_ADDR = _vault;
-        ICallitVault(VAULT_ADDR);
+        ADDR_VAULT = _vault;
+        VAULT = ICallitVault(ADDR_VAULT);
     }
     function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
         // max array size = 255 (uint8 loop)
@@ -195,7 +195,7 @@ contract CallitDelegate {
             // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
             // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
             // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
-            address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), FACT_ADDR, "tTICKET_0", "tTCK0"));
+            address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
             
             // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
             address pairAddr = VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
