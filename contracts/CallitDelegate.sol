@@ -21,13 +21,13 @@ interface IERC20x {
 contract CallitDelegate {
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.21';
+    string public constant tVERSION = '0.22';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public ADDR_VAULT = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
+    address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
     address public ADDR_FACT; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(ADDR_LIB);
     ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
-    
+
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
 

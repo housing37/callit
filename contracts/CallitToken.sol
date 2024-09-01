@@ -24,7 +24,7 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS
     /* -------------------------------------------------------- */
-    string public tVERSION = '0.12';
+    string public tVERSION = '0.13';
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
@@ -33,7 +33,7 @@ contract CallitToken is ERC20, Ownable {
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
 
-    address public ADDR_VAULT = address(0x8f006f5aE5145d44E113752fA1cD5a40289efB70); // CallitVault v0.25
+    address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
     address public ADDR_FACT; // set via INIT_factory()
     ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
 

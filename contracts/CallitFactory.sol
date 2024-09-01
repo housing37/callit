@@ -70,11 +70,11 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.30';
+    string public tVERSION = '0.31';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public ADDR_VAULT = address(0xa967654c53F28281560589F89C61bAd0Dd6de3f0); // CallitVault v0.27
-    address public ADDR_DELEGATE = address(0xcc884b22BE2D81D15c803aa47ff02f0a40A6Dd0D); // CallitDelegate v0.21
-    address public ADDR_CALL = address(0xf5Ad4e325C9E953fc890C7f00b4DC2E16C56F533); // CallitToken v0.12
+    address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
+    address public ADDR_DELEGATE = address(0xD6380fc01f2eAD0725d71c87cd88e987b11D247B); // CallitDelegate v0.22
+    address public ADDR_CALL = address(0x8Eb6d9c66104Ab29B0280687f7a483632A98d27D); // CallitToken v0.13
     // address public ADDR_FACT = address(0xa72fcf6C1F9ebbBA50B51e2e0081caf3BCEa69aA); // CallitFactory v0.28
     
     ICallitLib   private LIB = ICallitLib(ADDR_LIB);
