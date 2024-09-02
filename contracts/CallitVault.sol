@@ -39,7 +39,7 @@ contract CallitVault {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.28';
+    string public constant tVERSION = '0.29';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
     address public ADDR_FACT; // set via INIT_factory(address _delegate)
     address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
@@ -652,7 +652,7 @@ contract CallitVault {
         // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
             
         // create pair for the pool (note: ROUTER.addLiquidity should invoke FACTORY.createPair if doesn't exist yet)
-        address pairAddr = uniswapFactory.createPair(_token, _usdStable);
+        // address pairAddr = uniswapFactory.createPair(_token, _usdStable);
 
         // Add liquidity to the pool
         // (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
@@ -674,7 +674,7 @@ contract CallitVault {
         // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
         // For simplicity, we're returning a placeholder.
         // Retrieve the LP address
-        // address lpAddress = uniswapFactory.getPair(_token, _usdStable);
+        address pairAddr = uniswapFactory.getPair(_token, _usdStable);
         
         TICK_PAIR_ADDR[_token] = pairAddr; // log ticket to pair address mapping
         return pairAddr;

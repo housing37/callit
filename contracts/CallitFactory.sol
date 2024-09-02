@@ -70,7 +70,7 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.31';
+    string public tVERSION = '0.32';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
     address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
     address public ADDR_DELEGATE = address(0xD6380fc01f2eAD0725d71c87cd88e987b11D247B); // CallitDelegate v0.22
@@ -206,8 +206,7 @@ contract CallitFactory {
             ADDR_VAULT = _vault;
             VAULT = ICallitVault(address(_vault));
             if (_new) {
-                require(_delegate != address(0), ' !_delegate for new vault :: ');
-                VAULT.INIT_factory(address(_delegate)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
+                VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
             }
         }
         if (_lib != address(0)) {
