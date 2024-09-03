@@ -39,7 +39,7 @@ contract CallitVault {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.29';
+    string public constant tVERSION = '0.30';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
     address public ADDR_FACT; // set via INIT_factory(address _delegate)
     address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
@@ -640,8 +640,8 @@ contract CallitVault {
     // Assumed helper functions (implementations not shown)
     function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external onlyFactory returns (address) {
         // declare factory & router
-        IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
-        IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
+        // IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
+        // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
         // normalize decimals _usdStable token requirements
         _usdAmount = _normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
@@ -656,7 +656,8 @@ contract CallitVault {
 
         // Add liquidity to the pool
         // (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
-        uniswapRouter.addLiquidity(
+        // uniswapRouter.addLiquidity(
+        IUniswapV2Router02(_uswapV2Router).addLiquidity(
             _token,                // Token address
             _usdStable,           // Assuming ETH as the second asset (or replace with another token address)
             _tokenAmount,          // Desired _token amount
@@ -674,8 +675,9 @@ contract CallitVault {
         // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
         // For simplicity, we're returning a placeholder.
         // Retrieve the LP address
-        address pairAddr = uniswapFactory.getPair(_token, _usdStable);
-        
+        // address pairAddr = uniswapFactory.getPair(_token, _usdStable);
+        address pairAddr = IUniswapV2Factory(_uswapv2Factory).getPair(_token, _usdStable);
+
         TICK_PAIR_ADDR[_token] = pairAddr; // log ticket to pair address mapping
         return pairAddr;
     }
