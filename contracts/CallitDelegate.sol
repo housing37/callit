@@ -10,6 +10,14 @@
 //  uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
 pragma solidity ^0.8.24;
 
+// inherited contracts
+// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
+// import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+
+// local _ $ npm install @openzeppelin/contracts
+import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+
 import "./CallitTicket.sol";
 import "./ICallitLib.sol";
 import "./ICallitVault.sol";
@@ -21,9 +29,9 @@ interface IERC20x {
 contract CallitDelegate {
     /* GLOBALS (CALLIT) */
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.22';
+    string public constant tVERSION = '0.23';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
+    address public ADDR_VAULT = address(0xe727a3F8C658Fadf8F8c02111f2905E8b70D400f); // CallitVault v0.32
     address public ADDR_FACT; // set via INIT_factory()
     ICallitLib   private LIB = ICallitLib(ADDR_LIB);
     ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
@@ -198,7 +206,28 @@ contract CallitDelegate {
             address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
             
             // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
-            address pairAddr = VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
+            // address pairAddr = VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
+
+            /** FROM VAULT */
+            usdAmount = LIB._uint64_from_uint256(LIB._normalizeStableAmnt(VAULT._usd_decimals(), usdAmount, VAULT.USD_STABLE_DECIMALS(NEW_TICK_USD_STABLE)));
+            IERC20(new_tick_tok).approve(NEW_TICK_UNISWAP_V2_ROUTER, tokenAmount);
+            IERC20(NEW_TICK_USD_STABLE).approve(NEW_TICK_UNISWAP_V2_ROUTER, usdAmount);
+            IUniswapV2Router02(NEW_TICK_UNISWAP_V2_ROUTER).addLiquidity(
+                new_tick_tok,                // Token address
+                NEW_TICK_USD_STABLE,           // Assuming ETH as the second asset (or replace with another token address)
+                tokenAmount,          // Desired _token amount
+                usdAmount,            // Desired ETH amount (converted from USD or directly provided)
+                0,                    // Min amount of _token (slippage tolerance)
+                0,                    // Min amount of ETH (slippage tolerance)
+                address(this),        // Recipient of liquidity tokens
+                block.timestamp + 300 // Deadline (5 minutes from now)
+            );
+            address pairAddr = IUniswapV2Factory(NEW_TICK_UNISWAP_V2_FACTORY).getPair(new_tick_tok, NEW_TICK_USD_STABLE);
+            // address pairAddr = address(0x3700000000000000000000000000000000000037);
+            
+            // VAULT.TICK_PAIR_ADDR(new_tick_tok) = pairAddr; // log ticket to pair address mapping
+            VAULT.KEEPER_logTicketPair(new_tick_tok, pairAddr);
+            /** _FROM VAULT_ */
 
             // verify ERC20 & LP was created
             require(new_tick_tok != address(0) && pairAddr != address(0), ' err: gen tick tok | lp :( ');

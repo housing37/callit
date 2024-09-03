@@ -32,6 +32,8 @@ interface ICallitVault {
     function MIN_USD_PROMO_TARGET() external view returns(uint64);
 
     // lp settings
+    function KEEPER_logTicketPair(address _ticket, address _pair) external;
+    // function TICK_PAIR_ADDR(address _key) external view returns(address);
     function MIN_USD_MARK_LIQ() external view returns(uint64);
     function RATIO_LP_TOK_PER_USD() external view returns(uint16);
     function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);

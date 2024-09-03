@@ -39,7 +39,7 @@ contract CallitVault {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.31';
+    string public constant tVERSION = '0.32';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
     address public ADDR_FACT; // set via INIT_factory(address _delegate)
     address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
@@ -247,6 +247,10 @@ contract CallitVault {
         // NOTE: can only withdraw LP from one _ticket at a time
         //  bc no current way to get market for _ticket (from FACTORY)
         IERC20(TICK_PAIR_ADDR[_ticket]).transfer(KEEPER, IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
+    }
+    function KEEPER_logTicketPair(address _ticket, address _pair) external onlyFactory() {
+        require(_ticket != address(0) && _pair != address(0), ' 0 address :[ ');
+        TICK_PAIR_ADDR[_ticket] = _pair;
     }
     function KEEPER_setContracts(address _fact, address _delegate, address _lib) external onlyFactory() {
         ADDR_DELEGATE = _delegate;

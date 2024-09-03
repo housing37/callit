@@ -41,9 +41,9 @@ def go_mempool(_rpc_url, _w3, _search=False):
             print(json.dumps(SEARCH_PRINT, indent=4))
             print(f"\nALL b.aseFee HASHES found for SEARCH_ADDR: {SEARCH_ADDR}")
             if len(SEARCH_HASHES['baseFee']): print(*SEARCH_HASHES['baseFee'], sep='\n')
-            print(f"ALL p.ending HASHES found for SEARCH_ADDR: {SEARCH_ADDR}")
+            print(f"\nALL p.ending HASHES found for SEARCH_ADDR: {SEARCH_ADDR}")
             if len(SEARCH_HASHES['pending']): print(*SEARCH_HASHES['pending'], sep='\n')
-            print(f"ALL q.ueued  HASHES found for SEARCH_ADDR: {SEARCH_ADDR}")
+            print(f"\nALL q.ueued  HASHES found for SEARCH_ADDR: {SEARCH_ADDR}")
             if len(SEARCH_HASHES['queued']): print(*SEARCH_HASHES['queued'], sep='\n')
             SEARCH_PRINT = {}
             print(f'\nwaiting... {SEARCH_WAIT_SEC} sec _ RUN_TIME_START: {RUN_TIME_START}')
