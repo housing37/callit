@@ -39,7 +39,7 @@ contract CallitVault {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     bool private ONCE_ = true;
-    string public constant tVERSION = '0.30';
+    string public constant tVERSION = '0.31';
     address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
     address public ADDR_FACT; // set via INIT_factory(address _delegate)
     address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
@@ -676,8 +676,14 @@ contract CallitVault {
         // For simplicity, we're returning a placeholder.
         // Retrieve the LP address
         // address pairAddr = uniswapFactory.getPair(_token, _usdStable);
-        address pairAddr = IUniswapV2Factory(_uswapv2Factory).getPair(_token, _usdStable);
+        // address pairAddr = IUniswapV2Factory(_uswapv2Factory).getPair(_token, _usdStable);
 
+        // LEFT OFF HERE ... this didn't work ^
+        //  ALSO tried to set pairAddr to something static (not 0x0), and also not make that .getPair call
+        //      ... still didn't work (below)
+        // address paidAddr = address(0x0000000000000000000000000000000000000000); // note: caller can't receive 0x0 return
+        address pairAddr = address(0x3700000000000000000000000000000000000037);
+        
         TICK_PAIR_ADDR[_token] = pairAddr; // log ticket to pair address mapping
         return pairAddr;
     }
