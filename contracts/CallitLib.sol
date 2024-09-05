@@ -2,10 +2,12 @@
 // inherited contracts
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 // import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
 
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 import "./ICallitLib.sol";
 
@@ -16,12 +18,90 @@ interface IERC20x {
 }
 
 library CallitLib {
+    address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
+    // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     string public constant tVERSION = '0.15';
     event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
+    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address) {
+        // traverse _stables & select stable w/ the lowest market value
+        uint256 curr_high_tok_val = 0;
+        address curr_low_val_stable = address(0x0);
+        for (uint8 i=0; i < _stables.length;) {
+            address stable_addr = _stables[i];
+            if (stable_addr == address(0)) { continue; }
+
+            // get quote for this stable (traverses 'uswapV2routers')
+            //  looking for the stable that returns the most when swapped 'from' WPLS
+            //  the more USD stable received for 1 WPLS ~= the less overall market value that stable has
+            address[] memory wpls_stab_path = new address[](2);
+            wpls_stab_path[0] = TOK_WPLS;
+            wpls_stab_path[1] = stable_addr;
+            (, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            if (tok_val >= curr_high_tok_val) {
+                curr_high_tok_val = tok_val;
+                curr_low_val_stable = stable_addr;
+            }
+
+            // NOTE: unchecked, never more than 255 (_stables)
+            unchecked {
+                i++;
+            }
+        }
+        return curr_low_val_stable;
+    }
+    
+    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address) {
+        // traverse _stables & select stable w/ the highest market value
+        uint256 curr_low_tok_val = 0;
+        address curr_high_val_stable = address(0x0);
+        for (uint8 i=0; i < _stables.length;) {
+            address stable_addr = _stables[i];
+            if (stable_addr == address(0)) { continue; }
+
+            // get quote for this stable (traverses 'uswapV2routers')
+            //  looking for the stable that returns the least when swapped 'from' WPLS
+            //  the less USD stable received for 1 WPLS ~= the more overall market value that stable has
+            address[] memory wpls_stab_path = new address[](2);
+            wpls_stab_path[0] = TOK_WPLS;
+            wpls_stab_path[1] = stable_addr;
+            (, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+            if (tok_val >= curr_low_tok_val) {
+                curr_low_tok_val = tok_val;
+                curr_high_val_stable = stable_addr;
+            }
+
+            // NOTE: unchecked, never more than 255 (_stables)
+            unchecked {
+                i++;
+            }
+        }
+        return curr_high_val_stable;
+    }
+    // uniswap v2 protocol based: get router w/ best quote in 'uswapV2routers'
+    function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) public view returns (uint8, uint256) {
+        uint8 currHighIdx = 37;
+        uint256 currHigh = 0;
+        for (uint8 i = 0; i < _routers.length;) {
+            uint256[] memory amountsOut = IUniswapV2Router02(_routers[i]).getAmountsOut(amount, path); // quote swap
+            if (amountsOut[amountsOut.length-1] > currHigh) {
+                currHigh = amountsOut[amountsOut.length-1];
+                currHighIdx = i;
+            }
+
+            // NOTE: unchecked, never more than 255 (_routers)
+            unchecked {
+                i++;
+            }
+        }
+
+        return (currHighIdx, currHigh);
+    }
     // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
     // function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, uint16 _tickIdx, uint64 _usdMinTargetPrice) private view returns(uint64) {
     function _getCallTicketUsdTargetPrice(ICallitLib.MARKET memory _mark, uint16 _tickIdx, uint64 _usdMinTargetPrice, uint8 _usd_decs) external view returns(uint64) {

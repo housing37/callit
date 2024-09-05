@@ -351,10 +351,14 @@ contract CallitVault {
         uint256 amntIn = msgValue;
 
         // get whitelisted stable with lowest market value (ie. receive most stable for swap)
-        address usdStable = _getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
+        address usdStable = LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
 
         // perform swap from PLS to stable & send to vault
-        uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
+        // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
+        address[] memory pls_stab_path = new address[](2);
+        pls_stab_path[0] = TOK_WPLS;
+        pls_stab_path[1] = usdStable;
+        uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(amntIn, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
 
         // use VAULT remote
         edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
@@ -413,7 +417,9 @@ contract CallitVault {
         address[] memory usd_tick_path = new address[](2);
         usd_tick_path[0] = _tick_stable_tok;
         usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
-        uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, _sender); // buyer = _receiver
+        // uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, _sender); // buyer = _receiver
+        uint256 tick_amnt_out = _exeSwapTokForTok(net_usdAmnt, usd_tick_path, _sender, true); // buyer = _receiver // true = _fromUsdAcctBal
+        
 
         // deduct full OG input _usdAmnt from account balance
         edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
@@ -772,6 +778,21 @@ contract CallitVault {
             delete ROUTERS_TO_FACTORY[_router];
         }
     }
+    function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
+        if (_usdStable == address(0x0)) 
+            return false;
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable).decimals());
+        return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
+    }
+    // function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
+    //     uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable]);
+    //     (, uint256 tok_amnt) = LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+    //     return tok_amnt; 
+    // }
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE - DEX SWAP SUPPORT                                    
+    /* -------------------------------------------------------- */
     function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
 
         address[] memory _stablesHeld;
@@ -783,7 +804,7 @@ contract CallitVault {
                 i++;
             }
         }
-        return _getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+        return LIB._getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
     }
     function _getStableHeldLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
         // NOTE: if nothing in _stables can cover _usdAmntReq, then returns address(0x0)
@@ -796,23 +817,8 @@ contract CallitVault {
                 i++;
             }
         }
-        return _getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+        return LIB._getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
     }
-    function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
-        if (_usdStable == address(0x0)) 
-            return false;
-        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable).decimals());
-        return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
-    }
-    // function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
-    //     uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable]);
-    //     (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
-    //     return tok_amnt; 
-    // }
-
-    /* -------------------------------------------------------- */
-    /* PRIVATE - DEX SWAP SUPPORT                                    
-    /* -------------------------------------------------------- */
     // note: migrate to CallitBank
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
         // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
@@ -825,49 +831,54 @@ contract CallitVault {
         address[] memory stab_stab_path = new address[](2);
         stab_stab_path[0] = highStableHeld;
         stab_stab_path[1] = _tickStable;
-        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
+        uint256 stab_amnt_out = _exeSwapTokForTok(_usdAmnt, stab_stab_path, address(this), true); // no tick: use best from USWAP_V2_ROUTERS
         return (stab_amnt_out,highStableHeld);
     }
-    function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
-        address[] memory pls_stab_path = new address[](2);
-        pls_stab_path[0] = TOK_WPLS;
-        pls_stab_path[1] = _usdStable;
-        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
-        uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
-        stab_amnt_out = _normalizeStableAmnt(IERC20x(_usdStable).decimals(), stab_amnt_out, _usd_decimals());
-        return stab_amnt_out;
-    }
+    // function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
+    //     address[] memory pls_stab_path = new address[](2);
+    //     pls_stab_path[0] = TOK_WPLS;
+    //     pls_stab_path[1] = _usdStable;
+    //     // (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
+    //     // uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
+    //     uint256 stab_amnt_out = _exeSwapTokForTok(_plsAmnt, pls_stab_path, address(this));
+    //     stab_amnt_out = _normalizeStableAmnt(IERC20x(_usdStable).decimals(), stab_amnt_out, _usd_decimals());
+    //     return stab_amnt_out;
+    // }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
-    function _exeSwapTokForStable(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver) private returns (uint256) {
+    function _exeSwapTokForTok(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver, bool _fromUsdAcctBal) private returns (uint256) {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
-        require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
+        require(_swap_path[1] != address(this), ' !swap for this :p ');
         
-        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
-        uint256 stable_amnt_out = _swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
+        if (_fromUsdAcctBal) { // required: _swap_path[0] must be a stable
+            _tokAmntIn = _normalizeStableAmnt(_usd_decimals(), _tokAmntIn, IERC20x(_swap_path[0]).decimals());
+        }
+
+        (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(_swap_path, _tokAmntIn, USWAP_V2_ROUTERS);
+        uint256 stable_amnt_out = _swap_v2_wrap(_swap_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmntIn, _receiver, false); // true = fromETH        
         return stable_amnt_out;
     }
-    // generic: gets best from USWAP_V2_ROUTERS to perform trade
-    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
-        address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
-        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(usdStable).decimals());
-        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+    // // generic: gets best from USWAP_V2_ROUTERS to perform trade
+    // function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
+    //     address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
+    //     uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(usdStable).decimals());
+    //     (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
 
-        // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-        // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
-        //   and then get tok_amnt_out from delegate (USER_maintenance)
-        // else, swap with BST address(this) as receiver 
-        // if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
-        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
-        //     SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
-        //     return tok_amnt_out;
-        // } else {
-        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
-        //     return tok_amnt_out;
-        // }
+    //     // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
+    //     // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
+    //     //   and then get tok_amnt_out from delegate (USER_maintenance)
+    //     // else, swap with BST address(this) as receiver 
+    //     // if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
+    //     //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
+    //     //     SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
+    //     //     return tok_amnt_out;
+    //     // } else {
+    //     //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+    //     //     return tok_amnt_out;
+    //     // }
 
-        uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
-        return tok_amnt_out;
-    }
+    //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+    //     return tok_amnt_out;
+    // }
     // specify router to use
     function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
@@ -875,83 +886,83 @@ contract CallitVault {
         uint256 tok_amnt_out = _swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
         return tok_amnt_out;
     }
-    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
-    function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
-        // traverse _stables & select stable w/ the lowest market value
-        uint256 curr_high_tok_val = 0;
-        address curr_low_val_stable = address(0x0);
-        for (uint8 i=0; i < _stables.length;) {
-            address stable_addr = _stables[i];
-            if (stable_addr == address(0)) { continue; }
+    // // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    // function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
+    //     // traverse _stables & select stable w/ the lowest market value
+    //     uint256 curr_high_tok_val = 0;
+    //     address curr_low_val_stable = address(0x0);
+    //     for (uint8 i=0; i < _stables.length;) {
+    //         address stable_addr = _stables[i];
+    //         if (stable_addr == address(0)) { continue; }
 
-            // get quote for this stable (traverses 'uswapV2routers')
-            //  looking for the stable that returns the most when swapped 'from' WPLS
-            //  the more USD stable received for 1 WPLS ~= the less overall market value that stable has
-            address[] memory wpls_stab_path = new address[](2);
-            wpls_stab_path[0] = TOK_WPLS;
-            wpls_stab_path[1] = stable_addr;
-            (, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
-            if (tok_val >= curr_high_tok_val) {
-                curr_high_tok_val = tok_val;
-                curr_low_val_stable = stable_addr;
-            }
+    //         // get quote for this stable (traverses 'uswapV2routers')
+    //         //  looking for the stable that returns the most when swapped 'from' WPLS
+    //         //  the more USD stable received for 1 WPLS ~= the less overall market value that stable has
+    //         address[] memory wpls_stab_path = new address[](2);
+    //         wpls_stab_path[0] = TOK_WPLS;
+    //         wpls_stab_path[1] = stable_addr;
+    //         (, uint256 tok_val) = LIB._best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+    //         if (tok_val >= curr_high_tok_val) {
+    //             curr_high_tok_val = tok_val;
+    //             curr_low_val_stable = stable_addr;
+    //         }
 
-            // NOTE: unchecked, never more than 255 (_stables)
-            unchecked {
-                i++;
-            }
-        }
-        return curr_low_val_stable;
-    }
+    //         // NOTE: unchecked, never more than 255 (_stables)
+    //         unchecked {
+    //             i++;
+    //         }
+    //     }
+    //     return curr_low_val_stable;
+    // }
     
-    // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
-    function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
-        // traverse _stables & select stable w/ the highest market value
-        uint256 curr_low_tok_val = 0;
-        address curr_high_val_stable = address(0x0);
-        for (uint8 i=0; i < _stables.length;) {
-            address stable_addr = _stables[i];
-            if (stable_addr == address(0)) { continue; }
+    // // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
+    // function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) private view returns (address) {
+    //     // traverse _stables & select stable w/ the highest market value
+    //     uint256 curr_low_tok_val = 0;
+    //     address curr_high_val_stable = address(0x0);
+    //     for (uint8 i=0; i < _stables.length;) {
+    //         address stable_addr = _stables[i];
+    //         if (stable_addr == address(0)) { continue; }
 
-            // get quote for this stable (traverses 'uswapV2routers')
-            //  looking for the stable that returns the least when swapped 'from' WPLS
-            //  the less USD stable received for 1 WPLS ~= the more overall market value that stable has
-            address[] memory wpls_stab_path = new address[](2);
-            wpls_stab_path[0] = TOK_WPLS;
-            wpls_stab_path[1] = stable_addr;
-            (, uint256 tok_val) = _best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
-            if (tok_val >= curr_low_tok_val) {
-                curr_low_tok_val = tok_val;
-                curr_high_val_stable = stable_addr;
-            }
+    //         // get quote for this stable (traverses 'uswapV2routers')
+    //         //  looking for the stable that returns the least when swapped 'from' WPLS
+    //         //  the less USD stable received for 1 WPLS ~= the more overall market value that stable has
+    //         address[] memory wpls_stab_path = new address[](2);
+    //         wpls_stab_path[0] = TOK_WPLS;
+    //         wpls_stab_path[1] = stable_addr;
+    //         (, uint256 tok_val) = LIB._best_swap_v2_router_idx_quote(wpls_stab_path, 1 * 10**18, _routers);
+    //         if (tok_val >= curr_low_tok_val) {
+    //             curr_low_tok_val = tok_val;
+    //             curr_high_val_stable = stable_addr;
+    //         }
 
-            // NOTE: unchecked, never more than 255 (_stables)
-            unchecked {
-                i++;
-            }
-        }
-        return curr_high_val_stable;
-    }
+    //         // NOTE: unchecked, never more than 255 (_stables)
+    //         unchecked {
+    //             i++;
+    //         }
+    //     }
+    //     return curr_high_val_stable;
+    // }
 
-    // uniswap v2 protocol based: get router w/ best quote in 'uswapV2routers'
-    function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) private view returns (uint8, uint256) {
-        uint8 currHighIdx = 37;
-        uint256 currHigh = 0;
-        for (uint8 i = 0; i < _routers.length;) {
-            uint256[] memory amountsOut = IUniswapV2Router02(_routers[i]).getAmountsOut(amount, path); // quote swap
-            if (amountsOut[amountsOut.length-1] > currHigh) {
-                currHigh = amountsOut[amountsOut.length-1];
-                currHighIdx = i;
-            }
+    // // uniswap v2 protocol based: get router w/ best quote in 'uswapV2routers'
+    // function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) private view returns (uint8, uint256) {
+    //     uint8 currHighIdx = 37;
+    //     uint256 currHigh = 0;
+    //     for (uint8 i = 0; i < _routers.length;) {
+    //         uint256[] memory amountsOut = IUniswapV2Router02(_routers[i]).getAmountsOut(amount, path); // quote swap
+    //         if (amountsOut[amountsOut.length-1] > currHigh) {
+    //             currHigh = amountsOut[amountsOut.length-1];
+    //             currHighIdx = i;
+    //         }
 
-            // NOTE: unchecked, never more than 255 (_routers)
-            unchecked {
-                i++;
-            }
-        }
+    //         // NOTE: unchecked, never more than 255 (_routers)
+    //         unchecked {
+    //             i++;
+    //         }
+    //     }
 
-        return (currHighIdx, currHigh);
-    }
+    //     return (currHighIdx, currHigh);
+    // }
     // uniwswap v2 protocol based: get quote and execute swap
     function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
         require(path.length >= 2, 'err: path.length :/');

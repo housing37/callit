@@ -81,6 +81,9 @@ interface ICallitLib {
     function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
     
     // note: only these used in CallitVault ...
+    function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
+    function _getStableTokenHighMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address);
+    function _best_swap_v2_router_idx_quote(address[] memory path, uint256 amount, address[] memory _routers) external view returns (uint8, uint256);
     function _getCallTicketUsdTargetPrice(ICallitLib.MARKET memory _mark, uint16 _tickIdx, uint64 _usdMinTargetPrice, uint8 _usd_decs) external view returns(uint64);
     function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);
