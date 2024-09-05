@@ -17,22 +17,22 @@ pragma solidity ^0.8.24;
 // import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 // local _ $ npm install @openzeppelin/contracts
-import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
-// import "./CallitTicket.sol";
+import "./CallitTicket.sol"; // imports ERC20.sol
 import "./ICallitLib.sol";
 
 interface IERC20x {
     function decimals() external pure returns (uint8);
 }
 
-interface ICallitTicket {
-    function mintForPriceParity(address _receiver, uint256 _amount) external;
-    function balanceOf(address account) external returns(uint256);
-}
+// interface ICallitTicket {
+//     function mintForPriceParity(address _receiver, uint256 _amount) external;
+//     function balanceOf(address account) external returns(uint256);
+// }
 
 contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
@@ -51,28 +51,44 @@ contract CallitVault {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
 
+    // note: makeNewMarket
+    // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
+    address public NEW_TICK_UNISWAP_V2_ROUTER;
+    address public NEW_TICK_UNISWAP_V2_FACTORY;
+    address public NEW_TICK_USD_STABLE;
+
+    // // note: makeNewMarket
+    // // temp-arrays for 'makeNewMarket' support
+    // address[] private resultOptionTokens;
+    // address[] private resultTokenLPs;
+    // address[] private resultTokenRouters;
+    // address[] private resultTokenFactories;
+
+    // address[] private resultTokenUsdStables;
+    // uint64 [] private resultTokenVotes;
+
     // default all fees to 0 (KEEPER setter available)
-    uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
+    // uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
     uint16 public PERC_PROMO_BUY_FEE; // note: yes other % fee (promo.percReward)
     uint16 public PERC_ARB_EXE_FEE; // note: no other % fee
-    uint16 public PERC_MARKET_CLOSE_FEE; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
-    uint16 public PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
-    uint16 public PERC_VOTER_CLAIM_FEE; // note: no other % fee
-    uint16 public PERC_WINNER_CLAIM_FEE; // note: no other % fee
+    // uint16 public PERC_MARKET_CLOSE_FEE; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+    // uint16 public PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
+    // uint16 public PERC_VOTER_CLAIM_FEE; // note: no other % fee
+    // uint16 public PERC_WINNER_CLAIM_FEE; // note: no other % fee
 
-    uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
-    uint32 public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
+    // uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
+    // uint32 public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
 
-    // market action mint incentives
-    uint32 public RATIO_CALL_MINT_PER_ARB_EXE = 1; // amount of all $CALL minted per arb executer reward // TODO: need KEEPER setter
-    uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = 1; // amount of all $CALL minted per market call close action reward // TODO: need KEEPER setter
-    uint32 public RATIO_CALL_MINT_PER_VOTE = 1; // amount of all $CALL minted per vote reward // TODO: need KEEPER setter
-    uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
-    uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
-    uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
+    // // market action mint incentives
+    // uint32 public RATIO_CALL_MINT_PER_ARB_EXE = 1; // amount of all $CALL minted per arb executer reward // TODO: need KEEPER setter
+    // uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = 1; // amount of all $CALL minted per market call close action reward // TODO: need KEEPER setter
+    // uint32 public RATIO_CALL_MINT_PER_VOTE = 1; // amount of all $CALL minted per vote reward // TODO: need KEEPER setter
+    // uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
+    // uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
+    // uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
 
     // lp settings
-    uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    // uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
     uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
@@ -84,41 +100,41 @@ contract CallitVault {
     // NOTE: all USD bals & payouts stores uint precision to 6 decimals
     // NOTE: legacy public
     mapping(address => uint64) public ACCT_USD_BALANCES; 
-    mapping(address => uint8) public USD_STABLE_DECIMALS;
+    // mapping(address => uint8) public USD_STABLE_DECIMALS;
     address[] public USWAP_V2_ROUTERS;
     mapping(address => address) public ROUTERS_TO_FACTORY;
 
     // NOTE: legacy private (was more secure; consider external KEEPER getter instead)
     address[] public ACCOUNTS; 
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
-    address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
+    // address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
     mapping(address => address) private TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
     
     // arb algorithm settings
     // market settings
     uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-    bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
-    uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+    // bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    // uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
+    // uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
+    // uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
-    // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
-    function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {
-        // MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
-        // MAX_EOA_MARKETS = _maxEoaMarkets;
-        // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-        MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
+    // // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
+    // function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {
+    //     // MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
+    //     // MAX_EOA_MARKETS = _maxEoaMarkets;
+    //     // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
+    //     MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
 
-        // SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
-        USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    }
+    //     // SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
+    //     USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
+    // }
 
-    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external onlyFactory() {
-        // NOTE: _usdAmnt must be in _usd_decimals() precision
-        require(_acct != address(0) && _usdAmnt > 0, ' invalid _acct | _usdAmnt :p ');
-        _edit_ACCT_USD_BALANCES(_acct, _usdAmnt, _add);
-    }
+    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external onlyFactory() {
+    //     // NOTE: _usdAmnt must be in _usd_decimals() precision
+    //     // require(_acct != address(0) && _usdAmnt > 0, ' invalid _acct | _usdAmnt :p ');
+    //     edit_ACCT_USD_BALANCES(_acct, _usdAmnt, _add);
+    // }
     // NOTE: not sure why i added this at one point (but it causes the file size error 082624)
     //  perhaps it was for vault backup & restore ?
     // function set_ACCOUNTS(address[] calldata _accts) external onlyFactory() {
@@ -129,9 +145,9 @@ contract CallitVault {
     /* EVENTS
     /* -------------------------------------------------------- */
     // legacy
-    event KeeperTransfer(address _prev, address _new);
-    event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
-    event DexRouterUpdated(address _router, bool _add);
+    // event KeeperTransfer(address _prev, address _new);
+    // event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
+    // event DexRouterUpdated(address _router, bool _add);
     event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
     // callit
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
@@ -139,6 +155,7 @@ contract CallitVault {
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
 
     constructor() {
+        // set KEEPER
         KEEPER = msg.sender;
 
         // add default whiteliste stable: weDAI
@@ -153,12 +170,18 @@ contract CallitVault {
             //  but pulseX v2 seems to be working fine
             //      tried 2 times with 3_000 and 30_000 PLS (both went through fine)
             //  *WARNING* should keep an eye on this
-        
-            // NOTE: ref pc dex addresses
-            // ROUTER_pulsex_router02_v1='0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02' # PulseXRouter02 'v1' ref: https://www.irccloud.com/pastebin/6ftmqWuk
-            // FACTORY_pulsex_router_02_v1='0x1715a3E4A142d8b698131108995174F37aEBA10D'
-            // ROUTER_pulsex_router02_v2='0x165C3410fC91EF562C50559f7d2289fEbed552d9' # PulseXRouter02 'v2' ref: https://www.irccloud.com/pastebin/6ftmqWuk
-            // FACTORY_pulsex_router_02_v2='0x29eA7545DEf87022BAdc76323F373EA1e707C523'
+
+        // init settings for creating new CallitTicket.sol option results
+        //  NOTE: VAULT should already be initialized
+        NEW_TICK_UNISWAP_V2_ROUTER = USWAP_V2_ROUTERS[0];
+        NEW_TICK_UNISWAP_V2_FACTORY = ROUTERS_TO_FACTORY[NEW_TICK_UNISWAP_V2_ROUTER];
+        NEW_TICK_USD_STABLE = WHITELIST_USD_STABLES[0];
+
+        // NOTE: ref pc dex addresses
+        // ROUTER_pulsex_router02_v1='0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02' # PulseXRouter02 'v1' ref: https://www.irccloud.com/pastebin/6ftmqWuk
+        // FACTORY_pulsex_router_02_v1='0x1715a3E4A142d8b698131108995174F37aEBA10D'
+        // ROUTER_pulsex_router02_v2='0x165C3410fC91EF562C50559f7d2289fEbed552d9' # PulseXRouter02 'v2' ref: https://www.irccloud.com/pastebin/6ftmqWuk
+        // FACTORY_pulsex_router_02_v2='0x29eA7545DEf87022BAdc76323F373EA1e707C523'
     }
 
     // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
@@ -167,7 +190,8 @@ contract CallitVault {
         //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
         //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
         // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, _minUsdTargPrice);
-        uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
+        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
+        uint64 ticketTargetPriceUSD = LIB._getCallTicketUsdTargetPrice(mark, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE, _usd_decimals());
         
 
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
@@ -182,15 +206,17 @@ contract CallitVault {
     /* MODIFIERS
     /* -------------------------------------------------------- */
     modifier onlyKeeper() {
-        require(msg.sender == KEEPER, "!keeper :p");
+        require(msg.sender == KEEPER, " !keeper :[ ");
         _;
     }
     modifier onlyFactory() {
-        require(msg.sender == ADDR_FACT || msg.sender == ADDR_DELEGATE || msg.sender == KEEPER, " !keeper & !fact :p");
+        require(msg.sender == ADDR_FACT || msg.sender == ADDR_DELEGATE || 
+                msg.sender == KEEPER || msg.sender == address(this), 
+                " !keeper & !fact :p ");
         _;
     }
     modifier onlyOnce() {
-        require(ONCE_, ' never again :/ ' );
+        require(ONCE_, ' never again :{ ');
         ONCE_ = false;
         _;
     }
@@ -219,39 +245,37 @@ contract CallitVault {
     }
     function KEEPER_setKeeper(address _newKeeper, uint16 _keeperCheck) external onlyKeeper {
         require(_newKeeper != address(0), 'err: 0 address');
-        address prev = address(KEEPER);
+        // address prev = address(KEEPER);
         KEEPER = _newKeeper;
         if (_keeperCheck > 0)
             KEEPER_CHECK = _keeperCheck;
-        emit KeeperTransfer(prev, KEEPER);
+        // emit KeeperTransfer(prev, KEEPER);
     }
-    function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64) {
+    // function KEEPER_collectiveStableBalances(bool _history, uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64) {
+    function KEEPER_collectiveStableBalances(uint256 _keeperCheck) external view onlyKeeper() returns (uint64, uint64, int64) {
         require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
-        if (_history)
-            return _collectiveStableBalances(USD_STABLES_HISTORY);
+        // if (_history)
+        //     return _collectiveStableBalances(USD_STABLES_HISTORY);
         return _collectiveStableBalances(WHITELIST_USD_STABLES);
     }
     function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
-        require(_usdStable != address(0), 'err: 0 address');
-        _editWhitelistStables(_usdStable, _decimals, _add);
-        emit WhitelistStableUpdated(_usdStable, _decimals, _add);
+        _editWhitelistStables(_usdStable, _decimals, _add); // note: require check in local
+        // emit WhitelistStableUpdated(_usdStable, _decimals, _add);
     }
     function KEEPER_editDexRouters(address _router, address factory, bool _add) external onlyKeeper {
-        require(_router != address(0x0), "0 address");
         _editDexRouters(_router, factory, _add);
-        emit DexRouterUpdated(_router, _add);
+        // emit DexRouterUpdated(_router, _add);
     }
     // callit
     function KEEPER_withdrawTicketLP(address _ticket) external onlyKeeper {
-        require(_ticket != address(0), ' !_ticket indy :) ' );
         // NOTE: can only withdraw LP from one _ticket at a time
         //  bc no current way to get market for _ticket (from FACTORY)
         IERC20(TICK_PAIR_ADDR[_ticket]).transfer(KEEPER, IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
     }
-    function KEEPER_logTicketPair(address _ticket, address _pair) external onlyFactory() {
-        require(_ticket != address(0) && _pair != address(0), ' 0 address :[ ');
-        TICK_PAIR_ADDR[_ticket] = _pair;
-    }
+    // function KEEPER_logTicketPair(address _ticket, address _pair) external onlyFactory() {
+    //     require(_ticket != address(0) && _pair != address(0), ' 0 address :[ ');
+    //     TICK_PAIR_ADDR[_ticket] = _pair;
+    // }
     function KEEPER_setContracts(address _fact, address _delegate, address _lib) external onlyFactory() {
         ADDR_DELEGATE = _delegate;
         ADDR_FACT = _fact;
@@ -259,36 +283,37 @@ contract CallitVault {
         ADDR_LIB = _lib;
         LIB = ICallitLib(_lib);
     }
-    function KEEPER_setMarketActionMints(uint32 _callPerArb, uint32 _callPerMarkCloseCalls, uint32 _callPerVote, uint32 _callPerMarkClose, uint64 _promoUsdPerCall, uint64 _minUsdPromoTarget) external onlyKeeper {
-        RATIO_CALL_MINT_PER_ARB_EXE = _callPerArb; // amount of all $CALL minted per arb executer reward
-        RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = _callPerMarkCloseCalls; // amount of all $CALL minted per market call close action reward
-        RATIO_CALL_MINT_PER_VOTE = _callPerVote; // amount of all $CALL minted per vote reward
-        RATIO_CALL_MINT_PER_MARK_CLOSE = _callPerMarkClose; // amount of all $CALL minted per market close action reward
-        RATIO_PROMO_USD_PER_CALL_MINT = _promoUsdPerCall; // usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
-        MIN_USD_PROMO_TARGET = _minUsdPromoTarget; // min target for creating promo codes ($ target = $ bets this promo brought in)
-    }
+    // function KEEPER_setMarketActionMints(uint32 _callPerArb, uint32 _callPerMarkCloseCalls, uint32 _callPerVote, uint32 _callPerMarkClose, uint64 _promoUsdPerCall, uint64 _minUsdPromoTarget) external onlyKeeper {
+    //     RATIO_CALL_MINT_PER_ARB_EXE = _callPerArb; // amount of all $CALL minted per arb executer reward
+    //     RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = _callPerMarkCloseCalls; // amount of all $CALL minted per market call close action reward
+    //     RATIO_CALL_MINT_PER_VOTE = _callPerVote; // amount of all $CALL minted per vote reward
+    //     RATIO_CALL_MINT_PER_MARK_CLOSE = _callPerMarkClose; // amount of all $CALL minted per market close action reward
+    //     RATIO_PROMO_USD_PER_CALL_MINT = _promoUsdPerCall; // usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
+    //     MIN_USD_PROMO_TARGET = _minUsdPromoTarget; // min target for creating promo codes ($ target = $ bets this promo brought in)
+    // }
 
-    function KEEPER_setMarketLoserMints(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
-        require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
-        RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
-        PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
-    }
+    // function KEEPER_setMarketLoserMints(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
+    //     require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
+    //     RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
+    //     PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
+    // }
     function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
         // no 2 percs taken out of market close
         require(_percPrizeVoters + _percMarkClose < 10000, ' close market perc error ;() ');
         require(_percMaker < 10000 && _percPromo < 10000 && _percArbExe < 10000 && _percMarkClose < 10000 && _percPrizeVoters < 10000 && _percVoterClaim < 10000 && _perWinnerClaim < 10000, ' invalid perc(s) :0 ');
-        PERC_MARKET_MAKER_FEE = _percMaker; 
+        // PERC_MARKET_MAKER_FEE = _percMaker; 
         PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.perc`Reward)
         PERC_ARB_EXE_FEE = _percArbExe;
-        PERC_MARKET_CLOSE_FEE = _percMarkClose; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
-        PERC_PRIZEPOOL_VOTERS = _percPrizeVoters;
-        PERC_VOTER_CLAIM_FEE = _percVoterClaim;
-        PERC_WINNER_CLAIM_FEE = _perWinnerClaim;        
+        // PERC_MARKET_CLOSE_FEE = _percMarkClose; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
+        // PERC_PRIZEPOOL_VOTERS = _percPrizeVoters;
+        // PERC_VOTER_CLAIM_FEE = _percVoterClaim;
+        // PERC_WINNER_CLAIM_FEE = _perWinnerClaim;        
     }
-    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
+    // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
+    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd) external onlyKeeper {
         RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
-        MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+        // MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     }
 
     /* -------------------------------------------------------- */
@@ -304,15 +329,20 @@ contract CallitVault {
     function getAccounts() external view returns (address[] memory) {
         return ACCOUNTS;
     }
-    function getUsdStablesHistory() external view returns (address[] memory) {
-        return USD_STABLES_HISTORY;
-    }    
-    function getWhitelistStables() external view returns (address[] memory) {
-        return WHITELIST_USD_STABLES;
+    // function getDexAddies() external view returns (address[] memory, address[] memory, address[] memory) {
+    function getDexAddies() external view returns (address[] memory, address[] memory) {
+        // return (WHITELIST_USD_STABLES,USD_STABLES_HISTORY,USWAP_V2_ROUTERS);
+        return (WHITELIST_USD_STABLES,USWAP_V2_ROUTERS);
     }
-    function getDexRouters() external view returns (address[] memory) {
-        return USWAP_V2_ROUTERS;
-    }
+    // function getUsdStablesHistory() external view returns (address[] memory) {
+    //     return USD_STABLES_HISTORY;
+    // }    
+    // function getWhitelistStables() external view returns (address[] memory) {
+    //     return WHITELIST_USD_STABLES;
+    // }
+    // function getDexRouters() external view returns (address[] memory) {
+    //     return USWAP_V2_ROUTERS;
+    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)
@@ -322,7 +352,7 @@ contract CallitVault {
         // process PLS value sent
         _deposit(msg.sender, msg.value);
     }
-    function deposit(address _depositor) public payable {
+    function deposit(address _depositor) external payable {
         require(msg.value > 0, " No PLS sent ");
         _deposit(_depositor, msg.value);
     }
@@ -337,7 +367,7 @@ contract CallitVault {
         uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
 
         // use VAULT remote
-        _edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
+        edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
         ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
 
         emit DepositReceived(_depositor, amntIn, stableAmntOut);
@@ -359,14 +389,15 @@ contract CallitVault {
 
             // deduce that sale amount from their account balance
             // CALLIT_VAULT.ACCT_USD_BALANCES[_arbExecuter] -= total_usd_cost; 
-            _edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
+            edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
         }
         
         // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
         //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
         //  NOTE: deduct fees and pay _arbExecuter in '_performTicketMintedDexSell'
         // ICallitTicket cTicket = ICallitTicket(_ticket);
-        ICallitTicket cTicket = ICallitTicket(_mark.marketResults.resultOptionTokens[_tickIdx]);
+        // ICallitTicket cTicket = ICallitTicket(_mark.marketResults.resultOptionTokens[_tickIdx]);
+        CallitTicket cTicket = CallitTicket(_mark.marketResults.resultOptionTokens[_tickIdx]);
         cTicket.mintForPriceParity(address(this), tokensToMint);
         require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
         return (tokensToMint, total_usd_cost);
@@ -380,7 +411,7 @@ contract CallitVault {
         tok_stab_path[0] = _mark.marketResults.resultOptionTokens[_tickIdx];
         tok_stab_path[1] = _mark.marketResults.resultTokenUsdStables[_tickIdx];
         uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _mark.marketResults.resultTokenRouters[_tickIdx]); // swap tick: use specific router tck:tick-stable
-        uint64 gross_stab_amnt_out = _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_mark.marketResults.resultTokenUsdStables[_tickIdx]], usdAmntOut, _usd_decimals()));
+        uint64 gross_stab_amnt_out = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_mark.marketResults.resultTokenUsdStables[_tickIdx]).decimals(), usdAmntOut, _usd_decimals()));
 
         // calc & send net profits to _arbExecuter
         //  NOTE: _arbExecuter gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
@@ -425,36 +456,36 @@ contract CallitVault {
         uint256 tick_amnt_out = _exeSwapStableForTok(net_usdAmnt, usd_tick_path, _sender); // buyer = _receiver
 
         // deduct full OG input _usdAmnt from account balance
-        _edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
+        edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
 
         return (net_usdAmnt, tick_amnt_out);
     }
-    function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, uint16 _tickIdx, uint64 _usdMinTargetPrice) private view returns(uint64) {
-        // exeArbPriceParityForTicket
-        require(_resultTickets.length == _pairAddresses.length, ' tick/pair arr length mismatch :o ');
-        // algorithmic logic ...
-        //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
-        //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
-        //   -> if result target price <= 0, then set/return input _ticket target price = $0.01
+    // function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, uint16 _tickIdx, uint64 _usdMinTargetPrice) private view returns(uint64) {
+    //     // exeArbPriceParityForTicket
+    //     require(_resultTickets.length == _pairAddresses.length, ' tick/pair arr length mismatch :o ');
+    //     // algorithmic logic ...
+    //     //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
+    //     //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
+    //     //   -> if result target price <= 0, then set/return input _ticket target price = $0.01
 
-        // address[] memory tickets = _mark.marketResults.resultOptionTokens;
-        address[] memory tickets = _resultTickets;
-        uint64 alt_sum = 0;
-        for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
-            if (tickets[i] != _resultTickets[_tickIdx]) {
-                address pairAddress = _pairAddresses[i];
-                uint256 usdAmountsOut = LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
-                alt_sum += _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_resultStables[i]], usdAmountsOut, _usd_decimals()));
-            }
+    //     // address[] memory tickets = _mark.marketResults.resultOptionTokens;
+    //     address[] memory tickets = _resultTickets;
+    //     uint64 alt_sum = 0;
+    //     for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
+    //         if (tickets[i] != _resultTickets[_tickIdx]) {
+    //             address pairAddress = _pairAddresses[i];
+    //             uint256 usdAmountsOut = LIB._estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
+    //             alt_sum += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_resultStables[i]], usdAmountsOut, _usd_decimals()));
+    //         }
             
-            unchecked {i++;}
-        }
+    //         unchecked {i++;}
+    //     }
 
-        // NOTE: returns negative if alt_sum is greater than 1
-        //  edge case should be handle in caller
-        int64 target_price = 1 - int64(alt_sum);
-        return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
-    }
+    //     // NOTE: returns negative if alt_sum is greater than 1
+    //     //  edge case should be handle in caller
+    //     int64 target_price = 1 - int64(alt_sum);
+    //     return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
+    // }
 
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (legacy)
@@ -480,7 +511,8 @@ contract CallitVault {
         uint64 convertedValue = uint64(value);
         return convertedValue;
     }
-    function _edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
+    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
+    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) public onlyFactory() {
         if (_add) {
             require(_usdAmnt > 0, ' !add 0 :/ ' );
             ACCT_USD_BALANCES[_acct] += _usdAmnt;
@@ -493,8 +525,8 @@ contract CallitVault {
         uint64 gross_bal = 0;
         for (uint8 i = 0; i < _stables.length;) {
             // NOTE: more efficient algorithm taking up less stack space with local vars
-            require(USD_STABLE_DECIMALS[_stables[i]] > 0, ' found stable with invalid decimals :/ ');
-            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(USD_STABLE_DECIMALS[_stables[i]], IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
+            require(IERC20x(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
+            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
             unchecked {i++;}
         }
         return gross_bal;
@@ -518,8 +550,8 @@ contract CallitVault {
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
         if (_add) {
             WHITELIST_USD_STABLES = LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
-            USD_STABLES_HISTORY = LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
-            USD_STABLE_DECIMALS[_usdStable] = _decimals;
+            // USD_STABLES_HISTORY = LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
+            // USD_STABLE_DECIMALS[_usdStable] = _decimals;
         } else {
             WHITELIST_USD_STABLES = LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
         }
@@ -563,21 +595,21 @@ contract CallitVault {
     function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
         if (_usdStable == address(0x0)) 
             return false;
-        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable).decimals());
         return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
     }
-    function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
-        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[_usdStable]);
-        (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
-        return tok_amnt; 
-    }
+    // function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
+    //     uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable]);
+    //     (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+    //     return tok_amnt; 
+    // }
     function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
         pls_stab_path[1] = _usdStable;
         (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
         uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
-        stab_amnt_out = _normalizeStableAmnt(USD_STABLE_DECIMALS[_usdStable], stab_amnt_out, _usd_decimals());
+        stab_amnt_out = _normalizeStableAmnt(IERC20x(_usdStable).decimals(), stab_amnt_out, _usd_decimals());
         return stab_amnt_out;
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
@@ -592,7 +624,7 @@ contract CallitVault {
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
     function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
         address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
-        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, USD_STABLE_DECIMALS[usdStable]);
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(usdStable).decimals());
         (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
 
         // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
@@ -623,7 +655,7 @@ contract CallitVault {
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, USD_STABLE_DECIMALS[lowStableHeld]));
+        IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, IERC20x(lowStableHeld).decimals()));
     }
     // note: migrate to CallitBank
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
@@ -640,58 +672,160 @@ contract CallitVault {
         uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
         return (stab_amnt_out,highStableHeld);
     }
+    function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
+        // max array size = 255 (uint8 loop)
+        // NOTE: if _router not mapped to a factory, then _router not in VAULT.USWAP_V2_ROUTERS
+        require(ROUTERS_TO_FACTORY[_router] != address(0) && LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist router|factory|stable :() ');
+        NEW_TICK_UNISWAP_V2_ROUTER = _router;
+        NEW_TICK_UNISWAP_V2_FACTORY = ROUTERS_TO_FACTORY[_router];
+        NEW_TICK_USD_STABLE = _usdStable;
+    }
+
+
+
+    // LEFT OFF HERE …. makeNewMarket integration
+    //     trying to migrate for loop in DELEGATE over to VAULT 
+    //         so that the loop doesn’t call another contract address over and over again
+    //         ie. so all activity in the loop does not require additional contract calls
+    //     hoping that this will help solve sudden code lock or halt that is occurring 
+    //         in the during makeNewMarket call
+    //     problem now: after migration…
+    //         VAULT is now compiling with file size error
+    //         DELEGATE is indeed compiling just fine still
+        
+    // function createDexLP(uint256 _resultCnt, uint64 _net_usdAmntLP) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
+    function createDexLP(string[] calldata _resultLabels, uint64 _net_usdAmntLP) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
+
+        // note: makeNewMarket
+        // temp-arrays for 'makeNewMarket' support
+        address[] memory resultOptionTokens = new address[](_resultLabels.length);
+        address[] memory resultTokenLPs = new address[](_resultLabels.length);
+        address[] memory resultTokenRouters = new address[](_resultLabels.length);
+        address[] memory resultTokenFactories = new address[](_resultLabels.length);
+
+        address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
+        uint64 [] memory resultTokenVotes = new uint64[](_resultLabels.length);
+        // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
+        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
+        // for (uint16 i = 0; i < _resultCnt;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
+            // Get/calc amounts for initial LP (usd and token amounts)
+            (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
+            // (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultCnt, RATIO_LP_TOK_PER_USD);            
+
+            // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
+            // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
+            // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
+            // address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
+            address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), ADDR_FACT, "tTICKET_0", "tTCK0"));
+            
+            // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
+            // address pairAddr = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
+
+            /** FROM VAULT */
+            usdAmount = _normalizeStableAmnt(_usd_decimals(), usdAmount, IERC20x(NEW_TICK_USD_STABLE).decimals());
+            IERC20(new_tick_tok).approve(NEW_TICK_UNISWAP_V2_ROUTER, tokenAmount);
+            IERC20(NEW_TICK_USD_STABLE).approve(NEW_TICK_UNISWAP_V2_ROUTER, usdAmount);
+            IUniswapV2Router02(NEW_TICK_UNISWAP_V2_ROUTER).addLiquidity(
+                new_tick_tok,                // Token address
+                NEW_TICK_USD_STABLE,           // Assuming ETH as the second asset (or replace with another token address)
+                tokenAmount,          // Desired _token amount
+                usdAmount,            // Desired ETH amount (converted from USD or directly provided)
+                0,                    // Min amount of _token (slippage tolerance)
+                0,                    // Min amount of ETH (slippage tolerance)
+                address(this),        // Recipient of liquidity tokens
+                block.timestamp + 300 // Deadline (5 minutes from now)
+            );
+            address pairAddr = IUniswapV2Factory(NEW_TICK_UNISWAP_V2_FACTORY).getPair(new_tick_tok, NEW_TICK_USD_STABLE);
+            // address pairAddr = address(0x3700000000000000000000000000000000000037);
+            
+            // VAULT.TICK_PAIR_ADDR(new_tick_tok) = pairAddr; // log ticket to pair address mapping
+            // VAULT.KEEPER_logTicketPair(new_tick_tok, pairAddr);
+            TICK_PAIR_ADDR[new_tick_tok] = pairAddr; // log ticket to pair address mapping
+            /** _FROM VAULT_ */
+
+            // verify ERC20 & LP was created
+            require(new_tick_tok != address(0) && pairAddr != address(0), ' err: gen tick tok | lp :( ');
+
+            // set this ticket option's settings to index 'i' in storage temp results array
+            //  temp array will be added to MARKET struct and returned (then deleted on function return)
+            resultOptionTokens[i] = new_tick_tok;
+            resultTokenLPs[i] = pairAddr;
+
+            resultTokenRouters[i] = NEW_TICK_UNISWAP_V2_ROUTER;
+            resultTokenFactories[i] = NEW_TICK_UNISWAP_V2_FACTORY;
+            resultTokenUsdStables[i] = NEW_TICK_USD_STABLE;
+            resultTokenVotes[i] = 0;
+
+            // NOTE: set ticket to maker mapping, handled from factory
+
+            unchecked {i++;}
+        }
+
+        // deduct full OG usd input from account balance
+        // edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
+
+        ICallitLib.MARKET_RESULTS memory mark_results = ICallitLib.MARKET_RESULTS(_resultLabels, new string[](_resultLabels.length), resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes);
+        // delete resultOptionTokens;
+        // delete resultTokenLPs;
+        // delete resultTokenRouters;
+        // delete resultTokenFactories;
+        // delete resultTokenUsdStables;
+        // delete resultTokenVotes;
+        return mark_results;
+    }
     // note: migrate to CallitBank at least, and maybe CallitLib as well
     // Assumed helper functions (implementations not shown)
-    function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external onlyFactory returns (address) {
-        // declare factory & router
-        // IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
-        // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
+    // function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external onlyFactory returns (address) {
+    // function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) private onlyFactory returns (address) {
+    //     // declare factory & router
+    //     // IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_uswapV2Router);
+    //     // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(_uswapv2Factory);
 
-        // normalize decimals _usdStable token requirements
-        _usdAmount = _normalizeStableAmnt(_usd_decimals(), _usdAmount, USD_STABLE_DECIMALS[_usdStable]);
+    //     // normalize decimals _usdStable token requirements
+    //     _usdAmount = _normalizeStableAmnt(_usd_decimals(), _usdAmount, IERC20x(_usdStable]);
 
-        // Approve tokens for Uniswap Router
-        IERC20(_token).approve(_uswapV2Router, _tokenAmount);
-        IERC20(_usdStable).approve(_uswapV2Router, _usdAmount);
-        // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
+    //     // Approve tokens for Uniswap Router
+    //     IERC20(_token).approve(_uswapV2Router, _tokenAmount);
+    //     IERC20(_usdStable).approve(_uswapV2Router, _usdAmount);
+    //     // Assuming you have a way to convert USD to ETH or a stablecoin in the contract
             
-        // create pair for the pool (note: ROUTER.addLiquidity should invoke FACTORY.createPair if doesn't exist yet)
-        // address pairAddr = uniswapFactory.createPair(_token, _usdStable);
+    //     // create pair for the pool (note: ROUTER.addLiquidity should invoke FACTORY.createPair if doesn't exist yet)
+    //     // address pairAddr = uniswapFactory.createPair(_token, _usdStable);
 
-        // Add liquidity to the pool
-        // (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
-        // uniswapRouter.addLiquidity(
-        IUniswapV2Router02(_uswapV2Router).addLiquidity(
-            _token,                // Token address
-            _usdStable,           // Assuming ETH as the second asset (or replace with another token address)
-            _tokenAmount,          // Desired _token amount
-            _usdAmount,            // Desired ETH amount (converted from USD or directly provided)
-            0,                    // Min amount of _token (slippage tolerance)
-            0,                    // Min amount of ETH (slippage tolerance)
-            address(this),        // Recipient of liquidity tokens
-            block.timestamp + 300 // Deadline (5 minutes from now)
-        );
+    //     // Add liquidity to the pool
+    //     // (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidity(
+    //     // uniswapRouter.addLiquidity(
+    //     IUniswapV2Router02(_uswapV2Router).addLiquidity(
+    //         _token,                // Token address
+    //         _usdStable,           // Assuming ETH as the second asset (or replace with another token address)
+    //         _tokenAmount,          // Desired _token amount
+    //         _usdAmount,            // Desired ETH amount (converted from USD or directly provided)
+    //         0,                    // Min amount of _token (slippage tolerance)
+    //         0,                    // Min amount of ETH (slippage tolerance)
+    //         address(this),        // Recipient of liquidity tokens
+    //         block.timestamp + 300 // Deadline (5 minutes from now)
+    //     );
 
-        // Return the address of the liquidity pool
-        // For Uniswap V2, the LP address is not directly returned but you can obtain it by querying the factory.
-        // This example assumes you store or use the liquidity tokens or LP in your contract directly.
+    //     // Return the address of the liquidity pool
+    //     // For Uniswap V2, the LP address is not directly returned but you can obtain it by querying the factory.
+    //     // This example assumes you store or use the liquidity tokens or LP in your contract directly.
 
-        // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
-        // For simplicity, we're returning a placeholder.
-        // Retrieve the LP address
-        // address pairAddr = uniswapFactory.getPair(_token, _usdStable);
-        // address pairAddr = IUniswapV2Factory(_uswapv2Factory).getPair(_token, _usdStable);
+    //     // The actual LP address retrieval would require interaction with Uniswap V2 Factory.
+    //     // For simplicity, we're returning a placeholder.
+    //     // Retrieve the LP address
+    //     // address pairAddr = uniswapFactory.getPair(_token, _usdStable);
+    //     address pairAddr = IUniswapV2Factory(_uswapv2Factory).getPair(_token, _usdStable);
 
-        // LEFT OFF HERE ... this didn't work ^
-        //  ALSO tried to set pairAddr to something static (not 0x0), and also not make that .getPair call
-        //      ... still didn't work (below)
-        // address paidAddr = address(0x0000000000000000000000000000000000000000); // note: caller can't receive 0x0 return
-        address pairAddr = address(0x3700000000000000000000000000000000000037);
+    //     // LEFT OFF HERE ... this didn't work ^
+    //     //  ALSO tried to set pairAddr to something static (not 0x0), and also not make that .getPair call
+    //     //      ... still didn't work (below)
+    //     // address paidAddr = address(0x0000000000000000000000000000000000000000); // note: caller can't receive 0x0 return
+    //     // address pairAddr = address(0x3700000000000000000000000000000000000037);
         
-        TICK_PAIR_ADDR[_token] = pairAddr; // log ticket to pair address mapping
-        return pairAddr;
-    }
-    function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) public onlyFactory returns(uint256) {
+    //     TICK_PAIR_ADDR[_token] = pairAddr; // log ticket to pair address mapping
+    //     return pairAddr;
+    // }
+    function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) external onlyFactory returns(uint256) {
         // IUniswapV2Factory uniswapFactory = IUniswapV2Factory(mark.resultTokenFactories[i]);
         IUniswapV2Router02 uniswapRouter = IUniswapV2Router02(_tokenRouter);
         

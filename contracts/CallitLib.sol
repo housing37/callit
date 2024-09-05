@@ -22,6 +22,38 @@ library CallitLib {
     /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
+    // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
+    // function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, uint16 _tickIdx, uint64 _usdMinTargetPrice) private view returns(uint64) {
+    function _getCallTicketUsdTargetPrice(ICallitLib.MARKET memory _mark, uint16 _tickIdx, uint64 _usdMinTargetPrice, uint8 _usd_decs) external view returns(uint64) {
+        address[] memory _resultTickets = _mark.marketResults.resultOptionTokens;
+        address[] memory _pairAddresses = _mark.marketResults.resultTokenLPs;
+        address[] memory _resultStables = _mark.marketResults.resultTokenUsdStables;
+
+        // exeArbPriceParityForTicket
+        require(_resultTickets.length == _pairAddresses.length, ' tick/pair arr length mismatch :o ');
+        // algorithmic logic ...
+        //  calc sum of usd value dex prices for all addresses in '_mark.resultOptionTokens' (except _ticket)
+        //   -> input _ticket target price = 1 - SUM(all prices except _ticket)
+        //   -> if result target price <= 0, then set/return input _ticket target price = $0.01
+
+        // address[] memory tickets = _mark.marketResults.resultOptionTokens;
+        address[] memory tickets = _resultTickets;
+        uint64 alt_sum = 0;
+        for(uint16 i=0; i < tickets.length;) { // MAX_RESULTS is uint16
+            if (tickets[i] != _resultTickets[_tickIdx]) {
+                address pairAddress = _pairAddresses[i];
+                uint256 usdAmountsOut = _estimateLastPriceForTCK(pairAddress); // invokes _normalizeStableAmnt
+                alt_sum += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_resultStables[i]).decimals(), usdAmountsOut, _usd_decs));
+            }
+            
+            unchecked {i++;}
+        }
+
+        // NOTE: returns negative if alt_sum is greater than 1
+        //  edge case should be handle in caller
+        int64 target_price = 1 - int64(alt_sum);
+        return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
+    }
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
         uint64 agreeCnt = 0;
         uint64 disagreeCnt = 0;
@@ -101,7 +133,7 @@ library CallitLib {
         return requiredMint;
     }
     // Option 1: Estimate the price using reserves
-    function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256) {
+    function _estimateLastPriceForTCK(address _pairAddress) private view returns (uint256) {
         (uint112 reserve0, uint112 reserve1,) = IUniswapV2Pair(_pairAddress).getReserves();
         
         // Assuming token0 is the ERC20 token and token1 is the paired asset (e.g., ETH or a stablecoin)
@@ -215,7 +247,7 @@ library CallitLib {
         uint64 convertedValue = uint64(value);
         return convertedValue;
     }
-    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256) {
+    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) public pure returns (uint256) {
         require(_fromDecimals > 0 && _toDecimals > 0, 'err: invalid _from|toDecimals');
         if (_usdAmnt == 0) return _usdAmnt; // fix to allow 0 _usdAmnt (ie. no need to normalize)
         if (_fromDecimals == _toDecimals) {

@@ -40,6 +40,29 @@ interface ICallitTicket {
     function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
+    // more migration from factory attempts
+    function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
+    function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
+    function MAX_RESULTS() external view returns(uint16);
+    function MAX_EOA_MARKETS() external view returns(uint64);   
+    
+    // default all fees to 0 (KEEPER setter available)
+    // function PERC_MARKET_MAKER_FEE() external view returns(uint16);
+    // function PERC_PROMO_BUY_FEE() external view returns(uint16);
+    // function PERC_ARB_EXE_FEE() external view returns(uint16);
+    function PERC_MARKET_CLOSE_FEE() external view returns(uint16);
+    function PERC_PRIZEPOOL_VOTERS() external view returns(uint16);
+    function PERC_VOTER_CLAIM_FEE() external view returns(uint16);
+    function PERC_WINNER_CLAIM_FEE() external view returns(uint16);
+
+    // call token mint rewards
+    function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_VOTE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_MARK_CLOSE() external view returns(uint32);
+    function RATIO_PROMO_USD_PER_CALL_MINT() external view returns(uint64);
+    // function MIN_USD_PROMO_TARGET() external view returns(uint64);
+
     function ACCT_MARKET_REVIEWS(address _key) external view returns(ICallitLib.MARKET_REVIEW[] memory);
     function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external;
     function INIT_factory() external;
@@ -309,9 +332,9 @@ contract CallitFactory {
       //  emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
 
         // check if msg.sender earned $CALL tokens
-        if (_usdAmnt >= VAULT.RATIO_PROMO_USD_PER_CALL_MINT()) {
+        if (_usdAmnt >= DELEGATE.RATIO_PROMO_USD_PER_CALL_MINT()) {
             // mint $CALL to msg.sender & log $CALL votes earned
-            _mintCallToksEarned(msg.sender, _usdAmnt / VAULT.RATIO_PROMO_USD_PER_CALL_MINT()); // emit CallTokensEarned
+            _mintCallToksEarned(msg.sender, _usdAmnt / DELEGATE.RATIO_PROMO_USD_PER_CALL_MINT()); // emit CallTokensEarned
         }
     }
     function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
@@ -328,7 +351,7 @@ contract CallitFactory {
         (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, msg.sender);
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_ARB_EXE()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_ARB_EXE()); // emit CallTokensEarned
 
         // // emit log of this arb price correction
       //  emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
@@ -350,7 +373,7 @@ contract CallitFactory {
         mark.marketUsdAmnts.usdAmntPrizePool = DELEGATE.closeMarketCallsForTicket(mark); // NOTE: write to market
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS()); // emit CallTokensEarned
 
         // emit log for this closed market calls event
       //  emit MarketCallsClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.marketUsdAmnts.usdAmntPrizePool, callEarnedAmnt);
@@ -391,7 +414,7 @@ contract CallitFactory {
         //  this will allow people to see majority votes before voting
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
     }
     function closeMarketForTicket(address _ticket) external { // _deductFeePerc PERC_MARKET_CLOSE_FEE from mark.marketUsdAmnts.usdAmntPrizePool
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{-} ');
@@ -413,14 +436,14 @@ contract CallitFactory {
         mark.winningVoteResultIdx = LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
 
         // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
-        require(VAULT.PERC_PRIZEPOOL_VOTERS() + VAULT.PERC_MARKET_CLOSE_FEE() < 10000, ' perc error ;( ');
+        require(DELEGATE.PERC_PRIZEPOOL_VOTERS() + DELEGATE.PERC_MARKET_CLOSE_FEE() < 10000, ' perc error ;( ');
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
-        mark.marketUsdAmnts.usdVoterRewardPool = LIB._perc_of_uint64(VAULT.PERC_PRIZEPOOL_VOTERS(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdVoterRewardPool = LIB._perc_of_uint64(DELEGATE.PERC_PRIZEPOOL_VOTERS(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
 
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
         mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool; // NOTE: write to market
-        mark.marketUsdAmnts.usdAmntPrizePool_net = LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, VAULT.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdAmntPrizePool_net = LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, DELEGATE.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
         
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
@@ -435,7 +458,7 @@ contract CallitFactory {
         mark.live = false; // NOTE: write to market
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_MARK_CLOSE()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_MARK_CLOSE()); // emit CallTokensEarned
 
         // emit log for closed market
       //  emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote, callEarnedAmnt);
@@ -466,7 +489,7 @@ contract CallitFactory {
             uint64 usdPrizePoolShare = usdPerTicket * LIB._uint64_from_uint256(LIB._normalizeStableAmnt(ICallitTicket(_ticket).decimals(), IERC20(_ticket).balanceOf(msg.sender), VAULT._usd_decimals()));
 
             // send payout to msg.sender
-            usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, VAULT.PERC_WINNER_CLAIM_FEE(), usdPrizePoolShare);
+            usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, DELEGATE.PERC_WINNER_CLAIM_FEE(), usdPrizePoolShare);
             VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender); // emits 'transfer' event log
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
@@ -538,7 +561,7 @@ contract CallitFactory {
 
         // deduct fees and pay voter rewards
         // uint64 usdRewardOwed_net = LIB._deductFeePerc(usdRewardOwed, VAULT.PERC_VOTER_CLAIM_FEE(), usdRewardOwed);
-        VAULT._payUsdReward(msg.sender, LIB._deductFeePerc(usdRewardOwed, VAULT.PERC_VOTER_CLAIM_FEE(), usdRewardOwed), msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        VAULT._payUsdReward(msg.sender, LIB._deductFeePerc(usdRewardOwed, DELEGATE.PERC_VOTER_CLAIM_FEE(), usdRewardOwed), msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
         // emit log for rewards claimed
       //  emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);

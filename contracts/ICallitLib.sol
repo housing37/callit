@@ -67,7 +67,7 @@ interface ICallitLib {
         uint64 agreeCnt;
         uint64 disagreeCnt;
     }
-    // note: only these used in CallitFactory ... (maybe less after CallitDelegate integration)
+    // note: only these used in CallitFactory ... (maybe less after CallitDelegate integration)    
     function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
     function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64);
     function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
@@ -81,9 +81,10 @@ interface ICallitLib {
     function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) external pure returns (uint256);
     
     // note: only these used in CallitVault ...
+    function _getCallTicketUsdTargetPrice(ICallitLib.MARKET memory _mark, uint16 _tickIdx, uint64 _usdMinTargetPrice, uint8 _usd_decs) external view returns(uint64);
     function _addAddressToArraySafe(address _addr, address[] memory _arr, bool _safe) external pure returns (address[] memory);
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256);
-    function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256);
+    // function _estimateLastPriceForTCK(address _pairAddress) external view returns (uint256);
     function _remAddressFromArray(address _addr, address[] memory _arr) external pure returns (address[] memory);
 
     // note: only these used in CallitDelegate ...

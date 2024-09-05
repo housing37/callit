@@ -427,3 +427,11 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 
 # 0x0000000000000000000000000000000000000369
 # 0x0000000000000000000000000000000000000000
+
+# atropa mint puzzles cracked (end 2023)
+# '0x1f737F7994811fE994Fe72957C374e5cD5D5418A' # ⑨ (テディベア) - TeddyBear9
+# '0x4C1518286E1b8D5669Fe965EF174B8B4Ae2f017B' # Annabelle: The Profit ㉶ _ (BEL ㉶)
+# '0x25d53961a27791B9D8b2d74FB3e937c8EAEadc38' # ⑦ _ BOND
+# '0x2959221675bdF0e59D0cC3dE834a998FA5fFb9F4' # ⑧ (BULLION ⑧) _ BUL8
+# '0xA537d6F4c1c8F8C41f1004cc34C00e7Db40179Cc' # 问题 (问题) _ wenti
+# '0x26D5906c4Cdf8C9F09CBd94049f99deaa874fB0b' # ހް (ޖޮޔިސްދޭވޯހީ) _ writing
