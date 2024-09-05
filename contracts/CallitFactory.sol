@@ -40,6 +40,9 @@ interface ICallitTicket {
     function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
+    function RATIO_LP_TOK_PER_USD() external view returns(uint16);
+    function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
+    
     // more migration from factory attempts
     function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
     function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
@@ -291,11 +294,11 @@ contract CallitFactory {
                             string[] calldata _resultDescrs
                             ) external { 
         require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
-        require(2 <= _resultLabels.length && _resultLabels.length <= VAULT.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
+        require(2 <= _resultLabels.length && _resultLabels.length <= DELEGATE.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
 
         // initilize/validate market number for struct MARKET tracking
         uint256 mark_num = ACCT_MARKETS[msg.sender].length;
-        require(mark_num <= VAULT.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
+        require(mark_num <= DELEGATE.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
 
         // save this market and emit log
         // note: could possibly remove '_resultLabels' to save memory (ie. removed _resultDescrs succcessfully)
@@ -449,9 +452,9 @@ contract CallitFactory {
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 
         // check if mark.maker earned $CALL tokens
-        if (mark.marketUsdAmnts.usdAmntLP >= VAULT.RATIO_LP_USD_PER_CALL_TOK()) {
+        if (mark.marketUsdAmnts.usdAmntLP >= DELEGATE.RATIO_LP_USD_PER_CALL_TOK()) {
             // mint $CALL to mark.maker & log $CALL votes earned
-            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / VAULT.RATIO_LP_USD_PER_CALL_TOK()); // emit CallTokensEarned
+            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / DELEGATE.RATIO_LP_USD_PER_CALL_TOK()); // emit CallTokensEarned
         }
 
         // close market

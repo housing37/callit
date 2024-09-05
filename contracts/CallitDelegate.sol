@@ -50,6 +50,14 @@ contract CallitDelegate {
     string  public TOK_TICK_SYMB_SEED = "CALL-TICKET";
     // uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
 
+    // lp settings
+    // uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
+    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
+        // NOTE: utilized in 'FACTORY.closeMarketForTicket'
+        // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
+        //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)    
+        
     // note: makeNewMarket
     // temp-arrays for 'makeNewMarket' support
     address[] private resultOptionTokens;
@@ -207,6 +215,12 @@ contract CallitDelegate {
 
         ADDR_VAULT = _vault;
         VAULT = ICallitVault(ADDR_VAULT);
+    }
+    // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
+    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd) external onlyKeeper {
+        RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
+        RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
+        // MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     }
     // function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
     //     // max array size = 255 (uint8 loop)

@@ -57,15 +57,15 @@ contract CallitVault {
     address public NEW_TICK_UNISWAP_V2_FACTORY;
     address public NEW_TICK_USD_STABLE;
 
-    // // note: makeNewMarket
-    // // temp-arrays for 'makeNewMarket' support
-    // address[] private resultOptionTokens;
-    // address[] private resultTokenLPs;
-    // address[] private resultTokenRouters;
-    // address[] private resultTokenFactories;
+    // note: makeNewMarket
+    // temp-arrays for 'makeNewMarket' support
+    address[] private resultOptionTokens;
+    address[] private resultTokenLPs;
+    address[] private resultTokenRouters;
+    address[] private resultTokenFactories;
 
-    // address[] private resultTokenUsdStables;
-    // uint64 [] private resultTokenVotes;
+    address[] private resultTokenUsdStables;
+    uint64 [] private resultTokenVotes;
 
     // default all fees to 0 (KEEPER setter available)
     // uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
@@ -87,13 +87,13 @@ contract CallitVault {
     // uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
     // uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
 
-    // lp settings
-    // uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
-    uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
-    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
-        // NOTE: utilized in 'FACTORY.closeMarketForTicket'
-        // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
-        //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)    
+    // // lp settings
+    // // uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    // uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
+    // uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
+    //     // NOTE: utilized in 'FACTORY.closeMarketForTicket'
+    //     // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
+    //     //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)    
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
@@ -150,8 +150,8 @@ contract CallitVault {
     // event DexRouterUpdated(address _router, bool _add);
     event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
     // callit
-    event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
-    event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
+    // event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
+    // event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
 
     constructor() {
@@ -238,7 +238,12 @@ contract CallitVault {
         require(_keeperCheck == KEEPER_CHECK, ' KEEPER_CHECK failed :( ');
         // if (_history)
         //     return _collectiveStableBalances(USD_STABLES_HISTORY);
-        return _collectiveStableBalances(WHITELIST_USD_STABLES);
+        // return _collectiveStableBalances(WHITELIST_USD_STABLES);
+
+        uint64 gross_bal = _grossStableBalance(WHITELIST_USD_STABLES);
+        uint64 owed_bal = _owedStableBalance();
+        int64 net_bal = int64(gross_bal) - int64(owed_bal);
+        return (gross_bal, owed_bal, net_bal);
     }
     function KEEPER_editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) external onlyKeeper {
         _editWhitelistStables(_usdStable, _decimals, _add); // note: require check in local
@@ -279,24 +284,26 @@ contract CallitVault {
     //     RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
     //     PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
     // }
-    function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
+    // function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
+    function KEEPER_setPercFees(uint16 _percPromo, uint16 _percArbExe) external onlyKeeper {
         // no 2 percs taken out of market close
-        require(_percPrizeVoters + _percMarkClose < 10000, ' close market perc error ;() ');
-        require(_percMaker < 10000 && _percPromo < 10000 && _percArbExe < 10000 && _percMarkClose < 10000 && _percPrizeVoters < 10000 && _percVoterClaim < 10000 && _perWinnerClaim < 10000, ' invalid perc(s) :0 ');
+        // require(_percPrizeVoters + _percMarkClose < 10000, ' close market perc error ;() ');
+        // require(_percMaker < 10000 && _percPromo < 10000 && _percArbExe < 10000 && _percMarkClose < 10000 && _percPrizeVoters < 10000 && _percVoterClaim < 10000 && _perWinnerClaim < 10000, ' invalid perc(s) :0 ');
+        require(_percPromo < 10000 && _percArbExe < 10000, ' invalid perc(s) :0 ');
         // PERC_MARKET_MAKER_FEE = _percMaker; 
-        PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.perc`Reward)
+        PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.percReward)
         PERC_ARB_EXE_FEE = _percArbExe;
         // PERC_MARKET_CLOSE_FEE = _percMarkClose; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
         // PERC_PRIZEPOOL_VOTERS = _percPrizeVoters;
         // PERC_VOTER_CLAIM_FEE = _percVoterClaim;
         // PERC_WINNER_CLAIM_FEE = _perWinnerClaim;        
     }
-    // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
-    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd) external onlyKeeper {
-        RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
-        RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
-        // MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
-    }
+    // // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
+    // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd) external onlyKeeper {
+    //     RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
+    //     RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
+    //     // MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    // }
     function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
         // max array size = 255 (uint8 loop)
         // NOTE: if _router not mapped to a factory, then _router not in VAULT.USWAP_V2_ROUTERS
@@ -405,8 +412,9 @@ contract CallitVault {
         uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
         if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
             uint64 net_usdAmnt_needed = net_usdAmnt - _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_tick_stable_tok).decimals(), contr_stab_bal, _usd_decimals()));
-            (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
-            emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
+            // (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+            _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+            // emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
             // verify
             require(IERC20(_tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
@@ -429,12 +437,14 @@ contract CallitVault {
     // note: migrate to CallitBank
     function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) public onlyFactory() {
         if (_usdReward == 0) {
-            emit AlertZeroReward(_sender, _usdReward, _receiver);
+            // emit AlertZeroReward(_sender, _usdReward, _receiver);
             return;
         }
         // Get stable to work with ... (any stable that covers 'usdReward' is fine)
         //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
-        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        // address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        address lowStableHeld = _getStableHeldHighLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS, false); // 3 loops embedded // false = low mark val
+        
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
@@ -479,23 +489,25 @@ contract CallitVault {
     //         DELEGATE is indeed compiling just fine still
         
     // function createDexLP(uint256 _resultCnt, uint64 _net_usdAmntLP) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
-    function createDexLP(string[] calldata _resultLabels, uint64 _net_usdAmntLP) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
+    // function createDexLP(string[] calldata _resultLabels, uint64 _net_usdAmntLP) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
+    function createDexLP(string[] calldata _resultLabels, uint64 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
 
-        // note: makeNewMarket
-        // temp-arrays for 'makeNewMarket' support
-        address[] memory resultOptionTokens = new address[](_resultLabels.length);
-        address[] memory resultTokenLPs = new address[](_resultLabels.length);
-        address[] memory resultTokenRouters = new address[](_resultLabels.length);
-        address[] memory resultTokenFactories = new address[](_resultLabels.length);
+        // // note: makeNewMarket
+        // // temp-arrays for 'makeNewMarket' support
+        // address[] memory resultOptionTokens = new address[](_resultLabels.length);
+        // address[] memory resultTokenLPs = new address[](_resultLabels.length);
+        // address[] memory resultTokenRouters = new address[](_resultLabels.length);
+        // address[] memory resultTokenFactories = new address[](_resultLabels.length);
 
-        address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
-        uint64 [] memory resultTokenVotes = new uint64[](_resultLabels.length);
+        // address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
+        // uint64 [] memory resultTokenVotes = new uint64[](_resultLabels.length);
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
         // for (uint16 i = 0; i < _resultCnt;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
             // Get/calc amounts for initial LP (usd and token amounts)
-            (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
-            // (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultCnt, RATIO_LP_TOK_PER_USD);            
+            (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, _ratioLpTokPerUsd);
+            // (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);
+            // (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultCnt, RATIO_LP_TOK_PER_USD);
 
             // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
             // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
@@ -550,12 +562,12 @@ contract CallitVault {
         // edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
 
         ICallitLib.MARKET_RESULTS memory mark_results = ICallitLib.MARKET_RESULTS(_resultLabels, new string[](_resultLabels.length), resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes);
-        // delete resultOptionTokens;
-        // delete resultTokenLPs;
-        // delete resultTokenRouters;
-        // delete resultTokenFactories;
-        // delete resultTokenUsdStables;
-        // delete resultTokenVotes;
+        delete resultOptionTokens;
+        delete resultTokenLPs;
+        delete resultTokenRouters;
+        delete resultTokenFactories;
+        delete resultTokenUsdStables;
+        delete resultTokenVotes;
         return mark_results;
     }
     // note: migrate to CallitBank at least, and maybe CallitLib as well
@@ -751,14 +763,14 @@ contract CallitVault {
         }
         return owed_bal;
     }
-    function _collectiveStableBalances(address[] memory _stables) private view returns (uint64, uint64, int64) {
-        uint64 gross_bal = _grossStableBalance(_stables);
-        uint64 owed_bal = _owedStableBalance();
-        int64 net_bal = int64(gross_bal) - int64(owed_bal);
-        // return (gross_bal, owed_bal, net_bal, totalSupply());
-        // return (gross_bal, owed_bal, net_bal, IERC20(ADDR_FACT).totalSupply());
-        return (gross_bal, owed_bal, net_bal);
-    }
+    // function _collectiveStableBalances(address[] memory _stables) private view returns (uint64, uint64, int64) {
+    //     uint64 gross_bal = _grossStableBalance(_stables);
+    //     uint64 owed_bal = _owedStableBalance();
+    //     int64 net_bal = int64(gross_bal) - int64(owed_bal);
+    //     // return (gross_bal, owed_bal, net_bal, totalSupply());
+    //     // return (gross_bal, owed_bal, net_bal, IERC20(ADDR_FACT).totalSupply());
+    //     return (gross_bal, owed_bal, net_bal);
+    // }
     function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
         if (_add) {
             WHITELIST_USD_STABLES = LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
@@ -793,7 +805,7 @@ contract CallitVault {
     /* -------------------------------------------------------- */
     /* PRIVATE - DEX SWAP SUPPORT                                    
     /* -------------------------------------------------------- */
-    function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
+    function _getStableHeldHighLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers, bool _getHigh) private view returns (address) {
 
         address[] memory _stablesHeld;
         for (uint8 i=0; i < _stables.length;) {
@@ -804,26 +816,42 @@ contract CallitVault {
                 i++;
             }
         }
-        return LIB._getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+        if (_getHigh) return LIB._getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+        else return LIB._getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
     }
-    function _getStableHeldLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
-        // NOTE: if nothing in _stables can cover _usdAmntReq, then returns address(0x0)
-        address[] memory _stablesHeld;
-        for (uint8 i=0; i < _stables.length;) {
-            if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-                _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+    // function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
 
-            unchecked {
-                i++;
-            }
-        }
-        return LIB._getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
-    }
+    //     address[] memory _stablesHeld;
+    //     for (uint8 i=0; i < _stables.length;) {
+    //         if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
+    //             _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+
+    //         unchecked {
+    //             i++;
+    //         }
+    //     }
+    //     return LIB._getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+    // }
+    // function _getStableHeldLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
+    //     // NOTE: if nothing in _stables can cover _usdAmntReq, then returns address(0x0)
+    //     address[] memory _stablesHeld;
+    //     for (uint8 i=0; i < _stables.length;) {
+    //         if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
+    //             _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+
+    //         unchecked {
+    //             i++;
+    //         }
+    //     }
+    //     return LIB._getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+    // }
     // note: migrate to CallitBank
     function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
         // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
         //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
-        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        // address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        address highStableHeld = _getStableHeldHighLowMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS, true); // 3 loops embedded // true = high mark val
+        
         require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
 
         // create path and perform stable-to-stable swap
