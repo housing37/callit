@@ -184,24 +184,6 @@ contract CallitVault {
         // FACTORY_pulsex_router_02_v2='0x29eA7545DEf87022BAdc76323F373EA1e707C523'
     }
 
-    // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
-    function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
-        // calc target usd price for _ticket (in order to bring this market to price parity)
-        //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
-        //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
-        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, _minUsdTargPrice);
-        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
-        uint64 ticketTargetPriceUSD = LIB._getCallTicketUsdTargetPrice(mark, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE, _usd_decimals());
-        
-
-        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
-        //  mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
-        //  deduct fees and pay _arbExecuter (_sender)
-        (uint64 tokensToMint, uint64 total_usd_cost) = _performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _sender);
-        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = _performTicketMintedDexSell(mark, tickIdx, tokensToMint, total_usd_cost, _sender);
-        return (ticketTargetPriceUSD, tokensToMint, total_usd_cost, gross_stab_amnt_out, net_usd_profits);
-    }
-
     /* -------------------------------------------------------- */
     /* MODIFIERS
     /* -------------------------------------------------------- */
@@ -315,6 +297,14 @@ contract CallitVault {
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
         // MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     }
+    function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
+        // max array size = 255 (uint8 loop)
+        // NOTE: if _router not mapped to a factory, then _router not in VAULT.USWAP_V2_ROUTERS
+        require(ROUTERS_TO_FACTORY[_router] != address(0) && LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist router|factory|stable :() ');
+        NEW_TICK_UNISWAP_V2_ROUTER = _router;
+        NEW_TICK_UNISWAP_V2_FACTORY = ROUTERS_TO_FACTORY[_router];
+        NEW_TICK_USD_STABLE = _usdStable;
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
@@ -374,52 +364,22 @@ contract CallitVault {
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
-    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 _ticketTargetPriceUSD, address _arbExecuter) private returns(uint64,uint64) {
-        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
-        uint256 _usdTickTargPrice_18 = _normalizeStableAmnt(_usd_decimals(), _ticketTargetPriceUSD, 18);
-        uint64 tokensToMint = _uint64_from_uint256(_normalizeStableAmnt(18, LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice_18), _usd_decimals()));
-
-        // calc price to charge _arbExecuter for minting tokensToMint
-        //  then deduct that amount from their account balance
-        uint64 total_usd_cost = _ticketTargetPriceUSD * tokensToMint;
-        if (_arbExecuter != KEEPER) { // free for KEEPER
-            // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
-            //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from this contract
-            require(ACCT_USD_BALANCES[_arbExecuter] >= total_usd_cost, ' low balance :( ');
-
-            // deduce that sale amount from their account balance
-            // CALLIT_VAULT.ACCT_USD_BALANCES[_arbExecuter] -= total_usd_cost; 
-            edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
-        }
+    // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
+    function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
+        // calc target usd price for _ticket (in order to bring this market to price parity)
+        //  note: indeed accounts for sum of alt result ticket prices in market >= $1.00
+        //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
+        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, _minUsdTargPrice);
+        // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
+        uint64 ticketTargetPriceUSD = LIB._getCallTicketUsdTargetPrice(mark, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE, _usd_decimals());
         
-        // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
-        //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
-        //  NOTE: deduct fees and pay _arbExecuter in '_performTicketMintedDexSell'
-        // ICallitTicket cTicket = ICallitTicket(_ticket);
-        // ICallitTicket cTicket = ICallitTicket(_mark.marketResults.resultOptionTokens[_tickIdx]);
-        CallitTicket cTicket = CallitTicket(_mark.marketResults.resultOptionTokens[_tickIdx]);
-        cTicket.mintForPriceParity(address(this), tokensToMint);
-        require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
-        return (tokensToMint, total_usd_cost);
-    }
-    function _performTicketMintedDexSell(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 tokensToMint, uint64 total_usd_cost, address _arbExecuter) private returns(uint64,uint64) {
-        // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
-        //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
-        //  NOTE: deduct fees and pay _arbExecuter in '_performTicketMintedDexSell'
-        address[] memory tok_stab_path = new address[](2);
-        // tok_stab_path[0] = _ticket;
-        tok_stab_path[0] = _mark.marketResults.resultOptionTokens[_tickIdx];
-        tok_stab_path[1] = _mark.marketResults.resultTokenUsdStables[_tickIdx];
-        uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _mark.marketResults.resultTokenRouters[_tickIdx]); // swap tick: use specific router tck:tick-stable
-        uint64 gross_stab_amnt_out = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_mark.marketResults.resultTokenUsdStables[_tickIdx]).decimals(), usdAmntOut, _usd_decimals()));
 
-        // calc & send net profits to _arbExecuter
-        //  NOTE: _arbExecuter gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
-        //  NOTE: 'net_usd_profits' is _arbExecuter's profit (after additional fees)
-        uint64 net_usd_profits = LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
-        require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify _arbExecuter profits would occur
-        IERC20(_mark.marketResults.resultTokenUsdStables[_tickIdx]).transfer(_arbExecuter, net_usd_profits);
-        return (gross_stab_amnt_out, net_usd_profits);
+        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
+        //  mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
+        //  deduct fees and pay _arbExecuter (_sender)
+        (uint64 tokensToMint, uint64 total_usd_cost) = _performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _sender);
+        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = _performTicketMintedDexSell(mark, tickIdx, tokensToMint, total_usd_cost, _sender);
+        return (ticketTargetPriceUSD, tokensToMint, total_usd_cost, gross_stab_amnt_out, net_usd_profits);
     }
     function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, address _sender) external onlyFactory returns(uint64, uint256) {
         // NOTE: *WARNING* if this require fails ... 
@@ -460,6 +420,20 @@ contract CallitVault {
 
         return (net_usdAmnt, tick_amnt_out);
     }
+    // note: migrate to CallitBank
+    function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) public onlyFactory() {
+        if (_usdReward == 0) {
+            emit AlertZeroReward(_sender, _usdReward, _receiver);
+            return;
+        }
+        // Get stable to work with ... (any stable that covers 'usdReward' is fine)
+        //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
+        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
+        IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, IERC20x(lowStableHeld).decimals()));
+    }
     // function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, uint16 _tickIdx, uint64 _usdMinTargetPrice) private view returns(uint64) {
     //     // exeArbPriceParityForTicket
     //     require(_resultTickets.length == _pairAddresses.length, ' tick/pair arr length mismatch :o ');
@@ -486,201 +460,6 @@ contract CallitVault {
     //     int64 target_price = 1 - int64(alt_sum);
     //     return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
     // }
-
-    /* -------------------------------------------------------- */
-    /* PRIVATE - SUPPORTING (legacy)
-    /* -------------------------------------------------------- */
-    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) private pure returns (uint256) {
-        require(_fromDecimals > 0 && _toDecimals > 0, 'err: invalid _from|toDecimals');
-        if (_usdAmnt == 0) return _usdAmnt; // fix to allow 0 _usdAmnt (ie. no need to normalize)
-        if (_fromDecimals == _toDecimals) {
-            return _usdAmnt;
-        } else {
-            if (_fromDecimals > _toDecimals) { // _fromDecimals has more 0's
-                uint256 scalingFactor = 10 ** (_fromDecimals - _toDecimals); // get the diff
-                return _usdAmnt / scalingFactor; // decrease # of 0's in _usdAmnt
-            }
-            else { // _fromDecimals has less 0's
-                uint256 scalingFactor = 10 ** (_toDecimals - _fromDecimals); // get the diff
-                return _usdAmnt * scalingFactor; // increase # of 0's in _usdAmnt
-            }
-        }
-    }
-    function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
-        require(value <= type(uint64).max, "Value exceeds uint64 range");
-        uint64 convertedValue = uint64(value);
-        return convertedValue;
-    }
-    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
-    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) public onlyFactory() {
-        if (_add) {
-            require(_usdAmnt > 0, ' !add 0 :/ ' );
-            ACCT_USD_BALANCES[_acct] += _usdAmnt;
-        } else {
-            require(ACCT_USD_BALANCES[_acct] >= _usdAmnt, ' !deduct low balance :{} ');
-            ACCT_USD_BALANCES[_acct] -= _usdAmnt;    
-        }
-    }
-    function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
-        uint64 gross_bal = 0;
-        for (uint8 i = 0; i < _stables.length;) {
-            // NOTE: more efficient algorithm taking up less stack space with local vars
-            require(IERC20x(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
-            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
-            unchecked {i++;}
-        }
-        return gross_bal;
-    }
-    function _owedStableBalance() private view returns (uint64) {
-        uint64 owed_bal = 0;
-        for (uint256 i = 0; i < ACCOUNTS.length;) {
-            owed_bal += ACCT_USD_BALANCES[ACCOUNTS[i]];
-            unchecked {i++;}
-        }
-        return owed_bal;
-    }
-    function _collectiveStableBalances(address[] memory _stables) private view returns (uint64, uint64, int64) {
-        uint64 gross_bal = _grossStableBalance(_stables);
-        uint64 owed_bal = _owedStableBalance();
-        int64 net_bal = int64(gross_bal) - int64(owed_bal);
-        // return (gross_bal, owed_bal, net_bal, totalSupply());
-        // return (gross_bal, owed_bal, net_bal, IERC20(ADDR_FACT).totalSupply());
-        return (gross_bal, owed_bal, net_bal);
-    }
-    function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
-        if (_add) {
-            WHITELIST_USD_STABLES = LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
-            // USD_STABLES_HISTORY = LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
-            // USD_STABLE_DECIMALS[_usdStable] = _decimals;
-        } else {
-            WHITELIST_USD_STABLES = LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
-        }
-    }
-    function _editDexRouters(address _router, address _factory, bool _add) private {
-        require(_router != address(0x0), "0 address");
-        if (_add) {
-            USWAP_V2_ROUTERS = LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
-            ROUTERS_TO_FACTORY[_router] = _factory;
-        } else {
-            USWAP_V2_ROUTERS = LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
-            delete ROUTERS_TO_FACTORY[_router];
-        }
-    }
-    function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
-
-        address[] memory _stablesHeld;
-        for (uint8 i=0; i < _stables.length;) {
-            if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-                _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
-
-            unchecked {
-                i++;
-            }
-        }
-        return _getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
-    }
-    function _getStableHeldLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
-        // NOTE: if nothing in _stables can cover _usdAmntReq, then returns address(0x0)
-        address[] memory _stablesHeld;
-        for (uint8 i=0; i < _stables.length;) {
-            if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
-                _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
-
-            unchecked {
-                i++;
-            }
-        }
-        return _getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
-    }
-    function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
-        if (_usdStable == address(0x0)) 
-            return false;
-        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable).decimals());
-        return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
-    }
-    // function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
-    //     uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable]);
-    //     (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
-    //     return tok_amnt; 
-    // }
-    function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
-        address[] memory pls_stab_path = new address[](2);
-        pls_stab_path[0] = TOK_WPLS;
-        pls_stab_path[1] = _usdStable;
-        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
-        uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
-        stab_amnt_out = _normalizeStableAmnt(IERC20x(_usdStable).decimals(), stab_amnt_out, _usd_decimals());
-        return stab_amnt_out;
-    }
-    // generic: gets best from USWAP_V2_ROUTERS to perform trade
-    function _exeSwapTokForStable(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver) private returns (uint256) {
-        // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
-        require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
-        
-        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
-        uint256 stable_amnt_out = _swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
-        return stable_amnt_out;
-    }
-    // generic: gets best from USWAP_V2_ROUTERS to perform trade
-    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
-        address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
-        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(usdStable).decimals());
-        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
-
-        // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
-        // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
-        //   and then get tok_amnt_out from delegate (USER_maintenance)
-        // else, swap with BST address(this) as receiver 
-        // if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
-        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
-        //     SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
-        //     return tok_amnt_out;
-        // } else {
-        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
-        //     return tok_amnt_out;
-        // }
-
-        uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
-        return tok_amnt_out;
-    }
-    // note: migrate to CallitBank
-    function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) public onlyFactory() {
-        if (_usdReward == 0) {
-            emit AlertZeroReward(_sender, _usdReward, _receiver);
-            return;
-        }
-        // Get stable to work with ... (any stable that covers 'usdReward' is fine)
-        //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
-        address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
-
-        // pay _receiver their usdReward w/ lowStableHeld (any stable thats covered)
-        IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, IERC20x(lowStableHeld).decimals()));
-    }
-    // note: migrate to CallitBank
-    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
-        // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
-        //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
-        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
-
-        // create path and perform stable-to-stable swap
-        // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
-        address[] memory stab_stab_path = new address[](2);
-        stab_stab_path[0] = highStableHeld;
-        stab_stab_path[1] = _tickStable;
-        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
-        return (stab_amnt_out,highStableHeld);
-    }
-    function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
-        // max array size = 255 (uint8 loop)
-        // NOTE: if _router not mapped to a factory, then _router not in VAULT.USWAP_V2_ROUTERS
-        require(ROUTERS_TO_FACTORY[_router] != address(0) && LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist router|factory|stable :() ');
-        NEW_TICK_UNISWAP_V2_ROUTER = _router;
-        NEW_TICK_UNISWAP_V2_FACTORY = ROUTERS_TO_FACTORY[_router];
-        NEW_TICK_USD_STABLE = _usdStable;
-    }
-
 
 
     // LEFT OFF HERE …. makeNewMarket integration
@@ -864,8 +643,231 @@ contract CallitVault {
     }
 
     /* -------------------------------------------------------- */
-    /* PRIVATE - DEX QUOTE SUPPORT                                    
+    /* PRIVATE - SUPPORTING (VAULT)
     /* -------------------------------------------------------- */
+    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 _ticketTargetPriceUSD, address _arbExecuter) private returns(uint64,uint64) {
+        // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
+        uint256 _usdTickTargPrice_18 = _normalizeStableAmnt(_usd_decimals(), _ticketTargetPriceUSD, 18);
+        uint64 tokensToMint = _uint64_from_uint256(_normalizeStableAmnt(18, LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice_18), _usd_decimals()));
+
+        // calc price to charge _arbExecuter for minting tokensToMint
+        //  then deduct that amount from their account balance
+        uint64 total_usd_cost = _ticketTargetPriceUSD * tokensToMint;
+        if (_arbExecuter != KEEPER) { // free for KEEPER
+            // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
+            //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from this contract
+            require(ACCT_USD_BALANCES[_arbExecuter] >= total_usd_cost, ' low balance :( ');
+
+            // deduce that sale amount from their account balance
+            // CALLIT_VAULT.ACCT_USD_BALANCES[_arbExecuter] -= total_usd_cost; 
+            edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
+        }
+        
+        // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
+        //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
+        //  NOTE: deduct fees and pay _arbExecuter in '_performTicketMintedDexSell'
+        // ICallitTicket cTicket = ICallitTicket(_ticket);
+        // ICallitTicket cTicket = ICallitTicket(_mark.marketResults.resultOptionTokens[_tickIdx]);
+        CallitTicket cTicket = CallitTicket(_mark.marketResults.resultOptionTokens[_tickIdx]);
+        cTicket.mintForPriceParity(address(this), tokensToMint);
+        require(cTicket.balanceOf(address(this)) >= tokensToMint, ' err: cTicket mint :<> ');
+        return (tokensToMint, total_usd_cost);
+    }
+    function _performTicketMintedDexSell(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 tokensToMint, uint64 total_usd_cost, address _arbExecuter) private returns(uint64,uint64) {
+        // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
+        //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
+        //  NOTE: deduct fees and pay _arbExecuter in '_performTicketMintedDexSell'
+        address[] memory tok_stab_path = new address[](2);
+        // tok_stab_path[0] = _ticket;
+        tok_stab_path[0] = _mark.marketResults.resultOptionTokens[_tickIdx];
+        tok_stab_path[1] = _mark.marketResults.resultTokenUsdStables[_tickIdx];
+        uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _mark.marketResults.resultTokenRouters[_tickIdx]); // swap tick: use specific router tck:tick-stable
+        uint64 gross_stab_amnt_out = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_mark.marketResults.resultTokenUsdStables[_tickIdx]).decimals(), usdAmntOut, _usd_decimals()));
+
+        // calc & send net profits to _arbExecuter
+        //  NOTE: _arbExecuter gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
+        //  NOTE: 'net_usd_profits' is _arbExecuter's profit (after additional fees)
+        uint64 net_usd_profits = LIB._deductFeePerc(gross_stab_amnt_out, PERC_ARB_EXE_FEE, gross_stab_amnt_out);
+        require(net_usd_profits > total_usd_cost, ' no profit from arb attempt :( '); // verify _arbExecuter profits would occur
+        IERC20(_mark.marketResults.resultTokenUsdStables[_tickIdx]).transfer(_arbExecuter, net_usd_profits);
+        return (gross_stab_amnt_out, net_usd_profits);
+    }
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE - SUPPORTING (legacy)
+    /* -------------------------------------------------------- */
+    function _normalizeStableAmnt(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) private pure returns (uint256) {
+        require(_fromDecimals > 0 && _toDecimals > 0, 'err: invalid _from|toDecimals');
+        if (_usdAmnt == 0) return _usdAmnt; // fix to allow 0 _usdAmnt (ie. no need to normalize)
+        if (_fromDecimals == _toDecimals) {
+            return _usdAmnt;
+        } else {
+            if (_fromDecimals > _toDecimals) { // _fromDecimals has more 0's
+                uint256 scalingFactor = 10 ** (_fromDecimals - _toDecimals); // get the diff
+                return _usdAmnt / scalingFactor; // decrease # of 0's in _usdAmnt
+            }
+            else { // _fromDecimals has less 0's
+                uint256 scalingFactor = 10 ** (_toDecimals - _fromDecimals); // get the diff
+                return _usdAmnt * scalingFactor; // increase # of 0's in _usdAmnt
+            }
+        }
+    }
+    function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
+        require(value <= type(uint64).max, "Value exceeds uint64 range");
+        uint64 convertedValue = uint64(value);
+        return convertedValue;
+    }
+    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
+    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) public onlyFactory() {
+        if (_add) {
+            require(_usdAmnt > 0, ' !add 0 :/ ' );
+            ACCT_USD_BALANCES[_acct] += _usdAmnt;
+        } else {
+            require(ACCT_USD_BALANCES[_acct] >= _usdAmnt, ' !deduct low balance :{} ');
+            ACCT_USD_BALANCES[_acct] -= _usdAmnt;    
+        }
+    }
+    function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
+        uint64 gross_bal = 0;
+        for (uint8 i = 0; i < _stables.length;) {
+            // NOTE: more efficient algorithm taking up less stack space with local vars
+            require(IERC20x(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
+            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
+            unchecked {i++;}
+        }
+        return gross_bal;
+    }
+    function _owedStableBalance() private view returns (uint64) {
+        uint64 owed_bal = 0;
+        for (uint256 i = 0; i < ACCOUNTS.length;) {
+            owed_bal += ACCT_USD_BALANCES[ACCOUNTS[i]];
+            unchecked {i++;}
+        }
+        return owed_bal;
+    }
+    function _collectiveStableBalances(address[] memory _stables) private view returns (uint64, uint64, int64) {
+        uint64 gross_bal = _grossStableBalance(_stables);
+        uint64 owed_bal = _owedStableBalance();
+        int64 net_bal = int64(gross_bal) - int64(owed_bal);
+        // return (gross_bal, owed_bal, net_bal, totalSupply());
+        // return (gross_bal, owed_bal, net_bal, IERC20(ADDR_FACT).totalSupply());
+        return (gross_bal, owed_bal, net_bal);
+    }
+    function _editWhitelistStables(address _usdStable, uint8 _decimals, bool _add) private { // allows duplicates
+        if (_add) {
+            WHITELIST_USD_STABLES = LIB._addAddressToArraySafe(_usdStable, WHITELIST_USD_STABLES, true); // true = no dups
+            // USD_STABLES_HISTORY = LIB._addAddressToArraySafe(_usdStable, USD_STABLES_HISTORY, true); // true = no dups
+            // USD_STABLE_DECIMALS[_usdStable] = _decimals;
+        } else {
+            WHITELIST_USD_STABLES = LIB._remAddressFromArray(_usdStable, WHITELIST_USD_STABLES);
+        }
+    }
+    function _editDexRouters(address _router, address _factory, bool _add) private {
+        require(_router != address(0x0), "0 address");
+        if (_add) {
+            USWAP_V2_ROUTERS = LIB._addAddressToArraySafe(_router, USWAP_V2_ROUTERS, true); // true = no dups
+            ROUTERS_TO_FACTORY[_router] = _factory;
+        } else {
+            USWAP_V2_ROUTERS = LIB._remAddressFromArray(_router, USWAP_V2_ROUTERS); // removes only one & order NOT maintained
+            delete ROUTERS_TO_FACTORY[_router];
+        }
+    }
+    function _getStableHeldHighMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
+
+        address[] memory _stablesHeld;
+        for (uint8 i=0; i < _stables.length;) {
+            if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
+                _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+
+            unchecked {
+                i++;
+            }
+        }
+        return _getStableTokenHighMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+    }
+    function _getStableHeldLowMarketValue(uint64 _usdAmntReq, address[] memory _stables, address[] memory _routers) private view returns (address) {
+        // NOTE: if nothing in _stables can cover _usdAmntReq, then returns address(0x0)
+        address[] memory _stablesHeld;
+        for (uint8 i=0; i < _stables.length;) {
+            if (_stableHoldingsCovered(_usdAmntReq, _stables[i]))
+                _stablesHeld = LIB._addAddressToArraySafe(_stables[i], _stablesHeld, true); // true = no dups
+
+            unchecked {
+                i++;
+            }
+        }
+        return _getStableTokenLowMarketValue(_stablesHeld, _routers); // returns 0x0 if empty _stablesHeld
+    }
+    function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
+        if (_usdStable == address(0x0)) 
+            return false;
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable).decimals());
+        return IERC20(_usdStable).balanceOf(address(this)) >= usdAmnt_;
+    }
+    // function _getTokMarketValueForUsdAmnt(uint256 _usdAmnt, address _usdStable, address[] memory _stab_tok_path) private view returns (uint256) {
+    //     uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(_usdStable]);
+    //     (, uint256 tok_amnt) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+    //     return tok_amnt; 
+    // }
+
+    /* -------------------------------------------------------- */
+    /* PRIVATE - DEX SWAP SUPPORT                                    
+    /* -------------------------------------------------------- */
+    // note: migrate to CallitBank
+    function _swapBestStableForTickStable(uint64 _usdAmnt, address _tickStable) private returns(uint256, address){
+        // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
+        //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
+        address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
+        require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
+
+        // create path and perform stable-to-stable swap
+        // address[2] memory stab_stab_path = [highStableHeld, _tickStable];
+        address[] memory stab_stab_path = new address[](2);
+        stab_stab_path[0] = highStableHeld;
+        stab_stab_path[1] = _tickStable;
+        uint256 stab_amnt_out = _exeSwapTokForStable(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
+        return (stab_amnt_out,highStableHeld);
+    }
+    function _exeSwapPlsForStable(uint256 _plsAmnt, address _usdStable) private returns (uint256) {
+        address[] memory pls_stab_path = new address[](2);
+        pls_stab_path[0] = TOK_WPLS;
+        pls_stab_path[1] = _usdStable;
+        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(pls_stab_path, _plsAmnt, USWAP_V2_ROUTERS);
+        uint256 stab_amnt_out = _swap_v2_wrap(pls_stab_path, USWAP_V2_ROUTERS[rtrIdx], _plsAmnt, address(this), true); // true = fromETH
+        stab_amnt_out = _normalizeStableAmnt(IERC20x(_usdStable).decimals(), stab_amnt_out, _usd_decimals());
+        return stab_amnt_out;
+    }
+    // generic: gets best from USWAP_V2_ROUTERS to perform trade
+    function _exeSwapTokForStable(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver) private returns (uint256) {
+        // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
+        require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
+        
+        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_tok_stab_path, _tokAmnt, USWAP_V2_ROUTERS);
+        uint256 stable_amnt_out = _swap_v2_wrap(_tok_stab_path, USWAP_V2_ROUTERS[rtrIdx], _tokAmnt, _receiver, false); // true = fromETH        
+        return stable_amnt_out;
+    }
+    // generic: gets best from USWAP_V2_ROUTERS to perform trade
+    function _exeSwapStableForTok(uint256 _usdAmnt, address[] memory _stab_tok_path, address _receiver) private returns (uint256) {
+        address usdStable = _stab_tok_path[0]; // required: _stab_tok_path[0] must be a stable
+        uint256 usdAmnt_ = _normalizeStableAmnt(_usd_decimals(), _usdAmnt, IERC20x(usdStable).decimals());
+        (uint8 rtrIdx,) = _best_swap_v2_router_idx_quote(_stab_tok_path, usdAmnt_, USWAP_V2_ROUTERS);
+
+        // NOTE: algo to account for contracts unable to be a receiver of its own token in UniswapV2Pool.sol
+        // if out token in _stab_tok_path is BST, then swap w/ SWAP_DELEGATE as reciever,
+        //   and then get tok_amnt_out from delegate (USER_maintenance)
+        // else, swap with BST address(this) as receiver 
+        // if (_stab_tok_path[_stab_tok_path.length-1] == address(this) && _receiver == address(this))  {
+        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, SWAP_DELEGATE, false); // true = fromETH
+        //     SWAPD.USER_maintenance(tok_amnt_out, _stab_tok_path[_stab_tok_path.length-1]);
+        //     return tok_amnt_out;
+        // } else {
+        //     uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+        //     return tok_amnt_out;
+        // }
+
+        uint256 tok_amnt_out = _swap_v2_wrap(_stab_tok_path, USWAP_V2_ROUTERS[rtrIdx], usdAmnt_, _receiver, false); // true = fromETH
+        return tok_amnt_out;
+    }
     // specify router to use
     function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
