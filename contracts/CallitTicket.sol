@@ -18,7 +18,12 @@ pragma solidity ^0.8.24;
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
-import "./ICallitConfig.sol";
+interface ICallitConfig { // don't need everything in ICallitConfig.sol
+    function ADDR_VAULT() external view returns(address);
+}
+interface ICallitVault {
+    function deposit(address _depositor) external payable;
+}
 
 contract CallitTicket is ERC20, Ownable {
     string public tVERSION = '0.3';
@@ -58,4 +63,11 @@ contract CallitTicket is ERC20, Ownable {
     }
 
     // NOTE: no way to change/update CONF after deployment
+
+    // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
+    receive() external payable {
+        // process PLS value sent
+        uint256 amntIn = msg.value;
+        ICallitVault(CONF.ADDR_VAULT()).deposit{value: amntIn}(msg.sender);
+    }
 }

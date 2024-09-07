@@ -18,6 +18,7 @@ pragma solidity ^0.8.24;
 
 // import "./CallitTicket.sol"; // imports ERC20.sol -> IERC20.sol
 import "./ICallitVault.sol"; // imports ICallitLib.sol
+import "./ICallitConfig.sol";
 
 interface IERC20 {
     function totalSupply() external view returns (uint256);
@@ -40,31 +41,31 @@ interface ICallitTicket {
     function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
-    function RATIO_LP_TOK_PER_USD() external view returns(uint16);
-    function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
+    // function RATIO_LP_TOK_PER_USD() external view returns(uint16);
+    // function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
     
-    // more migration from factory attempts
-    function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
-    function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
-    function MAX_RESULTS() external view returns(uint16);
-    function MAX_EOA_MARKETS() external view returns(uint64);   
+    // // more migration from factory attempts
+    // function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
+    // function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
+    // function MAX_RESULTS() external view returns(uint16);
+    // function MAX_EOA_MARKETS() external view returns(uint64);   
     
-    // default all fees to 0 (KEEPER setter available)
-    // function PERC_MARKET_MAKER_FEE() external view returns(uint16);
-    // function PERC_PROMO_BUY_FEE() external view returns(uint16);
-    // function PERC_ARB_EXE_FEE() external view returns(uint16);
-    function PERC_MARKET_CLOSE_FEE() external view returns(uint16);
-    function PERC_PRIZEPOOL_VOTERS() external view returns(uint16);
-    function PERC_VOTER_CLAIM_FEE() external view returns(uint16);
-    function PERC_WINNER_CLAIM_FEE() external view returns(uint16);
+    // // default all fees to 0 (KEEPER setter available)
+    // // function PERC_MARKET_MAKER_FEE() external view returns(uint16);
+    // // function PERC_PROMO_BUY_FEE() external view returns(uint16);
+    // // function PERC_ARB_EXE_FEE() external view returns(uint16);
+    // function PERC_MARKET_CLOSE_FEE() external view returns(uint16);
+    // function PERC_PRIZEPOOL_VOTERS() external view returns(uint16);
+    // function PERC_VOTER_CLAIM_FEE() external view returns(uint16);
+    // function PERC_WINNER_CLAIM_FEE() external view returns(uint16);
 
-    // call token mint rewards
-    function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
-    function RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS() external view returns(uint32);
-    function RATIO_CALL_MINT_PER_VOTE() external view returns(uint32);
-    function RATIO_CALL_MINT_PER_MARK_CLOSE() external view returns(uint32);
-    function RATIO_PROMO_USD_PER_CALL_MINT() external view returns(uint64);
-    // function MIN_USD_PROMO_TARGET() external view returns(uint64);
+    // // call token mint rewards
+    // function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
+    // function RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS() external view returns(uint32);
+    // function RATIO_CALL_MINT_PER_VOTE() external view returns(uint32);
+    // function RATIO_CALL_MINT_PER_MARK_CLOSE() external view returns(uint32);
+    // function RATIO_PROMO_USD_PER_CALL_MINT() external view returns(uint64);
+    // // function MIN_USD_PROMO_TARGET() external view returns(uint64);
 
     function ACCT_MARKET_REVIEWS(address _key) external view returns(ICallitLib.MARKET_REVIEW[] memory);
     function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external;
@@ -92,21 +93,29 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
 
     /* _ ADMIN SUPPORT (legacy) _ */
-    address public KEEPER;
+    // address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
     string public tVERSION = '0.32';
-    address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public ADDR_VAULT = address(0x15C49Ffd75998c04625Cb8d2d304416EdFb05387); // CallitVault v0.29
-    address public ADDR_DELEGATE = address(0xD6380fc01f2eAD0725d71c87cd88e987b11D247B); // CallitDelegate v0.22
-    address public ADDR_CALL = address(0x8Eb6d9c66104Ab29B0280687f7a483632A98d27D); // CallitToken v0.13
+    bool private FIRST_ = true;
+    address public ADDR_CONFIG; // set via CONF_setConfig
+    ICallitConfig private CONF; // set via CONF_setConfig
+    ICallitLib private LIB;     // set via CONF_setConfig
+    ICallitVault private VAULT; // set via CONF_setConfig
+    ICallitDelegate private DELEGATE; // set via CONF_setConfig
+    ICallitToken private CALL;  // set via CONF_setConfig
+
+    // address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
+    // address public ADDR_VAULT = address(0x15C49Ffd75998c04625Cb8d2d304416EdFb05387); // CallitVault v0.29
+    // address public ADDR_DELEGATE = address(0xD6380fc01f2eAD0725d71c87cd88e987b11D247B); // CallitDelegate v0.22
+    // address public ADDR_CALL = address(0x8Eb6d9c66104Ab29B0280687f7a483632A98d27D); // CallitToken v0.13
     // address public ADDR_FACT = address(0xa72fcf6C1F9ebbBA50B51e2e0081caf3BCEa69aA); // CallitFactory v0.28
     
-    ICallitLib   private LIB = ICallitLib(ADDR_LIB);
-    ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
-    ICallitDelegate private DELEGATE = ICallitDelegate(ADDR_DELEGATE);
-    ICallitToken private CALL = ICallitToken(ADDR_CALL);
+    // // ICallitLib   private LIB = ICallitLib(ADDR_LIB);
+    // ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
+    // ICallitDelegate private DELEGATE = ICallitDelegate(ADDR_DELEGATE);
+    // ICallitToken private CALL = ICallitToken(ADDR_CALL);
 
     // // arb algorithm settings
     // uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
@@ -133,7 +142,7 @@ contract CallitFactory {
     mapping(address => ICallitLib.MARKET_VOTE[]) public  ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
 
     // lp settings
-    uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    // uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -158,35 +167,51 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
-    constructor(uint64 _CALL_initSupply_noDecimals, bool _initVault, bool _initDeleg, bool _initCall) {
-        // if (_initVault) VAULT.KEEPER_setConfig(address(DELEGATE));
+    // constructor(uint64 _CALL_initSupply_noDecimals, bool _initVault, bool _initDeleg, bool _initCall) {
+    constructor(uint64 _CALL_initSupply_noDecimals) {
+        // // set default globals
+        // // KEEPER = msg.sender;
 
-        // set default globals
-        KEEPER = msg.sender;
+        // // init factories in support contracts (based on active debug status)
+        // //  note: all should init during production deployment
+        // if (_initVault) VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
+        // if (_initDeleg) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
+        // if (_initCall)  {
+        //     CALL.INIT_factory(); // set ADDR_FACT in CallitToken
 
-        // init factories in support contracts (based on active debug status)
-        //  note: all should init during production deployment
-        if (_initVault) VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
-        if (_initDeleg) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
-        if (_initCall)  {
-            CALL.INIT_factory(); // set ADDR_FACT in CallitToken
+        //     // mint initial CALl to keeper
+        //     _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
+        // }
 
-            // mint initial CALl to keeper
-            _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
-        }
-
+        _mintCallToksEarned(CONF.KEEPER(), _CALL_initSupply_noDecimals);
         // NOTE: CALL initSupply is minted to KEEPER via _mintCallToksEarned (ie. CALL.mintCallToksEarned)
-        // NOTE: whitelist stable & dex routers set in VAULT constructor
+        // NOTE: whitelist stable & dex routers set in CONF constructor
     }
 
     /* -------------------------------------------------------- */
     /* MODIFIERS
     /* -------------------------------------------------------- */
     modifier onlyKeeper() {
-        require(msg.sender == KEEPER, "!keeper :p");
+        require(msg.sender == CONF.KEEPER(), "!keeper :p");
         _;
     }
-    
+    modifier onlyConfig() { 
+        // allows 1st onlyConfig attempt to freely pass
+        //  NOTE: don't waste this on anything but CONF_setConfig
+        if (!FIRST_) 
+            require(msg.sender == address(CONF), ' !CONF :p ');
+        FIRST_ = false;
+        _;
+    }
+    function CONF_setConfig(address _conf) external onlyConfig() {
+        require(_conf != address(0), ' !addy :< ');
+        ADDR_CONFIG = _conf;
+        CONF = ICallitConfig(ADDR_CONFIG);
+        LIB = ICallitLib(CONF.ADDR_LIB());
+        VAULT = ICallitVault(CONF.ADDR_VAULT()); // set via CONF_setConfig
+        DELEGATE = ICallitDelegate(CONF.ADDR_DELEGATE());
+        CALL = ICallitToken(CONF.ADDR_CALL());
+    }
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER setters
     /* -------------------------------------------------------- */
@@ -194,65 +219,65 @@ contract CallitFactory {
     function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
         if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
             // require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
-            payable(KEEPER).transfer(_amount); // cast to a 'payable' address to receive ETH
+            payable(CONF.KEEPER()).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
             //  NOTE: _amount must be in uint precision to _erc20.decimals()
             // require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
-            IERC20(_erc20).transfer(KEEPER, _amount);
+            IERC20(_erc20).transfer(CONF.KEEPER(), _amount);
             // emit KeeperMaintenance(_erc20, _amount);
         }
     }
-    function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
-        require(_newKeeper != address(0), 'err: 0 address');
-        // address prev = address(KEEPER);
-        KEEPER = _newKeeper;
-      //  emit KeeperTransfer(prev, KEEPER);
-    }
-    function KEEPER_setContracts(address _CALL, address _delegate, address _vault, address _lib, address _fact, bool _new) external onlyKeeper {
-        // require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
+    // function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
+    //     require(_newKeeper != address(0), 'err: 0 address');
+    //     // address prev = address(KEEPER);
+    //     KEEPER = _newKeeper;
+    //   //  emit KeeperTransfer(prev, KEEPER);
+    // }
+    // function KEEPER_setContracts(address _CALL, address _delegate, address _vault, address _lib, address _fact, bool _new) external onlyKeeper {
+    //     // require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
 
-        // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
-        // EOA may send _new = true to invoke 'INI_factory' for new contract deployments
-        if (_CALL != address(0)) {
-            ADDR_CALL = _CALL;
-            CALL = ICallitToken(address(_CALL));
-            if (_new) {
-                CALL.INIT_factory(); // set ADDR_FACT in CallitToken
+    //     // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
+    //     // EOA may send _new = true to invoke 'INI_factory' for new contract deployments
+    //     if (_CALL != address(0)) {
+    //         ADDR_CALL = _CALL;
+    //         CALL = ICallitToken(address(_CALL));
+    //         if (_new) {
+    //             CALL.INIT_factory(); // set ADDR_FACT in CallitToken
                 
-                // mint initial CALl to keeper
-                _mintCallToksEarned(KEEPER, 37); // LEFT OFF HERE ... testing only (comment out for production)
-            }
+    //             // mint initial CALl to keeper
+    //             _mintCallToksEarned(KEEPER, 37); // LEFT OFF HERE ... testing only (comment out for production)
+    //         }
             
-        }
-        if (_delegate != address(0)) {
-            ADDR_DELEGATE = _delegate;
-            DELEGATE = ICallitDelegate(address(_delegate));
-            if (_new) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
-        }
-        if (_vault != address(0)) {
-            ADDR_VAULT = _vault;
-            VAULT = ICallitVault(address(_vault));
-            if (_new) {
-                VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
-            }
-        }
-        if (_lib != address(0)) {
-            ADDR_LIB = _lib;
-            LIB = ICallitLib(address(_lib));
-        }
+    //     }
+    //     if (_delegate != address(0)) {
+    //         ADDR_DELEGATE = _delegate;
+    //         DELEGATE = ICallitDelegate(address(_delegate));
+    //         if (_new) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
+    //     }
+    //     if (_vault != address(0)) {
+    //         ADDR_VAULT = _vault;
+    //         VAULT = ICallitVault(address(_vault));
+    //         if (_new) {
+    //             VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
+    //         }
+    //     }
+    //     if (_lib != address(0)) {
+    //         ADDR_LIB = _lib;
+    //         LIB = ICallitLib(address(_lib));
+    //     }
 
-        // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
-        //  if no _fact, update support contracts w/ current FACTORY address
-        if (_fact == address(0)) {
-            _fact = address(this); 
-        }
+    //     // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
+    //     //  if no _fact, update support contracts w/ current FACTORY address
+    //     if (_fact == address(0)) {
+    //         _fact = address(this); 
+    //     }
 
-        // update support contracts w/ OG|new addies accordingly
-        CALL.FACT_setContracts(_fact, address(VAULT));       
-        DELEGATE.KEEPER_setContracts(_fact, address(VAULT), address(LIB));
-        VAULT.KEEPER_setContracts(_fact, address(DELEGATE), address(LIB));
-    }
+    //     // update support contracts w/ OG|new addies accordingly
+    //     CALL.FACT_setContracts(_fact, address(VAULT));       
+    //     DELEGATE.KEEPER_setContracts(_fact, address(VAULT), address(LIB));
+    //     VAULT.KEEPER_setContracts(_fact, address(DELEGATE), address(LIB));
+    // }
     // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
     // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
     //     MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
@@ -268,16 +293,13 @@ contract CallitFactory {
     /* PUBLIC - UI (CALLIT)
     /* -------------------------------------------------------- */
     // handle contract USD value deposits (convert PLS to USD stable)
+    // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
     receive() external payable {
-        // extract PLS value sent
-        // uint256 amntIn = msg.value; 
-
-        // send PLS to vault for processing (handle swap for usd stable)
-        VAULT.deposit{value: msg.value}(msg.sender);
-
-      //  emit DepositReceived(msg.sender, amntIn, 0);
-
+        // process PLS value sent
+        uint256 amntIn = msg.value;
+        VAULT.deposit{value: amntIn}(msg.sender);
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
+        //  emit DepositReceived(msg.sender, amntIn, 0);
     }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _descr, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
@@ -295,12 +317,12 @@ contract CallitFactory {
                             string[] calldata _resultLabels, 
                             string[] calldata _resultDescrs
                             ) external { 
-        require(_usdAmntLP >= MIN_USD_MARK_LIQ, ' need more liquidity! :{=} ');
-        require(2 <= _resultLabels.length && _resultLabels.length <= DELEGATE.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
+        require(_usdAmntLP >= CONF.MIN_USD_MARK_LIQ(), ' need more liquidity! :{=} ');
+        require(2 <= _resultLabels.length && _resultLabels.length <= CONF.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
 
         // initilize/validate market number for struct MARKET tracking
         uint256 mark_num = ACCT_MARKETS[msg.sender].length;
-        require(mark_num <= DELEGATE.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
+        require(mark_num <= CONF.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
 
         // save this market and emit log
         // note: could possibly remove '_resultLabels' to save memory (ie. removed _resultDescrs succcessfully)
@@ -337,9 +359,9 @@ contract CallitFactory {
       //  emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out);
 
         // check if msg.sender earned $CALL tokens
-        if (_usdAmnt >= DELEGATE.RATIO_PROMO_USD_PER_CALL_MINT()) {
+        if (_usdAmnt >= CONF.RATIO_PROMO_USD_PER_CALL_MINT()) {
             // mint $CALL to msg.sender & log $CALL votes earned
-            _mintCallToksEarned(msg.sender, _usdAmnt / DELEGATE.RATIO_PROMO_USD_PER_CALL_MINT()); // emit CallTokensEarned
+            _mintCallToksEarned(msg.sender, _usdAmnt / CONF.RATIO_PROMO_USD_PER_CALL_MINT()); // emit CallTokensEarned
         }
     }
     function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
@@ -356,7 +378,7 @@ contract CallitFactory {
         (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, msg.sender);
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_ARB_EXE()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_ARB_EXE()); // emit CallTokensEarned
 
         // // emit log of this arb price correction
       //  emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
@@ -378,7 +400,7 @@ contract CallitFactory {
         mark.marketUsdAmnts.usdAmntPrizePool = DELEGATE.closeMarketCallsForTicket(mark); // NOTE: write to market
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS()); // emit CallTokensEarned
 
         // emit log for this closed market calls event
       //  emit MarketCallsClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.marketUsdAmnts.usdAmntPrizePool, callEarnedAmnt);
@@ -419,7 +441,7 @@ contract CallitFactory {
         //  this will allow people to see majority votes before voting
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
     }
     function closeMarketForTicket(address _ticket) external { // _deductFeePerc PERC_MARKET_CLOSE_FEE from mark.marketUsdAmnts.usdAmntPrizePool
         require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{-} ');
@@ -441,29 +463,29 @@ contract CallitFactory {
         mark.winningVoteResultIdx = LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
 
         // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
-        require(DELEGATE.PERC_PRIZEPOOL_VOTERS() + DELEGATE.PERC_MARKET_CLOSE_FEE() < 10000, ' perc error ;( ');
+        require(CONF.PERC_PRIZEPOOL_VOTERS() + CONF.PERC_MARKET_CLOSE_FEE() < 10000, ' perc error ;( ');
 
         // calc & save total voter usd reward pool (ie. a % of prize pool in mark)
-        mark.marketUsdAmnts.usdVoterRewardPool = LIB._perc_of_uint64(DELEGATE.PERC_PRIZEPOOL_VOTERS(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdVoterRewardPool = LIB._perc_of_uint64(CONF.PERC_PRIZEPOOL_VOTERS(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
 
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
         mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool; // NOTE: write to market
-        mark.marketUsdAmnts.usdAmntPrizePool_net = LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, DELEGATE.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
+        mark.marketUsdAmnts.usdAmntPrizePool_net = LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, CONF.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
         
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 
         // check if mark.maker earned $CALL tokens
-        if (mark.marketUsdAmnts.usdAmntLP >= DELEGATE.RATIO_LP_USD_PER_CALL_TOK()) {
+        if (mark.marketUsdAmnts.usdAmntLP >= CONF.RATIO_LP_USD_PER_CALL_TOK()) {
             // mint $CALL to mark.maker & log $CALL votes earned
-            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / DELEGATE.RATIO_LP_USD_PER_CALL_TOK()); // emit CallTokensEarned
+            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / CONF.RATIO_LP_USD_PER_CALL_TOK()); // emit CallTokensEarned
         }
 
         // close market
         mark.live = false; // NOTE: write to market
 
         // mint $CALL token reward to msg.sender
-        _mintCallToksEarned(msg.sender, DELEGATE.RATIO_CALL_MINT_PER_MARK_CLOSE()); // emit CallTokensEarned
+        _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_MARK_CLOSE()); // emit CallTokensEarned
 
         // emit log for closed market
       //  emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote, callEarnedAmnt);
@@ -494,13 +516,13 @@ contract CallitFactory {
             uint64 usdPrizePoolShare = usdPerTicket * LIB._uint64_from_uint256(LIB._normalizeStableAmnt(ICallitTicket(_ticket).decimals(), IERC20(_ticket).balanceOf(msg.sender), VAULT._usd_decimals()));
 
             // send payout to msg.sender
-            usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, DELEGATE.PERC_WINNER_CLAIM_FEE(), usdPrizePoolShare);
+            usdPrizePoolShare = LIB._deductFeePerc(usdPrizePoolShare, CONF.PERC_WINNER_CLAIM_FEE(), usdPrizePoolShare);
             VAULT._payUsdReward(msg.sender, usdPrizePoolShare, msg.sender); // emits 'transfer' event log
         } else {
             // NOTE: perc requirement limits ability for exploitation and excessive $CALL minting
-            if (LIB._perc_total_supply_owned(_ticket, msg.sender) >= VAULT.PERC_OF_LOSER_SUPPLY_EARN_CALL()) {
+            if (LIB._perc_total_supply_owned(_ticket, msg.sender) >= CONF.PERC_OF_LOSER_SUPPLY_EARN_CALL()) {
                 // mint $CALL to loser msg.sender & log $CALL votes earned
-                _mintCallToksEarned(msg.sender, VAULT.RATIO_CALL_MINT_PER_LOSER()); // emit CallTokensEarned
+                _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_LOSER()); // emit CallTokensEarned
 
                 // NOTE: this action could open up a secondary OTC market for collecting loser tickets
                 //  ie. collecting losers = minting $CALL
@@ -566,7 +588,7 @@ contract CallitFactory {
 
         // deduct fees and pay voter rewards
         // uint64 usdRewardOwed_net = LIB._deductFeePerc(usdRewardOwed, VAULT.PERC_VOTER_CLAIM_FEE(), usdRewardOwed);
-        VAULT._payUsdReward(msg.sender, LIB._deductFeePerc(usdRewardOwed, DELEGATE.PERC_VOTER_CLAIM_FEE(), usdRewardOwed), msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        VAULT._payUsdReward(msg.sender, LIB._deductFeePerc(usdRewardOwed, CONF.PERC_VOTER_CLAIM_FEE(), usdRewardOwed), msg.sender); // pay w/ lowest value whitelist stable held (returns on 0 reward)
 
         // emit log for rewards claimed
       //  emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);

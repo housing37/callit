@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
-// import "./ICallitLib.sol";
 
 interface ICallitConfig {
     function KEEPER() external view returns(address);
@@ -15,7 +14,7 @@ interface ICallitConfig {
     function NEW_TICK_USD_STABLE() external returns(address);
 
     // default all fees to 0 (KEEPER setter available)
-    // function PERC_MARKET_MAKER_FEE() external view returns(uint16);
+    function PERC_MARKET_MAKER_FEE() external view returns(uint16);
     function PERC_PROMO_BUY_FEE() external view returns(uint16);
     function PERC_ARB_EXE_FEE() external view returns(uint16);
     function PERC_MARKET_CLOSE_FEE() external view returns(uint16);
@@ -26,32 +25,32 @@ interface ICallitConfig {
     // arb algorithm settings
     // market settings
     function MIN_USD_CALL_TICK_TARGET_PRICE() external view returns(uint64);
-    // function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
-    // function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
-    // function MAX_RESULTS() external view returns(uint16);
-    // function MAX_EOA_MARKETS() external view returns(uint64);
+    function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
+    function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
+    function MAX_RESULTS() external view returns(uint16);
+    function MAX_EOA_MARKETS() external view returns(uint64);
+
+    // lp settings
+    function MIN_USD_MARK_LIQ() external view returns(uint64);
+    function RATIO_LP_TOK_PER_USD() external view returns(uint16);
+    function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
+
 
 
     function keeperCheck(uint256 _check) external view returns(bool);
     function KEEPER_setConfig(address _conf) external;
     function getDexAddies() external view returns (address[] memory, address[] memory);
-    function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);
+    function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);  
 
-    // // // more migration from factory attempts
-    // // function USE_SEC_DEFAULT_VOTE_TIME() external view returns(bool);
-    // // function SEC_DEFAULT_VOTE_TIME() external view returns(uint256);
-    // // function MAX_RESULTS() external view returns(uint16);
-    // // function MAX_EOA_MARKETS() external view returns(uint64);   
-
-    // // call token mint rewards
-    // // function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
-    // // function RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS() external view returns(uint32);
-    // // function RATIO_CALL_MINT_PER_VOTE() external view returns(uint32);
-    // // function RATIO_CALL_MINT_PER_MARK_CLOSE() external view returns(uint32);
-    // function RATIO_CALL_MINT_PER_LOSER() external view returns(uint32);
-    // function PERC_OF_LOSER_SUPPLY_EARN_CALL() external view returns(uint16);
-    // // function RATIO_PROMO_USD_PER_CALL_MINT() external view returns(uint64);
-    // // function MIN_USD_PROMO_TARGET() external view returns(uint64);
+    // call token mint rewards
+    function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_VOTE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_MARK_CLOSE() external view returns(uint32);
+    function RATIO_CALL_MINT_PER_LOSER() external view returns(uint32);
+    function PERC_OF_LOSER_SUPPLY_EARN_CALL() external view returns(uint16);
+    function RATIO_PROMO_USD_PER_CALL_MINT() external view returns(uint64);
+    function MIN_USD_PROMO_TARGET() external view returns(uint64);
 
     // // lp settings
     // function KEEPER_logTicketPair(address _ticket, address _pair) external;

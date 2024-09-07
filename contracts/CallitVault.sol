@@ -17,12 +17,12 @@ pragma solidity ^0.8.24;
 // import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 // local _ $ npm install @openzeppelin/contracts
-// import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
-import "./CallitTicket.sol"; // imports ERC20.sol
+// import "./CallitTicket.sol"; // imports ERC20.sol // declares ICallitVault.deposit
 import "./ICallitLib.sol";
 import "./ICallitConfig.sol";
 
@@ -30,7 +30,7 @@ interface IERC20x {
     function decimals() external pure returns (uint8);
 }
 
-interface ICallitTicket {
+interface ICallitTicket { 
     function mintForPriceParity(address _receiver, uint256 _amount) external;
     function balanceOf(address account) external returns(uint256);
 }
@@ -39,11 +39,12 @@ contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     // address public KEEPER;
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    bool private ONCE_ = true;
+    // bool private ONCE_ = true;
+    bool private FIRST_ = true;
     string public constant tVERSION = '0.32';
-    address public ADDR_CONFIG = address(0x0); // CallitConfig v0.0
-    ICallitConfig private CONF = ICallitConfig(ADDR_CONFIG);
-    ICallitLib private LIB = ICallitLib(CONF.ADDR_LIB());
+    address public ADDR_CONFIG; // set via CONF_setConfig
+    ICallitConfig private CONF; // set via CONF_setConfig
+    ICallitLib private LIB;     // set via CONF_setConfig
     // address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
     // address public ADDR_FACT; // set via INIT_factory(address _delegate)
     // address public ADDR_DELEGATE; // set via INIT_factory(address _delegate)
@@ -203,19 +204,20 @@ contract CallitVault {
                 " !keeper & !fact :p ");
         _;
     }
-    modifier onlyOnce() {
-        require(ONCE_, ' never again :{ ');
-        ONCE_ = false;
+    modifier onlyConfig() { 
+        // allows 1st onlyConfig attempt to freely pass
+        //  NOTE: don't waste this on anything but CONF_setConfig
+        if (!FIRST_) 
+            require(msg.sender == address(CONF), ' !CONF :p ');
+        FIRST_ = false;
         _;
     }
-    // function INIT_config(address _conf) external onlyOnce {
-    //     KEEPER_setConfig(_conf);
-    // }
-    // function INIT_factory(address _delegate) external onlyOnce {
-    //     require(ADDR_FACT == address(0) && _delegate != address(0), ' fact already set | !_delegate :) ');
-    //     ADDR_FACT = msg.sender;
-    //     ADDR_DELEGATE = _delegate;
-    // }
+    function CONF_setConfig(address _conf) external onlyConfig() {
+        require(_conf != address(0), ' !addy :< ');
+        ADDR_CONFIG = _conf;
+        CONF = ICallitConfig(_conf);
+        LIB = ICallitLib(CONF.ADDR_LIB());
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER
@@ -272,12 +274,6 @@ contract CallitVault {
     //     require(_ticket != address(0) && _pair != address(0), ' 0 address :[ ');
     //     TICK_PAIR_ADDR[_ticket] = _pair;
     // }
-    function KEEPER_setConfig(address _conf) public onlyFactory() {
-        require(_conf != address(0), ' !addy :< ');
-        ADDR_CONFIG = _conf;
-        CONF = ICallitConfig(_conf);
-        LIB = ICallitLib(CONF.ADDR_LIB());
-    }
     // function KEEPER_setContracts(address _fact, address _delegate, address _lib) external onlyFactory() {
     //     ADDR_DELEGATE = _delegate;
     //     ADDR_FACT = _fact;

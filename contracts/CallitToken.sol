@@ -20,11 +20,20 @@ import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
 import "./ICallitVault.sol";
 
+interface ICallitConfig { // do not need all of ICallitConfig.sol
+    function ADDR_FACT() external view returns(address);
+    function ADDR_VAULT() external view returns(address);
+}
+
 contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS
     /* -------------------------------------------------------- */
     string public tVERSION = '0.13';
+    bool private FIRST_ = true;
+    address public ADDR_CONFIG; // set via CONF_setConfig
+    ICallitConfig private CONF; // set via CONF_setConfig
+
     string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
@@ -33,9 +42,9 @@ contract CallitToken is ERC20, Ownable {
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
 
-    address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
-    address public ADDR_FACT; // set via INIT_factory()
-    ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
+    // address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
+    // address public ADDR_FACT; // set via INIT_factory()
+    // ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
@@ -51,13 +60,26 @@ contract CallitToken is ERC20, Ownable {
     /* MODIFIERS
     /* -------------------------------------------------------- */
     modifier onlyFactory() {
-        require(msg.sender == ADDR_FACT, " !fact :p ");
+        require(msg.sender == CONF.ADDR_FACT(), " !fact :+ ");
         _;
     }
-    modifier onlyOnce() {
-        require(ONCE_, ' never again :/ ' );
-        ONCE_ = false;
+    // modifier onlyOnce() {
+    //     require(ONCE_, ' never again :/ ' );
+    //     ONCE_ = false;
+    //     _;
+    // }
+    modifier onlyConfig() { 
+        // allows 1st onlyConfig attempt to freely pass
+        //  NOTE: don't waste this on anything but CONF_setConfig
+        if (!FIRST_) 
+            require(msg.sender == address(CONF), ' !CONF :/ ');
+        FIRST_ = false;
         _;
+    }
+    function CONF_setConfig(address _conf) external onlyConfig() {
+        require(_conf != address(0), ' !addy :</ ');
+        ADDR_CONFIG = _conf;
+        CONF = ICallitConfig(_conf);
     }
 
     /* -------------------------------------------------------- */
@@ -67,22 +89,23 @@ contract CallitToken is ERC20, Ownable {
     // extract & send PLS to vault for processing (handle swap for usd stable)
     receive() external payable {        
         uint256 amntIn = msg.value; 
-        VAULT.deposit{value: amntIn}(msg.sender);
+        ICallitVault(CONF.ADDR_VAULT()).deposit{value: amntIn}(msg.sender);
+        
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
     }
 
     /* -------------------------------------------------------- */
     /* FACTORY SUPPORT
     /* -------------------------------------------------------- */
-    function INIT_factory() external onlyOnce {
-        require(ADDR_FACT == address(0), ' factor already set :) ');
-        ADDR_FACT = msg.sender;
-    }
-    function FACT_setContracts(address _fact, address _vault) external onlyFactory {
-        ADDR_FACT = _fact;
-        ADDR_VAULT = _vault;
-        VAULT = ICallitVault(ADDR_VAULT);
-    }
+    // function INIT_factory() external onlyOnce {
+    //     require(ADDR_FACT == address(0), ' factor already set :) ');
+    //     ADDR_FACT = msg.sender;
+    // }
+    // function FACT_setContracts(address _fact, address _vault) external onlyFactory {
+    //     ADDR_FACT = _fact;
+    //     ADDR_VAULT = _vault;
+    //     VAULT = ICallitVault(ADDR_VAULT);
+    // }
     function mintCallToksEarned(address _receiver, uint256 _callAmnt) external onlyFactory {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         //  NOTE: _callAmnt decimals should be accounted for on factory invoking side
