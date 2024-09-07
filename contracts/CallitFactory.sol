@@ -159,6 +159,8 @@ contract CallitFactory {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     constructor(uint64 _CALL_initSupply_noDecimals, bool _initVault, bool _initDeleg, bool _initCall) {
+        // if (_initVault) VAULT.KEEPER_setConfig(address(DELEGATE));
+
         // set default globals
         KEEPER = msg.sender;
 
