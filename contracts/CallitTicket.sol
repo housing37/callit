@@ -26,7 +26,7 @@ interface ICallitVault {
 }
 
 contract CallitTicket is ERC20, Ownable {
-    string public tVERSION = '0.3';
+    string public tVERSION = '0.4';
     address public ADDR_CONFIG; // set via constructor()
     ICallitConfig private CONF = ICallitConfig(ADDR_CONFIG);
 

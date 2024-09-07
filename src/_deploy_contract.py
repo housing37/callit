@@ -21,11 +21,13 @@ from attributedict.collections import AttributeDict # tx_receipt requirement
 import _web3 # from web3 import Account, Web3, HTTPProvider
 
 LST_CONTR_ABI_BIN = [
+    # "../bin/contracts/CallitTicket", # deployed from CallitConfig
     "../bin/contracts/CallitLib",
     "../bin/contracts/CallitVault",
     "../bin/contracts/CallitDelegate",
     "../bin/contracts/CallitToken",
     "../bin/contracts/CallitFactory",
+    "../bin/contracts/CallitConfig",
 ]
 
 W3_ = None
@@ -386,10 +388,18 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 
 #-----------------------------------------------------------------------------------------------------------#
 # address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-# address public ADDR_VAULT = address(0xe727a3F8C658Fadf8F8c02111f2905E8b70D400f); // CallitVault v0.32
+# address public ADDR_VAULT = address(0xe727a3F8C658Fadf8F8c02111f2905E8b70D400f); // CallitVault v0.32 (wiped)
 # address public ADDR_DELEGATE = address(0x3D876A96a1bBEe51de334386107a69977099A3C3); // CallitDelegate v0.23
 # address public ADDR_CALL = address(0x8Eb6d9c66104Ab29B0280687f7a483632A98d27D); // CallitToken v0.13
 # address public ADDR_FACT = address(0x28AfD12D38CcE58863618bcED9c2753634325021); // CallitFactory v0.32
+
+#-----------------------------------------------------------------------------------------------------------#
+# address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
+# address public ADDR_VAULT = address(0x3348C10D210FA97fEaB3d8BDce76e2082D5DFF68); // CallitVault v0.33
+# address public ADDR_DELEGATE = address(0xE30EC07f58886720864DAb308457446D31F8387a); // CallitDelegate v0.26
+# address public ADDR_CALL = address(0x834958d81A3C6377BA958B87D0D9cf961f3415A2); // CallitToken v0.14
+# address public ADDR_FACT = address(0x6A3e742839428DDDBbE458cAddF1a9336Ed68408); // CallitFactory v0.34
+# address public ADDR_CONF = address(0xc4E8B856F18b230345e0713B71F7e2e8a6013cC2); // CallitLib v0.2
 
 # 12329396971491629054
 #  4109798000000000000

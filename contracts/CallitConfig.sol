@@ -36,12 +36,13 @@ contract CallitConfig {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.0';
-    address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    address public ADDR_VAULT = address(0x15C49Ffd75998c04625Cb8d2d304416EdFb05387); // CallitVault v0.29
-    address public ADDR_DELEGATE = address(0xD6380fc01f2eAD0725d71c87cd88e987b11D247B); // CallitDelegate v0.22
-    address public ADDR_CALL = address(0x8Eb6d9c66104Ab29B0280687f7a483632A98d27D); // CallitToken v0.13
-    address public ADDR_FACT = address(0xa72fcf6C1F9ebbBA50B51e2e0081caf3BCEa69aA); // CallitFactory v0.28
+    string public constant tVERSION = '0.2';
+    address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
+    address public ADDR_VAULT = address(0x3348C10D210FA97fEaB3d8BDce76e2082D5DFF68); // CallitVault v0.33
+    address public ADDR_DELEGATE = address(0xE30EC07f58886720864DAb308457446D31F8387a); // CallitDelegate v0.26
+    address public ADDR_CALL = address(0x834958d81A3C6377BA958B87D0D9cf961f3415A2); // CallitToken v0.14
+    address public ADDR_FACT = address(0x6A3e742839428DDDBbE458cAddF1a9336Ed68408); // CallitFactory v0.34
+    // address public ADDR_CONF = address(0xc4E8B856F18b230345e0713B71F7e2e8a6013cC2); // CallitLib v0.2
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
 
     /* -------------------------------------------------------- */
@@ -155,7 +156,7 @@ contract CallitConfig {
         require(msg.sender == ADDR_VAULT, " !vault ;[] ");
         _;
     }
-    function keeperCheck(uint256 _check) external view onlyKeeper returns(bool) { 
+    function keeperCheck(uint256 _check) external view returns(bool) { 
         return _check == KEEPER_CHECK; 
     }
 
@@ -182,7 +183,7 @@ contract CallitConfig {
             KEEPER_CHECK = _keeperCheck;
         // emit KeeperTransfer(prev, KEEPER);
     }
-    function KEEPER_setContracts(address _CALL, address _delegate, address _vault, address _lib, address _fact) external onlyKeeper {
+    function KEEPER_setContracts(address _lib, address _vault, address _delegate, address _CALL, address _fact, address _conf) external onlyKeeper {
         // require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
 
         if (     _lib != address(0)) {ADDR_LIB = _lib; LIB = ICallitLib(ADDR_LIB);}
@@ -190,13 +191,14 @@ contract CallitConfig {
         if (_delegate != address(0)) ADDR_DELEGATE = _delegate;
         if (    _CALL != address(0)) ADDR_CALL = _CALL;
         if (    _fact != address(0)) ADDR_FACT = _fact; 
+        if (    _conf == address(0)) _conf = address(this);
 
-        // NOTE: make sure everything is newly set (above) before updating contract configs
-        // ISetConfig(ADDR_LIB).CONF_setConfig(address(this)); // not in LIB
-        ISetConfig(ADDR_VAULT).CONF_setConfig(address(this));
-        ISetConfig(ADDR_DELEGATE).CONF_setConfig(address(this));
-        ISetConfig(ADDR_CALL).CONF_setConfig(address(this));
-        ISetConfig(ADDR_FACT).CONF_setConfig(address(this));
+        // NOTE: make sure everything is done and set (above) before updating contract configs
+        // ISetConfig(ADDR_LIB).CONF_setConfig(_conf); // not in LIB
+        ISetConfig(ADDR_VAULT).CONF_setConfig(_conf);
+        ISetConfig(ADDR_DELEGATE).CONF_setConfig(_conf);
+        ISetConfig(ADDR_CALL).CONF_setConfig(_conf);
+        ISetConfig(ADDR_FACT).CONF_setConfig(_conf);
         // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
         //  if no _fact, update support contracts w/ current FACTORY address
         

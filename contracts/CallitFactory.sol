@@ -97,7 +97,7 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.32';
+    string public tVERSION = '0.34';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -168,7 +168,9 @@ contract CallitFactory {
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
     // constructor(uint64 _CALL_initSupply_noDecimals, bool _initVault, bool _initDeleg, bool _initCall) {
-    constructor(uint64 _CALL_initSupply_noDecimals) {
+    uint64 CALL_INIT_MINT;
+    constructor(uint64 _CALL_initSupply) {
+        CALL_INIT_MINT = _CALL_initSupply;
         // // set default globals
         // // KEEPER = msg.sender;
 
@@ -183,9 +185,9 @@ contract CallitFactory {
         //     _mintCallToksEarned(KEEPER, _CALL_initSupply_noDecimals);
         // }
 
-        _mintCallToksEarned(CONF.KEEPER(), _CALL_initSupply_noDecimals);
-        // NOTE: CALL initSupply is minted to KEEPER via _mintCallToksEarned (ie. CALL.mintCallToksEarned)
-        // NOTE: whitelist stable & dex routers set in CONF constructor
+        // _mintCallToksEarned(CONF.KEEPER(), _CALL_initSupply_noDecimals);
+        // // NOTE: CALL initSupply is minted to KEEPER via _mintCallToksEarned (ie. CALL.mintCallToksEarned)
+        // // NOTE: whitelist stable & dex routers set in CONF constructor
     }
 
     /* -------------------------------------------------------- */
@@ -198,10 +200,14 @@ contract CallitFactory {
     modifier onlyConfig() { 
         // allows 1st onlyConfig attempt to freely pass
         //  NOTE: don't waste this on anything but CONF_setConfig
-        if (!FIRST_) 
-            require(msg.sender == address(CONF), ' !CONF :p ');
-        FIRST_ = false;
-        _;
+        if (!FIRST_) {
+            require(msg.sender == address(CONF), ' !CONF :p '); // first validate CONF
+            _; // then proceed to set CONF++
+        } else {
+            _; // first proceed to set CONF++
+            _mintCallToksEarned(CONF.KEEPER(), CALL_INIT_MINT); // then mint CALL to keeper
+            FIRST_ = false; // never again
+        } 
     }
     function CONF_setConfig(address _conf) external onlyConfig() {
         require(_conf != address(0), ' !addy :< ');
