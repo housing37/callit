@@ -250,8 +250,8 @@ contract CallitVault {
         //     return _collectiveStableBalances(USD_STABLES_HISTORY);
         // return _collectiveStableBalances(WHITELIST_USD_STABLES);
 
-        (address[] memory stables,,) = CONF.getDexAddies();
-        uint64 gross_bal = _grossStableBalance(stables);
+        // (address[] memory stables,,) = CONF.getDexAddies();
+        uint64 gross_bal = _grossStableBalance(CONF.get_WHITELIST_USD_STABLES());
         uint64 owed_bal = _owedStableBalance();
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
         return (gross_bal, owed_bal, net_bal);
@@ -460,7 +460,7 @@ contract CallitVault {
         // Get stable to work with ... (any stable that covers 'usdReward' is fine)
         //  NOTE: if no single stable can cover 'usdReward', lowStableHeld == 0x0, 
         // address lowStableHeld = _getStableHeldLowMarketValue(_usdReward, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        (address[] memory stables,, address[] memory routers) = CONF.getDexAddies();
+        (address[] memory stables, address[] memory routers) = CONF.getDexAddies();
         address lowStableHeld = _getStableHeldHighLowMarketValue(_usdReward, stables, routers, false); // 3 loops embedded // false = low mark val
         
         require(lowStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
@@ -874,7 +874,7 @@ contract CallitVault {
         // Get stable to work with ... (any stable that covers '_usdAmnt' is fine)
         //  NOTE: if no single stable can cover '_usdAmnt', highStableHeld == 0x0, 
         // address highStableHeld = _getStableHeldHighMarketValue(_usdAmnt, WHITELIST_USD_STABLES, USWAP_V2_ROUTERS); // 3 loops embedded
-        (address[] memory stables,, address[] memory routers) = CONF.getDexAddies();
+        (address[] memory stables, address[] memory routers) = CONF.getDexAddies();
         address highStableHeld = _getStableHeldHighLowMarketValue(_usdAmnt, stables, routers, true); // 3 loops embedded // true = high mark val
         
         require(highStableHeld != address(0x0), ' !stable holdings can cover :-{=} ' );
@@ -905,8 +905,8 @@ contract CallitVault {
         if (_fromUsdAcctBal) { // required: _swap_path[0] must be a stable
             _tokAmntIn = _normalizeStableAmnt(_usd_decimals(), _tokAmntIn, IERC20x(_swap_path[0]).decimals());
         }
-        (,, address[] memory routers) = CONF.getDexAddies();
-        (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(_swap_path, _tokAmntIn, routers);
+        // (,, address[] memory routers) = CONF.getDexAddies();
+        (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(_swap_path, _tokAmntIn, CONF.get_USWAP_V2_ROUTERS());
         uint256 stable_amnt_out = _swap_v2_wrap(_swap_path, CONF.USWAP_V2_ROUTERS(rtrIdx), _tokAmntIn, _receiver, false); // true = fromETH        
         return stable_amnt_out;
     }

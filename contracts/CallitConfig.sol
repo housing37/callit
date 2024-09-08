@@ -333,10 +333,8 @@ contract CallitConfig {
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
     /* -------------------------------------------------------- */
-    function getDexAddies() external view returns (address[] memory, address[] memory, address[] memory) {
-    // function getDexAddies() external view returns (address[] memory, address[] memory) {
-        return (WHITELIST_USD_STABLES,USD_STABLES_HISTORY,USWAP_V2_ROUTERS);
-        // return (WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
+    function getDexAddies() external view returns (address[] memory, address[] memory) {
+        return (WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
     }
     function get_WHITELIST_USD_STABLES() external view returns(address[] memory) {
         return WHITELIST_USD_STABLES;
