@@ -51,6 +51,9 @@ contract CallitConfig {
     // address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
 
+    // note: receive / deposit
+    address public DEPOSIT_USD_STABLE;
+
     // note: makeNewMarket
     // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
     address public NEW_TICK_UNISWAP_V2_ROUTER;
@@ -137,6 +140,7 @@ contract CallitConfig {
         //  NOTE: VAULT should already be initialized
         NEW_TICK_UNISWAP_V2_ROUTER = USWAP_V2_ROUTERS[0];
         NEW_TICK_USD_STABLE = WHITELIST_USD_STABLES[0];
+        DEPOSIT_USD_STABLE = NEW_TICK_USD_STABLE;
 
         // NOTE: ref pc dex addresses
         // ROUTER_pulsex_router02_v1='0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02' # PulseXRouter02 'v1' ref: https://www.irccloud.com/pastebin/6ftmqWuk
@@ -256,13 +260,20 @@ contract CallitConfig {
         PERC_VOTER_CLAIM_FEE = _percVoterClaim;
         PERC_WINNER_CLAIM_FEE = _perWinnerClaim;        
     }    
-    function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
+    function KEEPER_setNewTicketEnv(address _router, address _usdStable) external onlyKeeper {
         // max array size = 255 (uint8 loop)
         require(LIB._isAddressInArray(_router, USWAP_V2_ROUTERS) && LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist router|factory|stable :() ');
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_USD_STABLE = _usdStable;
     }
-    function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
+    function KEEPER_setDepositUsdStable(address _usdStable) external onlyKeeper {
+        require(LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist stable :( ');
+        // address old = DEPOSIT_USD_STABLE;
+        DEPOSIT_USD_STABLE = _usdStable;
+        // event DepositStableUpdated(address _old, address _new);
+        // emit DepositStableUpdated(old, DEPOSIT_USD_STABLE);
+    }
+    function KEEPER_setMarketConfig(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
     // function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
         MAX_EOA_MARKETS = _maxEoaMarkets;

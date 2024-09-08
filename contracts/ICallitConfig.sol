@@ -12,6 +12,7 @@ interface ICallitConfig {
     function NEW_TICK_UNISWAP_V2_ROUTER() external returns(address);
     function NEW_TICK_UNISWAP_V2_FACTORY() external returns(address);
     function NEW_TICK_USD_STABLE() external returns(address);
+    function DEPOSIT_USD_STABLE() external returns(address);
 
     // default all fees to 0 (KEEPER setter available)
     function PERC_MARKET_MAKER_FEE() external view returns(uint16);
@@ -41,7 +42,7 @@ interface ICallitConfig {
     function getDexAddies() external view returns (address[] memory, address[] memory, address[] memory);
     // function get_WHITELIST_USD_STABLES() external view returns(address[] memory);
     // function get_USWAP_V2_ROUTERS() external view returns(address[] memory);
-    function VAULT_getStableTokenLowMarketValue() external view returns(address);
+    // function VAULT_getStableTokenLowMarketValue() external view returns(address);
     function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);
 
     // call token mint rewards
