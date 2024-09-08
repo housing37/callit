@@ -36,13 +36,13 @@ contract CallitConfig {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-    string public constant tVERSION = '0.4';
+    string public constant tVERSION = '0.5';
     address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
-    address public ADDR_VAULT = address(0x8d049b6528f02a3a6b1CDEa85545Cd6e3daD89b4); // CallitVault v0.35
-    address public ADDR_DELEGATE = address(0xE894b4bC770EB147648770474e2e00565B40813e); // CallitDelegate v0.28
+    address public ADDR_VAULT = address(0x23461333eFa55f1C9acf398bCC0c9F77e08E47aD); // CallitVault v0.36
+    address public ADDR_DELEGATE = address(0xE5a78259cC87F3beA5b2aB4926Ce8c1fD7C728E6); // CallitDelegate v0.29
     address public ADDR_CALL = address(0x834958d81A3C6377BA958B87D0D9cf961f3415A2); // CallitToken v0.14
-    address public ADDR_FACT = address(0x9cff91F5e06645235449e6a32CD2Ba923cA195ee); // CallitFactory v0.36
-    // address public ADDR_CONF = address(0x66096B7d4486ae3b464865c876fcDd67bA7996Fa); // CallitConfig v0.4
+    address public ADDR_FACT = address(0x1E34609f60df8c64Da38061736360ae063fD2573); // CallitFactory v0.37
+    // address public ADDR_CONF = address(0x9F3686A8232aF59032A95A9D39dEce61509c1077); // CallitConfig v0.5
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
 
     /* -------------------------------------------------------- */
