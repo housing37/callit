@@ -105,9 +105,14 @@ bytecode_size = calculate_bytecode_size(BIN_FILE)
 # // ref: https://ethereum.org/en/history
 # //  code size limit = 24576 bytes (a limit introduced in Spurious Dragon _ 2016)
 # //  code size limit = 49152 bytes (a limit introduced in Shanghai _ 2023)
-str_limits = f"(limits: 24576 bytes & 28379 bytes)"
-print("",cStrDivider_1, f"FORMAT: _abi.py ... {contr_name} => {bytecode_size} bytes {str_limits}", cStrDivider_1, sep='\n')
+str_limits = f"limits: 24576 bytes & 49152 bytes"
+print("",cStrDivider_1, f"FORMAT: _abi.py ... {contr_name} => {bytecode_size} bytes _ {str_limits}", cStrDivider_1, sep='\n')
 print("{", *lst_form_abi, "}", sep='\n')
-print("",cStrDivider_1, f"FORMAT: readable ... {contr_name} => {bytecode_size} bytes {str_limits}", cStrDivider_1, sep='\n')
+print("",cStrDivider_1, f"FORMAT: readable ... {contr_name} => {bytecode_size} bytes _ {str_limits}", cStrDivider_1, sep='\n')
 print("{", *lst_form_print, "}", sep='\n')
+print("",cStrDivider_1, f"all compiled file sizes in LST_CONTR_ABI_BIN _ {str_limits}", cStrDivider_1, sep='\n')
+for s in LST_CONTR_ABI_BIN:
+    bin_file_path = s + '.bin'
+    bytecode_size = calculate_bytecode_size(bin_file_path)
+    print(bytecode_size, bin_file_path)
 print(cStrDivider_1, cStrDivider_1, sep='\n')
