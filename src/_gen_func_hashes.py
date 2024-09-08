@@ -67,7 +67,7 @@ def extract_function_details(abi):
     return function_details
 
 # Print function details in the desired format
-def print_function_details(abi_file_path, _contr_name="nil_contr_name"):
+def get_function_details(abi_file_path, _contr_name="nil_contr_name"):
     abi = load_abi(abi_file_path)
     function_details = extract_function_details(abi)
     lst_form_abi = []
@@ -79,12 +79,35 @@ def print_function_details(abi_file_path, _contr_name="nil_contr_name"):
         lst_form_abi.append(formatted_string)
         lst_form_print.append(formatted_print)
 
-    print("",cStrDivider_1, f"FORMAT: _abi.py ... {_contr_name}", cStrDivider_1, sep='\n')
-    print("{", *lst_form_abi, "}", sep='\n')
-    print("",cStrDivider_1, f"FORMAT: readable ... {_contr_name}", cStrDivider_1, sep='\n')
-    print("{", *lst_form_print, "}", sep='\n')
-    print(cStrDivider_1, cStrDivider_1, sep='\n')
+    return lst_form_abi, lst_form_print
+
+# Function to calculate bytecode size from the .bin file
+def calculate_bytecode_size(bin_file_path):
+    # Read the bytecode from the .bin file
+    with open(bin_file_path, 'r') as bin_file:
+        bytecode = bin_file.read().strip()
+    
+    # The bytecode is in hexadecimal, each byte is represented by 2 hex digits
+    bytecode_size = len(bytecode) // 2  # Each 2 hex characters represent 1 byte
+    
+    # print(f"Bytecode size: {bytecode_size} bytes")
+    return bytecode_size
+
+# Example usage
+# bin_file_path = 'YourContract.bin'  # Replace with the path to your .bin file
+
 
 # Example usage
 contr_name = init_web3()
-print_function_details(ABI_FILE, contr_name)
+lst_form_abi, lst_form_print = get_function_details(ABI_FILE, contr_name)
+bytecode_size = calculate_bytecode_size(BIN_FILE)
+
+# // ref: https://ethereum.org/en/history
+# //  code size limit = 24576 bytes (a limit introduced in Spurious Dragon _ 2016)
+# //  code size limit = 49152 bytes (a limit introduced in Shanghai _ 2023)
+str_limits = f"(limits: 24576 bytes & 28379 bytes)"
+print("",cStrDivider_1, f"FORMAT: _abi.py ... {contr_name} => {bytecode_size} bytes {str_limits}", cStrDivider_1, sep='\n')
+print("{", *lst_form_abi, "}", sep='\n')
+print("",cStrDivider_1, f"FORMAT: readable ... {contr_name} => {bytecode_size} bytes {str_limits}", cStrDivider_1, sep='\n')
+print("{", *lst_form_print, "}", sep='\n')
+print(cStrDivider_1, cStrDivider_1, sep='\n')
