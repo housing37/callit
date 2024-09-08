@@ -472,7 +472,7 @@
     In Solidity, there are various function modifiers and decorators that can change the behavior of a function. Here's a list of some common ones:
 
     1. Visibility Modifiers:
-       - `public`: The function can be called from anywhere (internal & extrenal). 
+       - `public`: The function can be called from anywhere (internal & external). 
             - auto-generates a getter function with the same name to allow access to the state variable's value from outside the contract.
             - May have higher gas costs for external calls due to the additional context-switching overhead.
        - `internal`: The function can only be called from within the current contract or derived contracts.

@@ -92,12 +92,12 @@ class myWEB3:
         if default_gas: self.set_gas_params(w3)
         return self
     
-    def init_inp(self, _set_gas=True):
+    def init_inp(self, _set_gas=True, _kill_nonce=True):
         rpc_url, chain_id, chain_sel    = self.inp_sel_chain()
         sender_address, sender_secret   = self.inp_sel_sender()
         w3, account                     = self.init_web3()
         if _set_gas: gas_tup            = self.get_gas_settings(w3)
-        self.kill_nonce_attempt(account, w3) # clean mempool lock attempt
+        if _kill_nonce: self.kill_nonce_attempt(account, w3) # clean mempool lock attempt
         return self
 
     def set_chain(self, _chain_sel):
