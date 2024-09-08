@@ -29,7 +29,7 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS
     /* -------------------------------------------------------- */
-    string public tVERSION = '0.14';
+    string public tVERSION = '0.15';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
