@@ -35,12 +35,11 @@ interface ICallitConfig {
     function RATIO_LP_TOK_PER_USD() external view returns(uint16);
     function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
 
-
-
+    // gett functions
     function keeperCheck(uint256 _check) external view returns(bool);
     function KEEPER_setConfig(address _conf) external;
     function getDexAddies() external view returns (address[] memory, address[] memory, address[] memory);
-    function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);  
+    function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);
 
     // call token mint rewards
     function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
