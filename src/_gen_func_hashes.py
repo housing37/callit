@@ -67,7 +67,7 @@ def extract_function_details(abi):
     return function_details
 
 # Print function details in the desired format
-def print_function_details(abi_file_path):
+def print_function_details(abi_file_path, _contr_name="nil_contr_name"):
     abi = load_abi(abi_file_path)
     function_details = extract_function_details(abi)
     lst_form_abi = []
@@ -78,13 +78,13 @@ def print_function_details(abi_file_path):
         formatted_print = f'    "{selector}": "{function_signature}" -> "{return_types}",'
         lst_form_abi.append(formatted_string)
         lst_form_print.append(formatted_print)
-        # print(formatted_string)d
-    print("",cStrDivider_1, "FORMAT: _abi.py ...", cStrDivider_1, sep='\n')
+
+    print("",cStrDivider_1, f"FORMAT: _abi.py ... {_contr_name}", cStrDivider_1, sep='\n')
     print("{", *lst_form_abi, "}", sep='\n')
-    print("",cStrDivider_1, "FORMAT: readable ...", cStrDivider_1, sep='\n')
+    print("",cStrDivider_1, f"FORMAT: readable ... {_contr_name}", cStrDivider_1, sep='\n')
     print("{", *lst_form_print, "}", sep='\n')
     print(cStrDivider_1, cStrDivider_1, sep='\n')
 
 # Example usage
 contr_name = init_web3()
-print_function_details(ABI_FILE)
+print_function_details(ABI_FILE, contr_name)
