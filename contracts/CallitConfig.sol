@@ -315,6 +315,10 @@ contract CallitConfig {
 
         return address(new CallitTicket(_initSupplyNoDecs, _tokName, _tokSymb)); // _config = address(this)
     }
+    function VAULT_getStableTokenLowMarketValue() external view onlyVault returns(address) {
+        return LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
+    }
+    
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
     /* -------------------------------------------------------- */

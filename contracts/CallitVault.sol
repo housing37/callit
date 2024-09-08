@@ -372,8 +372,10 @@ contract CallitVault {
         // address usdStable = LIB._getStableTokenLowMarketValue(CONF.WHITELIST_USD_STABLES, CONF.USWAP_V2_ROUTERS);
         // (address[] memory stables,, address[] memory routers) = CONF.getDexAddies();
         // address usdStable = LIB._getStableTokenLowMarketValue(stables, routers);
-        address usdStable = LIB._getStableTokenLowMarketValue(CONF.get_WHITELIST_USD_STABLES(), CONF.get_USWAP_V2_ROUTERS());
-        
+        // address usdStable = LIB._getStableTokenLowMarketValue(CONF.get_WHITELIST_USD_STABLES(), CONF.get_USWAP_V2_ROUTERS());
+            // LEFT OFF HERE ... running out of gas ^
+        address usdStable = CONF.VAULT_getStableTokenLowMarketValue();
+
         // perform swap from PLS to stable & send to vault
         // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
         address[] memory pls_stab_path = new address[](2);
