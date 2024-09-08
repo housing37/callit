@@ -323,6 +323,12 @@ contract CallitConfig {
         return (WHITELIST_USD_STABLES,USD_STABLES_HISTORY,USWAP_V2_ROUTERS);
         // return (WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
     }
+    function get_WHITELIST_USD_STABLES() external view returns(address[] memory) {
+        return WHITELIST_USD_STABLES;
+    }
+    function get_USWAP_V2_ROUTERS() external view returns(address[] memory) {
+        return USWAP_V2_ROUTERS;
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)

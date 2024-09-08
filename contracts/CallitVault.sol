@@ -366,26 +366,26 @@ contract CallitVault {
     }
     function _deposit(address _depositor, uint256 msgValue) private {
         // extract PLS value sent
-        uint256 amntIn = msgValue;
+        // uint256 amntIn = msgValue;
 
         // get whitelisted stable with lowest market value (ie. receive most stable for swap)
         // address usdStable = LIB._getStableTokenLowMarketValue(CONF.WHITELIST_USD_STABLES, CONF.USWAP_V2_ROUTERS);
-        (address[] memory stables,, address[] memory routers) = CONF.getDexAddies();
-        address usdStable = LIB._getStableTokenLowMarketValue(stables, routers);
+        // (address[] memory stables,, address[] memory routers) = CONF.getDexAddies();
+        // address usdStable = LIB._getStableTokenLowMarketValue(stables, routers);
+        address usdStable = LIB._getStableTokenLowMarketValue(CONF.get_WHITELIST_USD_STABLES(), CONF.get_USWAP_V2_ROUTERS());
         
-
         // perform swap from PLS to stable & send to vault
         // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
         pls_stab_path[1] = usdStable;
-        uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(amntIn, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
+        uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
 
         // use VAULT remote
         edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
         ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
 
-        emit DepositReceived(_depositor, amntIn, stableAmntOut);
+        emit DepositReceived(_depositor, msgValue, stableAmntOut);
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }

@@ -35,10 +35,12 @@ interface ICallitConfig {
     function RATIO_LP_TOK_PER_USD() external view returns(uint16);
     function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
 
-    // gett functions
+    // getter functions
     function keeperCheck(uint256 _check) external view returns(bool);
     function KEEPER_setConfig(address _conf) external;
     function getDexAddies() external view returns (address[] memory, address[] memory, address[] memory);
+    function get_WHITELIST_USD_STABLES() external view returns(address[] memory);
+    function get_USWAP_V2_ROUTERS() external view returns(address[] memory);
     function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);
 
     // call token mint rewards
@@ -64,7 +66,7 @@ interface ICallitConfig {
     // function getWhitelistStables() external view returns (address[] memory);
 
     // NOTE: legacy public globals
-    function WHITELIST_USD_STABLES(uint256 _idx) external view returns(address); // private w/ public getter
+    // function WHITELIST_USD_STABLES(uint256 _idx) external view returns(address); // private w/ public getter
     // function USD_STABLES_HISTORY(uint256 _idx) external view returns(address); // private w/ public getter
     function USWAP_V2_ROUTERS(uint256 _idx) external view returns(address); // public
     // function USD_STABLE_DECIMALS(address _key) external view returns(uint8); // public
