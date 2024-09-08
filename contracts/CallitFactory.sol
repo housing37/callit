@@ -27,9 +27,10 @@ interface IERC20 {
 }
 interface ICallitToken {
     function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
+    function EARNED_CALL_VOTES(address _key) external view returns(uint64); // public
     function INIT_factory() external;
     function FACT_setContracts(address _fact, address _vault) external;
-    function mintCallToksEarned(address _receiver, uint256 _callAmnt) external;
+    function mintCallToksEarned(address _receiver, uint256 _callAmntMint, uint64 _callVotesEarned, address _sender) external;
     function setCallTokenVoteLock(bool _lock) external;
     function decimals() external pure returns (uint8);
     function balanceOf_voteCnt(address _voter) external view returns(uint64);
@@ -136,7 +137,7 @@ contract CallitFactory {
     // used externals & private
     mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
     mapping(address => ICallitLib.MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & private until market close; live = false) ***
-    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+    // mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     
     // used private only
     mapping(address => ICallitLib.MARKET_VOTE[]) public  ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
@@ -433,7 +434,7 @@ contract CallitFactory {
 
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
-        uint64 vote_cnt = LIB._validVoteCount(CALL.balanceOf_voteCnt(msg.sender), EARNED_CALL_VOTES[msg.sender], CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
+        uint64 vote_cnt = LIB._validVoteCount(CALL.balanceOf_voteCnt(msg.sender), CALL.EARNED_CALL_VOTES(msg.sender), CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
         require(vote_cnt > 0, ' invalid voter :{=} ');
 
         //  - store vote in struct MARKET
@@ -628,11 +629,13 @@ contract CallitFactory {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         //  NOTE: _callAmnt decimals should be accounted for on factory invoking side
         //      allows for factory minting fractions of a token if needed
-        CALL.mintCallToksEarned(_receiver, _callAmnt * 10**uint8(CALL.decimals())); 
-        uint256 prevEarned = EARNED_CALL_VOTES[_receiver];
-        EARNED_CALL_VOTES[_receiver] += _callAmnt; 
+        CALL.mintCallToksEarned(_receiver, _callAmnt * 10**uint8(CALL.decimals()), _callAmnt, msg.sender); 
+            // NOTE: updates CALL.EARNED_CALL_VOTES & emits CallTokensEarned
+
+        // uint256 prevEarned = EARNED_CALL_VOTES[_receiver];
+        // EARNED_CALL_VOTES[_receiver] += _callAmnt; 
         
-        // emit log for call tokens earned
-        // emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
+        // // emit log for call tokens earned
+        // // emit CallTokensEarned(msg.sender, _receiver, _callAmnt, prevEarned, EARNED_CALL_VOTES[_receiver]);
     }
 }

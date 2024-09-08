@@ -41,10 +41,16 @@ contract CallitToken is ERC20, Ownable {
     // bool private ONCE_ = true;
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
+    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
     // address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
     // address public ADDR_FACT; // set via INIT_factory()
     // ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
+
+    /* -------------------------------------------------------- */
+    /* EVENTS
+    /* -------------------------------------------------------- */
+    event CallTokensEarned(address _sender, address _receiver, uint256 _callAmntEarned, uint64 _callVotesEarned, uint64 _callPrevBal, uint64 _callCurrBal);
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
@@ -106,11 +112,17 @@ contract CallitToken is ERC20, Ownable {
     //     ADDR_VAULT = _vault;
     //     VAULT = ICallitVault(ADDR_VAULT);
     // }
-    function mintCallToksEarned(address _receiver, uint256 _callAmnt) external onlyFactory {
+    function mintCallToksEarned(address _receiver, uint256 _callAmntMint, uint64 _callVotesEarned, address _sender) external onlyFactory {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         //  NOTE: _callAmnt decimals should be accounted for on factory invoking side
         //      allows for factory minting fractions of a token if needed
-        _mint(_receiver, _callAmnt);
+        _mint(_receiver, _callAmntMint);
+
+        uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
+        EARNED_CALL_VOTES[_receiver] += _callVotesEarned; 
+        
+        // emit log for call tokens earned
+        emit CallTokensEarned(_sender, _receiver, _callAmntMint, _callVotesEarned, prevEarned, EARNED_CALL_VOTES[_receiver]);
     }
 
     /* -------------------------------------------------------- */
