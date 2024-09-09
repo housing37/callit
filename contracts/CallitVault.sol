@@ -384,6 +384,12 @@ contract CallitVault {
         // uint64 stableAmntOut = _uint64_from_uint256(_swap_v2(router, pls_stab_path, msgValue, amntOutQuote, address(this), false)); // approve & execute swap
         //                           function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
 
+        // LEFT OFF HERE ... this integration (below) indeed works (ie. does not run out of gas)
+        //         tested twice, seems to work fine, just seems to use a higher gas limit
+        //              uses ~1/2 of ~500k max units, instead of ~all of ~50k units(+-)
+        //  NEXT: should remove/refactor 'deposit' integration below
+        //      currently fails when PLS is fwd over from other contract deposits
+        
         // perform swap from PLS to stable & send to vault
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
