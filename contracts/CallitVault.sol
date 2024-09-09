@@ -389,7 +389,8 @@ contract CallitVault {
         //              uses ~1/2 of ~500k max units, instead of ~all of ~50k units(+-)
         //  NEXT: should remove/refactor 'deposit' integration below
         //      currently fails when PLS is fwd over from other contract deposits
-        
+        //      also this contract compiled file size is almost at max now (24556 of 24576)
+
         // perform swap from PLS to stable & send to vault
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
