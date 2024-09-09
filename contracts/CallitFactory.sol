@@ -70,8 +70,8 @@ interface ICallitDelegate {
 
     function ACCT_MARKET_REVIEWS(address _key) external view returns(ICallitLib.MARKET_REVIEW[] memory);
     function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external;
-    function INIT_factory() external;
-    function KEEPER_setContracts(address _fact, address _vault, address _lib) external;
+    // function INIT_factory() external;
+    // function KEEPER_setContracts(address _fact, address _vault, address _lib) external;
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                         uint64 _usdAmntLP, 
                         uint256 _dtCallDeadline, 
@@ -84,6 +84,8 @@ interface ICallitDelegate {
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external returns(uint64);
     function setAcctHandle(address _acct, string calldata _handle) external;    
+    // function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
+    function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
 }
 
 contract CallitFactory {
@@ -164,6 +166,7 @@ contract CallitFactory {
     // event TicketClaimed(address _sender, address _ticket, bool _is_winner, bool _resultAgree);
     // event VoterRewardsClaimed(address _claimer, uint64 _usdRewardOwed, uint64 _usdRewardOwed_net);
     // event CallTokensEarned(address _sedner, address _receiver, uint64 _callAmntEarned, uint64 _callPrevBal, uint64 _callCurrBal);
+    event PromoRewardsPaid(address _sender, address _promoCodeHash, uint64 _usdPaid, address _promotor);
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
@@ -602,7 +605,15 @@ contract CallitFactory {
 
         // NOTE: no $CALL tokens minted for this action   
     }
+    function claimPromotorRewards(address _promoCodeHash) external {
+        ICallitLib.PROMO memory promo = DELEGATE.PROMO_CODE_HASHES(_promoCodeHash);
+        require(promo.promotor != address(0), ' !promotor :p ');
 
+        uint64 usdTargRem = promo.usdTarget - promo.usdUsed;
+        require(usdTargRem < LIB._perc_of_uint64(CONF.PERC_REQ_CLAIM_PROMO_REWARD(), promo.usdTarget), ' target not hit yet :0 ');
+        uint64 usdPaid = VAULT.payPromoUsdReward(msg.sender, _promoCodeHash, promo.usdUsed, promo.promotor); // invokes _payUsdReward
+        emit PromoRewardsPaid(msg.sender, _promoCodeHash, usdPaid, promo.promotor);
+    }
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT MANAGER) // NOTE: migrate to CallitVault (ALL)
     /* -------------------------------------------------------- */

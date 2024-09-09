@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
 
 interface ICallitVault {
+    // function PROMO_USD_OWED(address _key) external view returns(uint64);
+    function payPromoUsdReward(address _sender, address _promoCodeHash, uint64 _usdReward, address _receiver) external returns(uint64);
     // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external returns(uint64, uint64, uint64, uint64, uint64);
     function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external returns(uint64, uint64, uint64, uint64, uint64);
 

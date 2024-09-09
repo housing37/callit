@@ -63,7 +63,11 @@ contract CallitConfig {
     string  public TOK_TICK_NAME_SEED = "TCK#";
     string  public TOK_TICK_SYMB_SEED = "CALL-TICKET";
 
+    uint16 public PERC_REQ_CLAIM_PROMO_REWARD = 1000; // 1000 = 10% // LEFT OFF HERE ... needs keeper setter
+    
+
     // default all fees to 0 (KEEPER setter available)
+    uint16 public PERC_PROMO_CLAIM_FEE; // note: no other % fee
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
     uint16 public PERC_PROMO_BUY_FEE; // note: yes other % fee (promo.percReward)
     uint16 public PERC_ARB_EXE_FEE; // note: no other % fee
@@ -252,10 +256,11 @@ contract CallitConfig {
         // DELEGATE.KEEPER_setContracts(_fact, address(VAULT), address(LIB));
         // VAULT.KEEPER_setContracts(_fact, address(DELEGATE), address(LIB));
     }
-    function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim) external onlyKeeper {
+    function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim, uint16 _percPromoClaim) external onlyKeeper {
         // no 2 percs taken out of market close
         require(_percPrizeVoters + _percMarkClose < 10000, ' close market perc error ;() ');
-        require(_percMaker < 10000 && _percPromo < 10000 && _percArbExe < 10000 && _percMarkClose < 10000 && _percPrizeVoters < 10000 && _percVoterClaim < 10000 && _perWinnerClaim < 10000, ' invalid perc(s) :0 ');
+        require(_percMaker < 10000 && _percPromo < 10000 && _percArbExe < 10000 && _percMarkClose < 10000 && _percPrizeVoters < 10000 && _percVoterClaim < 10000 && _perWinnerClaim < 10000 && _percPromoClaim < 10000, ' invalid perc(s) :0 ');
+        PERC_PROMO_CLAIM_FEE = _percPromoClaim;
         PERC_MARKET_MAKER_FEE = _percMaker; 
         PERC_PROMO_BUY_FEE = _percPromo; // note: yes other % fee (promo.percReward)
         PERC_ARB_EXE_FEE = _percArbExe;

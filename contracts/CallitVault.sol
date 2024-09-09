@@ -114,7 +114,8 @@ contract CallitVault {
     // // address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
     mapping(address => address) private TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
-    
+    mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
+
     // // arb algorithm settings
     // // market settings
     // uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
@@ -156,7 +157,8 @@ contract CallitVault {
     // callit
     // event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     // event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
-    event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
+    // event PromoRewardPaid(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
+    event PromoRewardLogged(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
 
     constructor() {
         // set KEEPER
@@ -517,10 +519,12 @@ contract CallitVault {
         // NOTE: *WARNING* if this require fails ... 
         //  then this promo code cannot be used until PERC_PROMO_BUY_FEE is lowered accordingly
         require(_percReward + CONF.PERC_PROMO_BUY_FEE() < 10000, ' buy promo fee perc mismatch :o ');
+
         // calc influencer reward from _usdAmnt to send to promo.promotor
+        //  and update amount owed for this _promoCodeHash
         uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
-        _payUsdReward(_sender, usdReward, _promotor); // pay w/ lowest value whitelist stable held (returns on 0 reward)
-        emit PromoRewardPaid(_promoCodeHash, usdReward, _promotor, _sender, _ticket);
+        PROMO_USD_OWED[_promoCodeHash] += usdReward;
+        emit PromoRewardLogged(_promoCodeHash, usdReward, _promotor, _sender, _ticket);
 
         // deduct usdReward & promo buy fee _usdAmnt
         uint64 net_usdAmnt = _usdAmnt - usdReward;
@@ -554,6 +558,14 @@ contract CallitVault {
         edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
 
         return (net_usdAmnt, tick_amnt_out);
+    }
+    function payPromoUsdReward(address _sender, address _promoCodeHash, uint64 _usdReward, address _receiver) external onlyFactory returns(uint64) {
+        uint64 usdOwed = PROMO_USD_OWED[_promoCodeHash];
+        require(_promoCodeHash != address(0) && usdOwed > 0 && _usdReward <= usdOwed, ' not enough owed ;[ ');
+        uint64 net_usdReward = LIB._deductFeePerc(usdOwed, CONF.PERC_PROMO_CLAIM_FEE(), usdOwed);
+        _payUsdReward(_sender, net_usdReward, _receiver); // pay w/ lowest value whitelist stable held (returns on 0 reward)
+        PROMO_USD_OWED[_promoCodeHash] = usdOwed - _usdReward; // deduct entire _usdReward from owed (not just net)
+        return net_usdReward; // return what was actually paid (ie. net)
     }
     // note: migrate to CallitBank
     function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) public onlyFactory() {

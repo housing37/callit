@@ -15,7 +15,10 @@ interface ICallitConfig {
     function DEPOSIT_USD_STABLE() external returns(address);
     function DEPOSIT_ROUTER() external returns(address);
 
+    function PERC_REQ_CLAIM_PROMO_REWARD() external view returns(uint16);
+
     // default all fees to 0 (KEEPER setter available)
+    function PERC_PROMO_CLAIM_FEE() external view returns(uint16);
     function PERC_MARKET_MAKER_FEE() external view returns(uint16);
     function PERC_PROMO_BUY_FEE() external view returns(uint16);
     function PERC_ARB_EXE_FEE() external view returns(uint16);
