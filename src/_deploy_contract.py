@@ -459,7 +459,15 @@ print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
 
 #-----------------------------------------------------------------------------------------------------------#
 # address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
-# address public ADDR_VAULT = address(0x42eb4165c1cA5D30e69ADb347CA3C97E74009147); // CallitVault v0.41
+# address public ADDR_VAULT = address(0x42eb4165c1cA5D30e69ADb347CA3C97E74009147); // CallitVault v0.41 (wiped)
+# address public ADDR_DELEGATE = address(0x36CFA0C1f5D452d3789F40eC7B064971CEDA476f); // CallitDelegate v0.31
+# address public ADDR_CALL = address(0xe19Ab2d065340d12afc63F8FeE5a59b0b10b6846); // CallitToken v0.15
+# address public ADDR_FACT = address(0xEd644dA69695e1E9FE1A6c5DA55CD7abB86D3346); // CallitFactory v0.39
+# address public ADDR_CONF = address(0x89f252Afb43cb5a4eB57de37Bc281A33D3b6DBB1); // CallitConfig v0.8
+
+#-----------------------------------------------------------------------------------------------------------#
+# address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
+# address public ADDR_VAULT = address(0x174Bf1B8fc100A6cb2d5430075E5B340c61Dcb15); // CallitVault v0.42
 # address public ADDR_DELEGATE = address(0x36CFA0C1f5D452d3789F40eC7B064971CEDA476f); // CallitDelegate v0.31
 # address public ADDR_CALL = address(0xe19Ab2d065340d12afc63F8FeE5a59b0b10b6846); // CallitToken v0.15
 # address public ADDR_FACT = address(0xEd644dA69695e1E9FE1A6c5DA55CD7abB86D3346); // CallitFactory v0.39
