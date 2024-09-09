@@ -53,6 +53,7 @@ contract CallitConfig {
 
     // note: receive / deposit
     address public DEPOSIT_USD_STABLE;
+    address public DEPOSIT_ROUTER;
 
     // note: makeNewMarket
     // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
@@ -140,7 +141,10 @@ contract CallitConfig {
         //  NOTE: VAULT should already be initialized
         NEW_TICK_UNISWAP_V2_ROUTER = USWAP_V2_ROUTERS[0];
         NEW_TICK_USD_STABLE = WHITELIST_USD_STABLES[0];
+
+        DEPOSIT_ROUTER = NEW_TICK_UNISWAP_V2_ROUTER;
         DEPOSIT_USD_STABLE = NEW_TICK_USD_STABLE;
+        
 
         // NOTE: ref pc dex addresses
         // ROUTER_pulsex_router02_v1='0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02' # PulseXRouter02 'v1' ref: https://www.irccloud.com/pastebin/6ftmqWuk
@@ -266,12 +270,14 @@ contract CallitConfig {
         NEW_TICK_UNISWAP_V2_ROUTER = _router;
         NEW_TICK_USD_STABLE = _usdStable;
     }
-    function KEEPER_setDepositUsdStable(address _usdStable) external onlyKeeper {
-        require(LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES), ' !whitelist stable :( ');
-        // address old = DEPOSIT_USD_STABLE;
+    function KEEPER_setDepositUsdStable(address _usdStable, address _depositRtr) external onlyKeeper {
+        require(LIB._isAddressInArray(_usdStable, WHITELIST_USD_STABLES) && LIB._isAddressInArray(_depositRtr, USWAP_V2_ROUTERS), ' bad stable | router :( ');
+        // address old_0 = DEPOSIT_USD_STABLE;
+        // address old_1 = DEPOSIT_ROUTER;
         DEPOSIT_USD_STABLE = _usdStable;
-        // event DepositStableUpdated(address _old, address _new);
-        // emit DepositStableUpdated(old, DEPOSIT_USD_STABLE);
+        DEPOSIT_ROUTER = _depositRtr;
+        // event DepositStableUpdated(address _old_0, address _old_1, address _new_0, address _new_1);
+        // emit DepositStableUpdated(old_0, old_1, DEPOSIT_USD_STABLE, DEPOSIT_ROUTER);
     }
     function KEEPER_setMarketConfig(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
     // function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {

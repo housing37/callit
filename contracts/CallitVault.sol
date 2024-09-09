@@ -375,14 +375,17 @@ contract CallitVault {
         // address usdStable = LIB._getStableTokenLowMarketValue(CONF.get_WHITELIST_USD_STABLES(), CONF.get_USWAP_V2_ROUTERS());
             // LEFT OFF HERE ... running out of gas ^
         // address usdStable = CONF.VAULT_getStableTokenLowMarketValue();
-        address usdStable = CONF.DEPOSIT_USD_STABLE();
+        // address usdStable = CONF.DEPOSIT_USD_STABLE();
 
         // perform swap from PLS to stable & send to vault
         // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
-        pls_stab_path[1] = usdStable;
-        uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
+        pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+        // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
+        uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), false)); // true = fromETH        
+
+            // function _exeSwapTokForTok(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver, bool _fromUsdAcctBal) private returns (uint256) {
 
         // use VAULT remote
         edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add

@@ -13,6 +13,7 @@ interface ICallitConfig {
     function NEW_TICK_UNISWAP_V2_FACTORY() external returns(address);
     function NEW_TICK_USD_STABLE() external returns(address);
     function DEPOSIT_USD_STABLE() external returns(address);
+    function DEPOSIT_ROUTER() external returns(address);
 
     // default all fees to 0 (KEEPER setter available)
     function PERC_MARKET_MAKER_FEE() external view returns(uint16);
