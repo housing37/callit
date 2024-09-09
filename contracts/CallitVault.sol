@@ -372,16 +372,34 @@ contract CallitVault {
         address _depositor = msg.sender;
         uint256 msgValue = msg.value;
 
+        // // perform swap from PLS to stable & send to vault
+        // address[] memory pls_stab_path = new address[](2);
+        // pls_stab_path[0] = TOK_WPLS;
+        // pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+        // // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
+        // // uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), false)); // true = fromETH
+        // address router = CONF.DEPOSIT_ROUTER();
+        // uint256[] memory amountsOut = IUniswapV2Router02(router).getAmountsOut(msgValue, pls_stab_path); // quote swap
+        // uint256 amntOutQuote = amountsOut[amountsOut.length -1];
+        // uint64 stableAmntOut = _uint64_from_uint256(_swap_v2(router, pls_stab_path, msgValue, amntOutQuote, address(this), false)); // approve & execute swap
+        //                           function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
+
         // perform swap from PLS to stable & send to vault
         address[] memory pls_stab_path = new address[](2);
         pls_stab_path[0] = TOK_WPLS;
         pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
-        // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
-        // uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), false)); // true = fromETH
-        address router = CONF.DEPOSIT_ROUTER();
-        uint256[] memory amountsOut = IUniswapV2Router02(router).getAmountsOut(msgValue, pls_stab_path); // quote swap
-        uint256 amntOutQuote = amountsOut[amountsOut.length -1];
-        uint64 stableAmntOut = _uint64_from_uint256(_swap_v2(router, pls_stab_path, msgValue, amntOutQuote, address(this), false)); // approve & execute swap
+        IUniswapV2Router02 swapRouter = IUniswapV2Router02(CONF.DEPOSIT_ROUTER());
+        uint256[] memory amountsOut = swapRouter.getAmountsOut(msgValue, pls_stab_path); // quote swap
+        // uint256 amntOutQuote = amountsOut[amountsOut.length -1];
+        
+        IERC20(address(pls_stab_path[0])).approve(address(swapRouter), msgValue);
+        uint[] memory amntOut = swapRouter.swapExactETHForTokens{value: msgValue}(
+                                    amountsOut[amountsOut.length -1],
+                                    pls_stab_path, //address[] calldata path,
+                                    address(this), // to
+                                    block.timestamp + 300
+                                );
+        uint64 stableAmntOut = _uint64_from_uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
 
         // use VAULT remote
         // edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
