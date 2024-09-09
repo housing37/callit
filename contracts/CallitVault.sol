@@ -453,7 +453,7 @@ contract CallitVault {
         pls_stab_path[0] = TOK_WPLS;
         pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
         // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
-        uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), true)); // true = fromETH        
+        uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), false)); // true = fromETH        
 
             // function _exeSwapTokForTok(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver, bool _fromUsdAcctBal) private returns (uint256) {
 
