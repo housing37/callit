@@ -355,16 +355,61 @@ contract CallitVault {
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)
     /* -------------------------------------------------------- */
+    // Fallback function to handle Ether and address from msg.data
+    //  Encoding the address and sending it along with Ether
+    //      (address(myContract).call{value: 1 ether}(abi.encodeWithSignature("functionWithAddress(address)", targetAddress)));
+
+    /* ref: https://docs.soliditylang.org/en/latest/contracts.html#fallback-function
+        The fallback function is executed on a call to the contract if none of the other 
+        functions match the given function signature, 
+        or if no data was supplied at all and there is no receive Ether function. 
+        The fallback function always receives data, but in order to also receive Ether it must be marked payable.
+    */
+    // invoked if ...
+    //  function invoked doesn't exist
+    //  no receive() implemented & ETH received w/o data
+    fallback() external payable {
+        address _depositor = msg.sender;
+        uint256 msgValue = msg.value;
+
+        // perform swap from PLS to stable & send to vault
+        address[] memory pls_stab_path = new address[](2);
+        pls_stab_path[0] = TOK_WPLS;
+        pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+        // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
+        // uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), false)); // true = fromETH
+        address router = CONF.DEPOSIT_ROUTER();
+        uint256[] memory amountsOut = IUniswapV2Router02(router).getAmountsOut(msgValue, pls_stab_path); // quote swap
+        uint256 amntOutQuote = amountsOut[amountsOut.length -1];
+        uint64 stableAmntOut = _uint64_from_uint256(_swap_v2(router, pls_stab_path, msgValue, amntOutQuote, address(this), false)); // approve & execute swap
+
+        // use VAULT remote
+        // edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
+        ACCT_USD_BALANCES[_depositor] += stableAmntOut;
+        ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
+
+        emit DepositReceived(_depositor, msgValue, stableAmntOut);
+
+        // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
+    }
+    
+    /** ref: https://docs.soliditylang.org/en/latest/contracts.html#receive-ether-function
+         The receive function is executed on a call to the contract with empty calldata. 
+         This is the function that is executed on plain Ether transfers (e.g. via .send() or .transfer()). 
+         If no such function exists, but a payable fallback function exists, 
+          the fallback function will be called on a plain Ether transfer. 
+         If neither a receive Ether nor a payable fallback function is present, 
+          the contract cannot receive Ether through a transaction that does not represent 
+          a payable function call and throws an exception.
+     */
     // handle contract USD value deposits (convert PLS to USD stable)
-    receive() external payable {
-        // process PLS value sent
-        _deposit(msg.sender, msg.value);
-    }
+    // receive() external payable {
+    //     // extract PLS value sent
+    //     uint256 amntIn = msg.value;
+    // }
     function deposit(address _depositor) external payable {
-        require(msg.value > 0, " No PLS sent ");
-        _deposit(_depositor, msg.value);
-    }
-    function _deposit(address _depositor, uint256 msgValue) private {
+        uint256 msgValue = msg.value;
+        require(msgValue > 0, ' nothing? :& ');
         // extract PLS value sent
         // uint256 amntIn = msgValue;
 
@@ -1022,7 +1067,9 @@ contract CallitVault {
     // uniwswap v2 protocol based: get quote and execute swap
     function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
         require(path.length >= 2, 'err: path.length :/');
-        uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
+        uint256[] memory amountsOut = IUniswapV2Router02(router).getAmountsOut(amntIn, path); // quote swap
+        uint256 amntOutQuote = amountsOut[amountsOut.length -1];
+        // uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
         uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
                 
         // verifiy new balance of token received
@@ -1031,10 +1078,10 @@ contract CallitVault {
         
         return amntOut;
     }
-    function _swap_v2_quote(address[] memory _path, address _dexRouter, uint256 _amntIn) private view returns (uint256) {
-        uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
-        return amountsOut[amountsOut.length -1];
-    }
+    // function _swap_v2_quote(address[] memory _path, address _dexRouter, uint256 _amntIn) private view returns (uint256) {
+    //     uint256[] memory amountsOut = IUniswapV2Router02(_dexRouter).getAmountsOut(_amntIn, _path); // quote swap
+    //     return amountsOut[amountsOut.length -1];
+    // }
     // v2: solidlycom, kyberswap, pancakeswap, sushiswap, uniswap v2, pulsex v1|v2, 9inch
     function _swap_v2(address router, address[] memory path, uint256 amntIn, uint256 amntOutMin, address outReceiver, bool fromETH) private returns (uint256) {
         IUniswapV2Router02 swapRouter = IUniswapV2Router02(router);
