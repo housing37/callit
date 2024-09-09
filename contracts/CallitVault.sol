@@ -369,8 +369,10 @@ contract CallitVault {
     //  function invoked doesn't exist
     //  no receive() implemented & ETH received w/o data
     fallback() external payable {
-        address _depositor = msg.sender;
-        uint256 msgValue = msg.value;
+        deposit(msg.sender);
+
+        // address _depositor = msg.sender;
+        // uint256 msgValue = msg.value;
 
         // // perform swap from PLS to stable & send to vault
         // address[] memory pls_stab_path = new address[](2);
@@ -391,31 +393,32 @@ contract CallitVault {
         //      currently fails when PLS is fwd over from other contract deposits
         //      also this contract compiled file size is almost at max now (24556 of 24576)
 
-        // perform swap from PLS to stable & send to vault
-        address[] memory pls_stab_path = new address[](2);
-        pls_stab_path[0] = TOK_WPLS;
-        pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
-        IUniswapV2Router02 swapRouter = IUniswapV2Router02(CONF.DEPOSIT_ROUTER());
-        uint256[] memory amountsOut = swapRouter.getAmountsOut(msgValue, pls_stab_path); // quote swap
-        // uint256 amntOutQuote = amountsOut[amountsOut.length -1];
+        // // perform swap from PLS to stable & send to vault
+        // address[] memory pls_stab_path = new address[](2);
+        // pls_stab_path[0] = TOK_WPLS; // note: WPLS required for 'swapExactETHForTokens'
+        // pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+        // IUniswapV2Router02 swapRouter = IUniswapV2Router02(CONF.DEPOSIT_ROUTER());
+        // uint256[] memory amountsOut = swapRouter.getAmountsOut(msgValue, pls_stab_path); // quote swap
+        // // uint256 amntOutQuote = amountsOut[amountsOut.length -1];
         
-        IERC20(address(pls_stab_path[0])).approve(address(swapRouter), msgValue);
-        uint[] memory amntOut = swapRouter.swapExactETHForTokens{value: msgValue}(
-                                    amountsOut[amountsOut.length -1],
-                                    pls_stab_path, //address[] calldata path,
-                                    address(this), // to
-                                    block.timestamp + 300
-                                );
-        uint64 stableAmntOut = _uint64_from_uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
+        // IERC20(address(pls_stab_path[0])).approve(address(swapRouter), msgValue);
+        // uint[] memory amntOut = swapRouter.swapExactETHForTokens{value: msgValue}(
+        //                             amountsOut[amountsOut.length -1],
+        //                             pls_stab_path, //address[] calldata path,
+        //                             address(this), // to
+        //                             block.timestamp + 300
+        //                         );
+        // uint64 stableAmntOut = _uint64_from_uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
 
-        // use VAULT remote
-        // edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
-        ACCT_USD_BALANCES[_depositor] += stableAmntOut;
-        ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
+        // // use VAULT remote
+        // // edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
+        // ACCT_USD_BALANCES[_depositor] += stableAmntOut;
+        // ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
 
-        emit DepositReceived(_depositor, msgValue, stableAmntOut);
+        // emit DepositReceived(_depositor, msgValue, stableAmntOut);
 
-        // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
+        // // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
+
     }
     
     /** ref: https://docs.soliditylang.org/en/latest/contracts.html#receive-ether-function
@@ -432,38 +435,66 @@ contract CallitVault {
     //     // extract PLS value sent
     //     uint256 amntIn = msg.value;
     // }
-    function deposit(address _depositor) external payable {
+    function deposit(address _depositor) public payable {
+        // address _depositor = msg.sender;
         uint256 msgValue = msg.value;
-        require(msgValue > 0, ' nothing? :& ');
-        // extract PLS value sent
-        // uint256 amntIn = msgValue;
-
-        // get whitelisted stable with lowest market value (ie. receive most stable for swap)
-        // address usdStable = LIB._getStableTokenLowMarketValue(CONF.WHITELIST_USD_STABLES, CONF.USWAP_V2_ROUTERS);
-        // (address[] memory stables,, address[] memory routers) = CONF.getDexAddies();
-        // address usdStable = LIB._getStableTokenLowMarketValue(stables, routers);
-        // address usdStable = LIB._getStableTokenLowMarketValue(CONF.get_WHITELIST_USD_STABLES(), CONF.get_USWAP_V2_ROUTERS());
-            // LEFT OFF HERE ... running out of gas ^
-        // address usdStable = CONF.VAULT_getStableTokenLowMarketValue();
-        // address usdStable = CONF.DEPOSIT_USD_STABLE();
 
         // perform swap from PLS to stable & send to vault
-        // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
+        // address[2] memory pls_stab_path_x = [TOK_WPLS, CONF.DEPOSIT_USD_STABLE()];
         address[] memory pls_stab_path = new address[](2);
-        pls_stab_path[0] = TOK_WPLS;
+        pls_stab_path[0] = TOK_WPLS; // note: WPLS required for 'swapExactETHForTokens'
         pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
-        // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
-        uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), false)); // true = fromETH        
+        IUniswapV2Router02 swapRouter = IUniswapV2Router02(CONF.DEPOSIT_ROUTER());
+        uint256[] memory amountsOut = swapRouter.getAmountsOut(msgValue, pls_stab_path); // quote swap
+        IERC20(address(pls_stab_path[0])).approve(address(swapRouter), msgValue);
+        uint[] memory amntOut = swapRouter.swapExactETHForTokens{value: msgValue}(
+                                    amountsOut[amountsOut.length -1],
+                                    pls_stab_path, //address[] calldata path,
+                                    address(this), // to (receiver)
+                                    block.timestamp + 300
+                                );
+        uint64 stableAmntOut = _uint64_from_uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
 
-            // function _exeSwapTokForTok(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver, bool _fromUsdAcctBal) private returns (uint256) {
-
-        // use VAULT remote
-        edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
+        // update account balance
+        ACCT_USD_BALANCES[_depositor] += stableAmntOut;
         ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
 
         emit DepositReceived(_depositor, msgValue, stableAmntOut);
 
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
+
+
+        // uint256 msgValue = msg.value;
+        // require(msgValue > 0, ' nothing? :& ');
+        // // extract PLS value sent
+        // // uint256 amntIn = msgValue;
+
+        // // get whitelisted stable with lowest market value (ie. receive most stable for swap)
+        // // address usdStable = LIB._getStableTokenLowMarketValue(CONF.WHITELIST_USD_STABLES, CONF.USWAP_V2_ROUTERS);
+        // // (address[] memory stables,, address[] memory routers) = CONF.getDexAddies();
+        // // address usdStable = LIB._getStableTokenLowMarketValue(stables, routers);
+        // // address usdStable = LIB._getStableTokenLowMarketValue(CONF.get_WHITELIST_USD_STABLES(), CONF.get_USWAP_V2_ROUTERS());
+        //     // LEFT OFF HERE ... running out of gas ^
+        // // address usdStable = CONF.VAULT_getStableTokenLowMarketValue();
+        // // address usdStable = CONF.DEPOSIT_USD_STABLE();
+
+        // // perform swap from PLS to stable & send to vault
+        // // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapPlsForStable(amntIn, usdStable)); // _normalizeStableAmnt
+        // address[] memory pls_stab_path = new address[](2);
+        // pls_stab_path[0] = TOK_WPLS;
+        // pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+        // // uint64 stableAmntOut = _uint64_from_uint256(_exeSwapTokForTok(msgValue, pls_stab_path, address(this), false)); // false = _fromUsdAcctBal
+        // uint64 stableAmntOut = _uint64_from_uint256(_swap_v2_wrap(pls_stab_path, CONF.DEPOSIT_ROUTER(), msgValue, address(this), false)); // true = fromETH        
+
+        //     // function _exeSwapTokForTok(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver, bool _fromUsdAcctBal) private returns (uint256) {
+
+        // // use VAULT remote
+        // edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
+        // ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
+
+        // emit DepositReceived(_depositor, msgValue, stableAmntOut);
+
+        // // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
     // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
     function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
