@@ -29,7 +29,7 @@ interface ICallitVault {
 contract CallitTicket is ERC20 {
     // address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
-    string public tVERSION = '0.5';
+    string public tVERSION = '0.6';
     address public ADDR_CONFIG; // set via constructor()
     ICallitConfig private CONF; // set via constructor()
     event MintedForPriceParity(address _receiver, uint256 _amount);
