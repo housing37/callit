@@ -48,6 +48,8 @@ contract CallitTicket is ERC20, Ownable {
         ADDR_CONFIG = msg.sender; // config invokes new CallitTicket(...)
         CONF = ICallitConfig(ADDR_CONFIG);
         address vault = CONF.ADDR_VAULT();
+            // LEFT OFF HERE .. still failing here ^ with latest deploy
+            // CallitConfig v0.11
         require(vault != address(0), ' !vault :7 '); // sanity check (msg.sender is a VAULT)
         transferOwnership(vault);
         _mint(vault, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
