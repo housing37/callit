@@ -31,7 +31,7 @@
 # LOG ...
     #-----------------------------------------------------------------------------------------------------------#
     address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
-    address public ADDR_VAULT = address(0xa60c7e9019f013452aA6EC419a4Cd8A6B4aD41Eb); // CallitVault v0.43
+    address public ADDR_VAULT = address(0xa60c7e9019f013452aA6EC419a4Cd8A6B4aD41Eb); // CallitVault v0.43 (wiped)
     address public ADDR_DELEGATE = address(0x36CFA0C1f5D452d3789F40eC7B064971CEDA476f); // CallitDelegate v0.31
     address public ADDR_CALL = address(0xe19Ab2d065340d12afc63F8FeE5a59b0b10b6846); // CallitToken v0.15
     address public ADDR_FACT = address(0xA06b84577cA9e1ABC59eED62c8d0efD5F45950E3); // CallitFactory v0.40

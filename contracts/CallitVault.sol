@@ -455,8 +455,9 @@ contract CallitVault {
                                     address(this), // to (receiver)
                                     block.timestamp + 300
                                 );
-        uint64 stableAmntOut = _uint64_from_uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
-
+        // uint64 stableAmntOut = _uint64_from_uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
+        uint64 stableAmntOut = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(pls_stab_path[1]).decimals(), amntOut[amntOut.length - 1], _usd_decimals())); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
+        
         // update account balance
         ACCT_USD_BALANCES[_depositor] += stableAmntOut;
         ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
