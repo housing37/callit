@@ -637,6 +637,15 @@ contract CallitVault {
 
         // address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
         // uint64 [] memory resultTokenVotes = new uint64[](_resultLabels.length);
+
+        // note: makeNewMarket
+        // temp-arrays for 'makeNewMarket' support
+        resultOptionTokens = new address[](_resultLabels.length);
+        resultTokenLPs = new address[](_resultLabels.length);
+        resultTokenRouters = new address[](_resultLabels.length);
+        resultTokenUsdStables = new address[](_resultLabels.length);
+        resultTokenVotes = new uint64[](_resultLabels.length);
+        
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
         // for (uint16 i = 0; i < _resultCnt;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
