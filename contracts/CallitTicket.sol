@@ -20,6 +20,7 @@ import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
 interface ICallitConfig { // don't need everything in ICallitConfig.sol
     function ADDR_VAULT() external view returns(address);
+    function ADDR_FACT() external view returns(address);
 }
 interface ICallitVault {
     function deposit(address _depositor) external payable;
@@ -35,7 +36,7 @@ contract CallitTicket is ERC20, Ownable {
     // address public ADDR_VAULT;
     // address public ADDR_FACT;
     event MintedForPriceParity(address _receiver, uint256 _amount);
-    event BurnForWinClaim(address _account, uint256 _amount);
+    event BurnForWinLoseClaim(address _account, uint256 _amount);
 
     // constructor(uint256 _initSupply, address _vault, address _fact, string memory _name, string memory _symbol) ERC20(_name, _symbol) Ownable(_vault) {
     //     VAULT_ADDR = _vault;
@@ -43,23 +44,26 @@ contract CallitTicket is ERC20, Ownable {
     //     // NOTE: uint64 = ~18,000Q max
     //     _mint(VAULT_ADDR, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
     // }
-    constructor(uint256 _initSupply, string memory _name, string memory _symbol) ERC20(_name, _symbol) Ownable(CONF.ADDR_VAULT()) {
-        ADDR_CONFIG = msg.sender;
+    constructor(uint256 _initSupply, string memory _name, string memory _symbol) ERC20(_name, _symbol) Ownable(address(this)) {
+        ADDR_CONFIG = msg.sender; // config invokes new CallitTicket(...)
         CONF = ICallitConfig(ADDR_CONFIG);
         require(CONF.ADDR_VAULT() != address(0), ' !vault :7 '); // sanity check (msg.sender is a VAULT)
+        transferOwnership(CONF.ADDR_VAULT());
         _mint(CONF.ADDR_VAULT(), _initSupply * 10**uint8(decimals())); // 'emit Transfer'
     }
     modifier onlyFactory() {
-        require(msg.sender == CONF.ADDR_VAULT() || msg.sender == CONF.ADDR_VAULT(), " !vault | !fact :p");
+        require(msg.sender == CONF.ADDR_FACT(), " !fact ;p ");
         _;
     }
+    // inovked by vault
     function mintForPriceParity(address _receiver, uint256 _amount) external onlyOwner() {
         _mint(_receiver, _amount);
         emit MintedForPriceParity(_receiver, _amount);
     }
+    // invoked by factory
     function burnForWinLoseClaim(address _account) external onlyFactory() {
         _burn(_account, balanceOf(_account)); // NOTE: checks _balance[_account]
-        emit BurnForWinClaim(_account, balanceOf(_account));
+        emit BurnForWinLoseClaim(_account, balanceOf(_account));
     }
 
     // NOTE: no way to change/update CONF after deployment
