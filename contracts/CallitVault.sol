@@ -28,6 +28,7 @@ import "./ICallitConfig.sol";
 
 interface IERC20x {
     function decimals() external pure returns (uint8);
+    function approve(address spender, uint256 value) external returns (bool);
 }
 
 interface ICallitTicket { 
@@ -656,12 +657,22 @@ contract CallitVault {
             // address pairAddr = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
 
             /** FROM VAULT */
-            usdAmount = _normalizeStableAmnt(_usd_decimals(), usdAmount, IERC20x(CONF.NEW_TICK_USD_STABLE()).decimals());
-            IERC20(new_tick_tok).approve(CONF.NEW_TICK_UNISWAP_V2_ROUTER(), tokenAmount);
-            IERC20(CONF.NEW_TICK_USD_STABLE()).approve(CONF.NEW_TICK_UNISWAP_V2_ROUTER(), usdAmount);
-            IUniswapV2Router02(CONF.NEW_TICK_UNISWAP_V2_ROUTER()).addLiquidity(
+            address router_addr = CONF.NEW_TICK_UNISWAP_V2_ROUTER();
+            address stable_addr = CONF.NEW_TICK_USD_STABLE();
+            IERC20x stable = IERC20x(stable_addr);
+
+            // normalize internal tracking decimals to stable contract decimals
+            usdAmount = _normalizeStableAmnt(_usd_decimals(), usdAmount, stable.decimals());
+
+            // approve router to spend this vault's tokens needed
+            stable.approve(router_addr, usdAmount);
+            IERC20(new_tick_tok).approve(router_addr, tokenAmount);
+
+            // add liquidity (internally used factory to create pair address)
+            IUniswapV2Router02 router = IUniswapV2Router02(router_addr);
+            router.addLiquidity(
                 new_tick_tok,                // Token address
-                CONF.NEW_TICK_USD_STABLE(),           // Assuming ETH as the second asset (or replace with another token address)
+                stable_addr,           // Assuming ETH as the second asset (or replace with another token address)
                 tokenAmount,          // Desired _token amount
                 usdAmount,            // Desired ETH amount (converted from USD or directly provided)
                 0,                    // Min amount of _token (slippage tolerance)
@@ -669,15 +680,13 @@ contract CallitVault {
                 address(this),        // Recipient of liquidity tokens
                 block.timestamp + 300 // Deadline (5 minutes from now)
             );
-            // address pairAddr = IUniswapV2Factory(CONF.NEW_TICK_UNISWAP_V2_FACTORY()).getPair(new_tick_tok, CONF.NEW_TICK_USD_STABLE());
-            address ufact = IUniswapV2Router02(CONF.NEW_TICK_UNISWAP_V2_ROUTER()).factory();
-            address pairAddr = IUniswapV2Factory(ufact).getPair(new_tick_tok, CONF.NEW_TICK_USD_STABLE());
+
+            // retreive pair address from router's factory
+            address pairAddr = IUniswapV2Factory(router.factory()).getPair(new_tick_tok, stable_addr);
+                // address pairAddr = address(0x3700000000000000000000000000000000000037);
             
-            // address pairAddr = address(0x3700000000000000000000000000000000000037);
-            
-            // VAULT.TICK_PAIR_ADDR(new_tick_tok) = pairAddr; // log ticket to pair address mapping
-            // VAULT.KEEPER_logTicketPair(new_tick_tok, pairAddr);
-            TICK_PAIR_ADDR[new_tick_tok] = pairAddr; // log ticket to pair address mapping
+            // map new ticket created to its pair address created
+            TICK_PAIR_ADDR[new_tick_tok] = pairAddr;
             /** _FROM VAULT_ */
 
             // verify ERC20 & LP was created
@@ -688,9 +697,9 @@ contract CallitVault {
             resultOptionTokens[i] = new_tick_tok;
             resultTokenLPs[i] = pairAddr;
 
-            resultTokenRouters[i] = CONF.NEW_TICK_UNISWAP_V2_ROUTER();
+            resultTokenRouters[i] = router_addr;
             // resultTokenFactories[i] = CONF.NEW_TICK_UNISWAP_V2_FACTORY();
-            resultTokenUsdStables[i] = CONF.NEW_TICK_USD_STABLE();
+            resultTokenUsdStables[i] = stable_addr;
             resultTokenVotes[i] = 0;
 
             // NOTE: set ticket to maker mapping, handled from factory
