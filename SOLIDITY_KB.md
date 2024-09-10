@@ -4,6 +4,8 @@
 ## SOLIDITY_KB
 
 ## INDEX ##
+### Panic Error Codes
+### common error codes
 ### uniswapv2 remove liquidity failure
 ### gas costs calculations per operation 
 ### blockchain mempool (tx_pool) data... (chatGPT)
@@ -22,6 +24,36 @@
 ### FUNCTION MODIFIERS & DECORATORS
 
 ## KB ##
+### Panic Error Codes
+    Panic errors use the selector 0x4e487b71 and the following codes:
+    0x00 – Generic assertion error (used for assert violations).
+    0x01 – Arithmetic overflow or underflow (e.g., addition overflow, subtraction underflow).
+    0x11 – Division by zero.
+    0x12 – Invalid enum value (i.e., an enum has been assigned an invalid value).
+    0x21 – Invalid memory or calldata access (e.g., out-of-bounds access).
+    0x22 – Out-of-bounds storage access.
+    0x31 – pop() on an empty array.
+    0x32 – Array index out of bounds (the error you're encountering).
+    0x41 – Memory allocation error (e.g., when there's not enough memory).
+    0x51 – Invalid internal function type.
+    You can find this list and more detailed information in the Solidity documentation under the section covering Panic and Assert Errors.
+    For general Solidity errors, including custom ones, the Solidity ABI specification provides details on how error selectors and encodings work.
+    You can also check out the following sources for common Solidity errors and their resolution:
+    Solidity GitHub Issues (https://github.com/ethereum/solidity/issues)
+    Solidity Documentation (https://docs.soliditylang.org/)
+
+### common error codes
+    - 0x4e487b710000000000000000000000000000000000000000000000000000000000000032
+    - chatGPT
+        The error code 0x4e487b71 corresponds to the Panic error in Solidity. Specifically, this error is part of the built-in error type introduced with Solidity 0.8.x to handle common issues related to the EVM.
+        Let's break it down:
+        0x4e487b71 is the selector for the Panic error.
+        The 0000000000000000000000000000000000000000000000000000000000000032 is the encoded data (the panic code) that corresponds to a specific issue.
+        The Panic error has several predefined codes, and the one in your case is 0x32 (hexadecimal for 50 in decimal). According to the Solidity documentation, panic code 0x32 (50) corresponds to:
+        Panic: Array index is out of bounds.
+        So, this error indicates that there was an attempt to access an array using an index that is out of its bounds.
+        If you are accessing an array in the function that triggered this error, you should check if the index you are using is within the valid range of the array's length.
+
 ### uniswapv2 remove liquidity failure
     - 042823: came across inseteance where i couldn't remove LP for TBF13.1,2
     - turns out i just needed to change 'details' in the pulseX remove UI
