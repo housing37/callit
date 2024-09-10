@@ -27,7 +27,7 @@ interface ICallitVault {
 }
 
 contract CallitTicket is ERC20, Ownable {
-    string public tVERSION = '0.4';
+    string public tVERSION = '0.5';
     address public ADDR_CONFIG; // set via constructor()
     ICallitConfig private CONF = ICallitConfig(ADDR_CONFIG);
 
@@ -47,9 +47,10 @@ contract CallitTicket is ERC20, Ownable {
     constructor(uint256 _initSupply, string memory _name, string memory _symbol) ERC20(_name, _symbol) Ownable(address(this)) {
         ADDR_CONFIG = msg.sender; // config invokes new CallitTicket(...)
         CONF = ICallitConfig(ADDR_CONFIG);
-        require(CONF.ADDR_VAULT() != address(0), ' !vault :7 '); // sanity check (msg.sender is a VAULT)
-        transferOwnership(CONF.ADDR_VAULT());
-        _mint(CONF.ADDR_VAULT(), _initSupply * 10**uint8(decimals())); // 'emit Transfer'
+        address vault = CONF.ADDR_VAULT();
+        require(vault != address(0), ' !vault :7 '); // sanity check (msg.sender is a VAULT)
+        transferOwnership(vault);
+        _mint(vault, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
     }
     modifier onlyFactory() {
         require(msg.sender == CONF.ADDR_FACT(), " !fact ;p ");
