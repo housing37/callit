@@ -248,6 +248,8 @@ contract CallitDelegate {
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
         address promoCodeHash = _initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
+
+        // LEFT OFF HERE ... never storing promoCodeHash generated (only emitting event with it)
     }
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
         return _checkPromoBalance(_promoCodeHash);
