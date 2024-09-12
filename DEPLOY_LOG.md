@@ -15,8 +15,8 @@
     1693191781
     1693192781
     1693193781
-    ["tl_1", "tl_2", "tl_3"]
-    ["td_1", "td_2", "td_3"]
+    ["lab_1", "lab_2", "lab_3"]
+    ["des_1", "des_2", "des_3"]
 
     # 0x0000000000000000000000000000000000000369
     # 0x0000000000000000000000000000000000000000
@@ -33,7 +33,30 @@
 
 # ACTIVITY LOGs ...
     #-----------------------------------------------------------------------------------------------------------#
-    DELEGATE.PROMO_CODE_HASHES: 0x0f1e023eae75832d226a4108e3d1ea1dde459358
+    DELEGATE.PROMO_CODE_HASHES:
+        0x0f1e023eae75832d226a4108e3d1ea1dde459358
+
+    struct MARKET_RESULTS...
+        // result option labels
+        // tl_1,tl_2,tl_3,
+
+        // result option descriptions
+        // td_1,td_2,td_3,
+
+        // tickets
+        // 0x485e5a95773d1E7B7BDac10018451E916e01d69E,0xF9D07B861C7f568958BeB981f2B95f638d9a4edb,0x3D7Dc2B3bE64Aa4acD4965186632Ec043F6a9984,
+
+        // pairs
+        // 0xD72D7b8268080f8C1072ceaA6A8407C3FbbE587e,0x5705854D2c1620Ad59a2C971dA6f7e416dFD8667,0xfdc0C64648aad8377e236c8460b1903aBDbB8ffF,
+
+        // routers
+        // 0x165C3410fC91EF562C50559f7d2289fEbed552d9,0x165C3410fC91EF562C50559f7d2289fEbed552d9,0x165C3410fC91EF562C50559f7d2289fEbed552d9,
+
+        // stables
+        // 0xefD766cCb38EaF1dfd701853BFCe31359239F305,0xefD766cCb38EaF1dfd701853BFCe31359239F305,0xefD766cCb38EaF1dfd701853BFCe31359239F305,
+
+        // result token votes
+        // 0,0,0
 
 # DEPLOY LOGs ...
 

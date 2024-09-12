@@ -481,7 +481,11 @@ contract CallitFactory {
         // calc & set net prize pool after taking out voter reward pool (+ other market close fees)
         mark.marketUsdAmnts.usdAmntPrizePool_net = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool; // NOTE: write to market
         mark.marketUsdAmnts.usdAmntPrizePool_net = LIB._deductFeePerc(mark.marketUsdAmnts.usdAmntPrizePool_net, CONF.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
-        
+            // LEFT OFF HERE .. latest failed here with enum error
+            //  0x4e487b710000000000000000000000000000000000000000000000000000000000000012
+            //  Panic errors use the selector 0x4e487b71 and the following codes:
+            //  0x12 – Invalid enum value (i.e., an enum has been assigned an invalid value).
+            
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 
