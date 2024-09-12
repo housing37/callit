@@ -238,66 +238,7 @@ contract CallitFactory {
             // emit KeeperMaintenance(_erc20, _amount);
         }
     }
-    // function KEEPER_setKeeper(address _newKeeper) external onlyKeeper {
-    //     require(_newKeeper != address(0), 'err: 0 address');
-    //     // address prev = address(KEEPER);
-    //     KEEPER = _newKeeper;
-    //   //  emit KeeperTransfer(prev, KEEPER);
-    // }
-    // function KEEPER_setContracts(address _CALL, address _delegate, address _vault, address _lib, address _fact, bool _new) external onlyKeeper {
-    //     // require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
 
-    //     // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
-    //     // EOA may send _new = true to invoke 'INI_factory' for new contract deployments
-    //     if (_CALL != address(0)) {
-    //         ADDR_CALL = _CALL;
-    //         CALL = ICallitToken(address(_CALL));
-    //         if (_new) {
-    //             CALL.INIT_factory(); // set ADDR_FACT in CallitToken
-                
-    //             // mint initial CALl to keeper
-    //             _mintCallToksEarned(KEEPER, 37); // LEFT OFF HERE ... testing only (comment out for production)
-    //         }
-            
-    //     }
-    //     if (_delegate != address(0)) {
-    //         ADDR_DELEGATE = _delegate;
-    //         DELEGATE = ICallitDelegate(address(_delegate));
-    //         if (_new) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
-    //     }
-    //     if (_vault != address(0)) {
-    //         ADDR_VAULT = _vault;
-    //         VAULT = ICallitVault(address(_vault));
-    //         if (_new) {
-    //             VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
-    //         }
-    //     }
-    //     if (_lib != address(0)) {
-    //         ADDR_LIB = _lib;
-    //         LIB = ICallitLib(address(_lib));
-    //     }
-
-    //     // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
-    //     //  if no _fact, update support contracts w/ current FACTORY address
-    //     if (_fact == address(0)) {
-    //         _fact = address(this); 
-    //     }
-
-    //     // update support contracts w/ OG|new addies accordingly
-    //     CALL.FACT_setContracts(_fact, address(VAULT));       
-    //     DELEGATE.KEEPER_setContracts(_fact, address(VAULT), address(LIB));
-    //     VAULT.KEEPER_setContracts(_fact, address(DELEGATE), address(LIB));
-    // }
-    // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
-    // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
-    //     MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
-    //     MAX_EOA_MARKETS = _maxEoaMarkets;
-    //     // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-    //     MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
-
-    //     SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    //     USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - UI (CALLIT)
