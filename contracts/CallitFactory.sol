@@ -302,12 +302,19 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     /* PUBLIC - UI (CALLIT)
     /* -------------------------------------------------------- */
-    // handle contract USD value deposits (convert PLS to USD stable)
-    // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
-    receive() external payable {
-        // process PLS value sent
-        uint256 amntIn = msg.value;
-        VAULT.deposit{value: amntIn}(msg.sender);
+    /* ref: https://docs.soliditylang.org/en/latest/contracts.html#fallback-function
+        The fallback function is executed on a call to the contract if none of the other 
+        functions match the given function signature, 
+        or if no data was supplied at all and there is no receive Ether function. 
+        The fallback function always receives data, but in order to also receive Ether it must be marked payable.
+    */
+    // invoked if ...
+    //  function invoked doesn't exist
+    //  no receive() implemented & ETH received w/o data
+    fallback() external payable {
+        // handle contract USD value deposits (convert PLS to USD stable)
+        // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
+        VAULT.deposit{value: msg.value}(msg.sender);
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
         //  emit DepositReceived(msg.sender, amntIn, 0);
     }
