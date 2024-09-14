@@ -394,7 +394,7 @@ contract CallitDelegate {
         //  then this promo code cannot be used until PERC_PROMO_BUY_FEE is lowered accordingly
         return VAULT._payPromotorDeductFeesBuyTicket(promo.percReward, _usdAmnt, promo.promotor, _promoCodeHash, _ticket, _usdStableResult, _sender);
     }
-    function closeMarketCallsForTicket(ICallitLib.MARKET memory mark) external onlyFactory returns(uint64) { // NOTE: !_deductFeePerc; reward mint
+    function closeMarketCalls(ICallitLib.MARKET memory mark) external onlyFactory returns(uint64) { // NOTE: !_deductFeePerc; reward mint
         // algorithmic logic...
         //  get market for _ticket
         //  verify mark.marketDatetimes.dtCallDeadline has indeed passed
