@@ -28,10 +28,10 @@ interface IERC20 {
 interface ICallitToken {
     function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
     function EARNED_CALL_VOTES(address _key) external view returns(uint64); // public
-    function INIT_factory() external;
-    function FACT_setContracts(address _fact, address _vault) external;
+    // function INIT_factory() external;
+    // function FACT_setContracts(address _fact, address _vault) external;
     function mintCallToksEarned(address _receiver, uint256 _callAmntMint, uint64 _callVotesEarned, address _sender) external;
-    function setCallTokenVoteLock(bool _lock) external;
+    // function setCallTokenVoteLock(bool _lock) external;
     function decimals() external pure returns (uint8);
     function balanceOf_voteCnt(address _voter) external view returns(uint64);
 }
@@ -39,7 +39,7 @@ interface ICallitTicket {
     // function mintForPriceParity(address _receiver, uint256 _amount) external;
     function burnForWinLoseClaim(address _account) external;
     function decimals() external pure returns (uint8);
-    function balanceOf(address account) external returns(uint256);
+    // function balanceOf(address account) external returns(uint256);
 }
 interface ICallitDelegate {
     // function RATIO_LP_TOK_PER_USD() external view returns(uint16);
@@ -83,7 +83,7 @@ interface ICallitDelegate {
                         ) external returns(ICallitLib.MARKET memory,uint256);
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCalls(ICallitLib.MARKET memory mark) external returns(uint64);
-    function setAcctHandle(address _acct, string calldata _handle) external;    
+    // function setAcctHandle(address _acct, string calldata _handle) external;    
     // function checkPromoBalance(address _promoCodeHash) external view returns(uint64);
     function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
 }
@@ -170,7 +170,6 @@ contract CallitFactory {
     // event TicketClaimed(address _sender, address _ticket, bool _is_winner, bool _resultAgree);
     // event VoterRewardsClaimed(address _claimer, uint64 _usdRewardOwed, uint64 _usdRewardOwed_net);
     // event CallTokensEarned(address _sedner, address _receiver, uint64 _callAmntEarned, uint64 _callPrevBal, uint64 _callCurrBal);
-    event PromoRewardsPaid(address _sender, address _promoCodeHash, uint64 _usdPaid, address _promotor);
 
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
@@ -617,15 +616,6 @@ contract CallitFactory {
       //  emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);
 
         // NOTE: no $CALL tokens minted for this action   
-    }
-    function claimPromotorRewards(address _promoCodeHash) external {
-        ICallitLib.PROMO memory promo = DELEGATE.PROMO_CODE_HASHES(_promoCodeHash);
-        require(promo.promotor != address(0), ' !promotor :p ');
-
-        uint64 usdTargRem = promo.usdTarget - promo.usdUsed;
-        require(usdTargRem < LIB._perc_of_uint64(CONF.PERC_REQ_CLAIM_PROMO_REWARD(), promo.usdTarget), ' target not hit yet :0 ');
-        uint64 usdPaid = VAULT.payPromoUsdReward(msg.sender, _promoCodeHash, promo.usdUsed, promo.promotor); // invokes _payUsdReward
-        emit PromoRewardsPaid(msg.sender, _promoCodeHash, usdPaid, promo.promotor);
     }
 
     /* -------------------------------------------------------- */

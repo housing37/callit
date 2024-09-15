@@ -143,6 +143,7 @@ contract CallitDelegate {
     // legacy & callit promo
     event KeeperTransfer(address _prev, address _new);
     event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
+    event PromoRewardsPaid(address _sender, address _promoCodeHash, uint64 _usdPaid, address _promotor);
 
     /* -------------------------------------------------------- */
     /* CONSTRUTOR
@@ -416,6 +417,15 @@ contract CallitDelegate {
         }
 
         return usdAmntPrizePool;
+    }
+    function claimPromotorRewards(address _promoCodeHash) external {
+        ICallitLib.PROMO memory promo = PROMO_CODE_HASHES[_promoCodeHash];
+        require(promo.promotor != address(0), ' !promotor :p ');
+
+        uint64 usdTargRem = promo.usdTarget - promo.usdUsed;
+        require(usdTargRem < LIB._perc_of_uint64(CONF.PERC_REQ_CLAIM_PROMO_REWARD(), promo.usdTarget), ' target not hit yet :0 ');
+        uint64 usdPaid = VAULT.payPromoUsdReward(msg.sender, _promoCodeHash, promo.usdUsed, promo.promotor); // invokes _payUsdReward
+        emit PromoRewardsPaid(msg.sender, _promoCodeHash, usdPaid, promo.promotor);
     }
 
     /* -------------------------------------------------------- */
