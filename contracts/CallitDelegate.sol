@@ -273,7 +273,7 @@ contract CallitDelegate {
                             string[] calldata _resultLabels, // note: could possibly remove to save memory (ie. removed _resultDescrs succcessfully)
                             uint256 _mark_num,
                             address _sender
-                            ) external onlyFactory returns(ICallitLib.MARKET memory,uint256) { 
+                            ) external onlyFactory returns(ICallitLib.MARKET memory) { 
         require(VAULT.ACCT_USD_BALANCES(_sender) >= _usdAmntLP, ' low balance ;{ ');
         require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
@@ -372,7 +372,8 @@ contract CallitDelegate {
         // // deduct full OG usd input from account balance
         VAULT.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
 
-        return (mark,_dtResultVoteEnd);
+        // return (mark,_dtResultVoteEnd);
+        return mark;
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _sender) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt

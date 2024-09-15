@@ -51,7 +51,8 @@ contract CallitToken is ERC20, Ownable {
     /* EVENTS
     /* -------------------------------------------------------- */
     event CallTokensEarned(address _sender, address _receiver, uint256 _callAmntEarned, uint64 _callVotesEarned, uint64 _callPrevBal, uint64 _callCurrBal);
-
+    // event TokenNameSymbolUpdated(string TOK_NAME, string TOK_SYMB);
+    
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
     /* -------------------------------------------------------- */
