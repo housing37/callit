@@ -100,7 +100,7 @@ contract CallitFactory {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.40';
+    string public tVERSION = '0.41.1';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -266,8 +266,7 @@ contract CallitFactory {
         require(_maker != address(0), ' !_maker ;[=] ');
 
         // NOTE: MAX_EOA_MARKETS is uint64
-        ICallitLib.MARKET[] memory marks = ACCT_MARKETS[_maker];
-        return _getMarketReturns(marks, _all, _live, _idxStart, _retCnt);
+        return _getMarketReturns(ACCT_MARKETS[_maker], _all, _live, _idxStart, _retCnt);
     }
     function _getMarketReturns(ICallitLib.MARKET[] memory _marks, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private pure returns(ICallitLib.MARKET[] memory) {
         require(_marks.length > 0 && _retCnt > 0 && _marks.length > _idxStart + _retCnt, ' out of range :p ');

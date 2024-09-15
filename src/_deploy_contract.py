@@ -115,12 +115,15 @@ def main():
     import _keeper
     global W3_, ABI_FILE, BIN_FILE, CONTRACT
     contr_name = init_web3()
+    tx_nonce = W3_.W3.eth.get_transaction_count(W3_.SENDER_ADDRESS)
     print(f'\nDEPLOYING bytecode: {BIN_FILE}')
     print(f'DEPLOYING abi: {ABI_FILE}')
+    print(f'DEPLOYING w/ nonce: {tx_nonce}')
     assert input('\n (1) procced? [y/n]\n  > ') == 'y', "aborted...\n"
 
     # constr_args, = generate_contructor(f'{contr_name}.constructor(...)') # 0x78b48b71C8BaBd02589e3bAe82238EC78966290c
     constr_args, _ = _keeper.go_enter_func_params(f'{contr_name}.constructor(...)')
+    
     print(f'  using "constructor({", ".join(map(str, constr_args))})"')
     assert input(f'\n (2) procced? [y/n] _ {get_time_now()}\n  > ') == 'y', "aborted...\n"
 
@@ -128,7 +131,7 @@ def main():
     # assert proceed, "\ndeployment canceled after gas estimate\n"
 
     print('\ncalculating gas ...')
-    tx_nonce = W3_.W3.eth.get_transaction_count(W3_.SENDER_ADDRESS)
+    # tx_nonce = W3_.W3.eth.get_transaction_count(W3_.SENDER_ADDRESS)
     tx_params = {
         'chainId': W3_.CHAIN_ID,
         'nonce': tx_nonce,
