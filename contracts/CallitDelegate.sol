@@ -33,7 +33,7 @@ contract CallitDelegate {
     /* GLOBALS (CALLIT) */
     // bool private ONCE_ = true;
     bool private FIRST_ = true;
-    string public constant tVERSION = '0.34';
+    string public constant tVERSION = '0.35';  
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
