@@ -59,6 +59,13 @@
         // 0,0,0
 
 # DEPLOY LOGs ...
+    #-----------------------------------------------------------------------------------------------------------#
+    address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
+    address public ADDR_VAULT = address(0xa7Fa4ff1022c611124107DA1D5541Fe61cA46c74); // CallitVault v0.46
+    address public ADDR_DELEGATE = address(0x178e541Ed6ba84184507eC824D7B8335d8ed7044); // CallitDelegate v0.32
+    address public ADDR_CALL = address(0xe19Ab2d065340d12afc63F8FeE5a59b0b10b6846); // CallitToken v0.15
+    address public ADDR_FACT = address(0xb1210481189cEBD1b09aECbDBEfFde3C8C06E506); // CallitFactory v0.42
+    address public ADDR_CONF = address(0x93e3d2c3CC19D6Ee6E67fFBC1C1617128913160a); // CallitConfig v0.12
 
     #-----------------------------------------------------------------------------------------------------------#
     address public ADDR_LIB = address(0x8FF7c05259725209Fa7dA5038eD4E1DaB37710C9); // CallitLib v0.16
