@@ -59,6 +59,7 @@ interface ICallitDelegate {
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark) external;
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
     function _getMarketForTicket(address _maker, address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
+    function getMarketCntForMaker(address _maker) external view returns(uint256);
 }
 
 contract CallitFactory {
@@ -169,7 +170,8 @@ contract CallitFactory {
     // }
     function getMarketCntForMaker(address _maker) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
-        return DELEGATE.ACCT_MARKET_HASHES(_maker).length;
+        return DELEGATE.getMarketCntForMaker(_maker);
+        // return DELEGATE.ACCT_MARKET_HASHES(_maker).length;
     }
     function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
         require(bytes(_category).length > 0, ' no cat :=0 ');
@@ -260,7 +262,8 @@ contract CallitFactory {
         require(2 <= _resultLabels.length && _resultLabels.length <= CONF.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
 
         // initilize/validate market number for struct MARKET tracking
-        uint256 mark_num = DELEGATE.ACCT_MARKET_HASHES(msg.sender).length;
+        // uint256 mark_num = DELEGATE.ACCT_MARKET_HASHES(msg.sender).length;
+        uint256 mark_num = DELEGATE.getMarketCntForMaker(msg.sender);
         require(mark_num <= CONF.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
 
         // save this market and emit log

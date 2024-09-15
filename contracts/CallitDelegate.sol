@@ -284,6 +284,10 @@ contract CallitDelegate {
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
         return _checkPromoBalance(_promoCodeHash);
     }
+    function getMarketCntForMaker(address _maker) external view returns(uint256) {
+        // NOTE: MAX_EOA_MARKETS is uint64
+        return ACCT_MARKET_HASHES[_maker].length;
+    }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - FACTORY SUPPORT
