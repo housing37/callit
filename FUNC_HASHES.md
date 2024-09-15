@@ -59,7 +59,7 @@ FORMAT: readable ... CallitVault => 24553 bytes _ limits: 24576 bytes & 49152 by
 
 ## CallitDelegate.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitDelegate => 23762 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitDelegate => 23829 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0xb018221f": "ACCT_MARKET_HASHES(address,uint256)" -> "['address']",
@@ -79,6 +79,7 @@ FORMAT: readable ... CallitDelegate => 23762 bytes _ limits: 24576 bytes & 49152
     "0x41799c3d": "claimPromotorRewards(address)" -> "[]",
     "0xbba29136": "claimVoterRewards(address)" -> "[]",
     "0x981fd888": "closeMarketCalls(tuple)" -> "['uint64']",
+    "0x1a4713ee": "getMarketCntForMaker(address)" -> "['uint256']",
     "0x37eca5e9": "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],uint256,address)" -> "['tuple']",
     "0x28bc0594": "pushAcctMarketVote(address,tuple)" -> "[]",
     "0x7acf70b6": "setHashMarket(address,tuple,string)" -> "[]",

@@ -56,7 +56,7 @@ interface ICallitDelegate {
     function claimVoterRewards() external;
     function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external;
     function pushCatMarketHash(string calldata _category, address _markHash) external;
-    function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark) external;
+    function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
     function _getMarketForTicket(address _maker, address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
@@ -248,7 +248,7 @@ contract CallitFactory {
 
         // log category created for this ticket's market hash
         DELEGATE.pushCatMarketHash(_category, mark_hash);
-        DELEGATE.setHashMarket(mark_hash, mark);
+        DELEGATE.setHashMarket(mark_hash, mark, _category);
     }
     function makeNewMarket(string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                             uint64 _usdAmntLP, 
@@ -343,7 +343,7 @@ contract CallitFactory {
 
         // note: loops through market pair addresses and pulls liquidity for each
         mark.marketUsdAmnts.usdAmntPrizePool = DELEGATE.closeMarketCalls(mark); // NOTE: write to market
-        DELEGATE.setHashMarket(mark_hash, mark);
+        DELEGATE.setHashMarket(mark_hash, mark, '');
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS()); // emit CallTokensEarned
@@ -378,7 +378,7 @@ contract CallitFactory {
 
         //  - store vote in struct MARKET
         mark.marketResults.resultTokenVotes[tickIdx] += vote_cnt; // NOTE: write to market
-        DELEGATE.setHashMarket(mark_hash, mark);
+        DELEGATE.setHashMarket(mark_hash, mark, '');
 
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
         //  NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
@@ -434,7 +434,7 @@ contract CallitFactory {
 
         // close market
         mark.live = false; // NOTE: write to market
-        DELEGATE.setHashMarket(mark_hash, mark);
+        DELEGATE.setHashMarket(mark_hash, mark, '');
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_MARK_CLOSE()); // emit CallTokensEarned
