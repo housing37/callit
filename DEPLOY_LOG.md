@@ -65,6 +65,13 @@
         ["lab_1", "lab_2", "lab_3"]
         ["des_1", "des_2", "des_3"]
     #-----------------------------------------------------------------------------------------------------------#
+    #-----------------------------------------------------------------------------------------------------------#
+    address public ADDR_LIB = address(0xbE85292784FE3c383BF8a262Be34f4f282A52D05); // CallitLib v0.17
+    address public ADDR_VAULT = address(0xECA9c5f7e327415919Ed144B7f69c63Cfef71a71); // CallitVault v0.47
+    address public ADDR_DELEGATE = address(0x2E4d9A7cc3c54EDF0cdF6331E11C0846aa0D2B55); // CallitDelegate v0.35
+    address public ADDR_CALL = address(0x42E9F9246E3cF74ca33104A366096bfB26546C4d); // CallitToken v0.16
+    address public ADDR_FACT = address(0x9f62E0E35fAE173625809F5C392335B4fF322892); // CallitFactory v0.47
+    address public ADDR_CONF = address(0x26c635ef13ff711036896B8f51F87B0EcE3EF7C4); // CallitConfig v0.13
 
     #-----------------------------------------------------------------------------------------------------------#
     address public ADDR_LIB = address(0xbE85292784FE3c383BF8a262Be34f4f282A52D05); // CallitLib v0.17
