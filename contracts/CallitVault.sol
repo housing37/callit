@@ -330,6 +330,8 @@ contract CallitVault {
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
     /* -------------------------------------------------------- */
+    // NOTE: attempts to refactor this function into a global, 
+    //  results in increased compilation file size (despite being invoked 11 or 12)
     function _usd_decimals() public pure returns (uint8) {
         return 6; // (6 decimals) 
             // * min USD = 0.000001 (6 decimals) 
@@ -626,7 +628,7 @@ contract CallitVault {
         
     // function createDexLP(uint256 _resultCnt, uint64 _net_usdAmntLP) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
     // function createDexLP(string[] calldata _resultLabels, uint64 _net_usdAmntLP) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
-    function createDexLP(string[] calldata _resultLabels, uint64 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
+    function createDexLP(string[] calldata _resultLabels, uint256 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
 
         // // note: makeNewMarket
         // // temp-arrays for 'makeNewMarket' support
@@ -645,12 +647,30 @@ contract CallitVault {
         resultTokenRouters = new address[](_resultLabels.length);
         resultTokenUsdStables = new address[](_resultLabels.length);
         resultTokenVotes = new uint64[](_resultLabels.length);
-        
+
+        // Get/calc amounts for each initial LP (usd and token amounts)
+        (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, _ratioLpTokPerUsd);
+
+        // get router & stable to be used for each initial LP
+        address router_addr = CONF.NEW_TICK_UNISWAP_V2_ROUTER();
+        address stable_addr = CONF.NEW_TICK_USD_STABLE();
+        IERC20x stable = IERC20x(stable_addr);
+        uint8 stable_decs = stable.decimals();
+
+        // normalize internal tracking decimals to match stable contract's decimals
+        usdAmount = _normalizeStableAmnt(_usd_decimals(), usdAmount, stable_decs);
+        _net_usdAmntLP = _normalizeStableAmnt(_usd_decimals(), _net_usdAmntLP, stable_decs);
+
+        // approve router to spend this vault's total 'stable' needed
+        //  note: approving '_net_usdAmntLP' for total liquidity needed
+        //        not just 'usdAmount' for each individual LP created
+        stable.approve(router_addr, _net_usdAmntLP);
+
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
         // for (uint16 i = 0; i < _resultCnt;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
-            // Get/calc amounts for initial LP (usd and token amounts)
-            (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, _ratioLpTokPerUsd);
+            // // Get/calc amounts for initial LP (usd and token amounts)
+            // (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, _ratioLpTokPerUsd);
             // (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);
             // (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultCnt, RATIO_LP_TOK_PER_USD);
 
@@ -666,15 +686,17 @@ contract CallitVault {
             // address pairAddr = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
 
             /** FROM VAULT */
-            address router_addr = CONF.NEW_TICK_UNISWAP_V2_ROUTER();
-            address stable_addr = CONF.NEW_TICK_USD_STABLE();
-            IERC20x stable = IERC20x(stable_addr);
+            // address router_addr = CONF.NEW_TICK_UNISWAP_V2_ROUTER();
+            // address stable_addr = CONF.NEW_TICK_USD_STABLE();
+            // IERC20x stable = IERC20x(stable_addr);
 
-            // normalize internal tracking decimals to stable contract decimals
-            usdAmount = _normalizeStableAmnt(_usd_decimals(), usdAmount, stable.decimals());
+            // // normalize internal tracking decimals to stable contract decimals
+            // usdAmount = _normalizeStableAmnt(_usd_decimals(), usdAmount, stable.decimals());
 
-            // approve router to spend this vault's tokens needed
-            stable.approve(router_addr, usdAmount);
+            // // approve router to spend this vault's tokens needed
+            // stable.approve(router_addr, usdAmount);
+
+            // approve router to spend this vault's new ticket tokens needed
             IERC20(new_tick_tok).approve(router_addr, tokenAmount);
 
             // add liquidity (internally used factory to create pair address)

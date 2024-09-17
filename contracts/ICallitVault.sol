@@ -67,7 +67,7 @@ interface ICallitVault {
     function _usd_decimals() external pure returns (uint8);
     function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) external;
     // function createDexLP(uint256 _resultCnt, uint64 _net_usdAmntLP) external returns(ICallitLib.MARKET_RESULTS memory);
-    function createDexLP(string[] calldata _resultLabels, uint64 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external returns(ICallitLib.MARKET_RESULTS memory);
+    function createDexLP(string[] calldata _resultLabels, uint256 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external returns(ICallitLib.MARKET_RESULTS memory);
     // function _createDexLP(address _uswapV2Router, address _uswapv2Factory, address _token, address _usdStable, uint256 _tokenAmount, uint256 _usdAmount) external returns (address);
     function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) external returns(uint256);
 
