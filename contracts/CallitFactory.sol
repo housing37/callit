@@ -70,7 +70,7 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.45';
+    string public tVERSION = '0.46';  
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -179,7 +179,7 @@ contract CallitFactory {
         address[] memory mark_hashes = DELEGATE.CATEGORY_MARK_HASHES(_category);
         require(mark_hashes.length > 0, ' no markets :-/ ');
         ICallitLib.MARKET[] memory marks = new ICallitLib.MARKET[](mark_hashes.length);
-        for (uint i = 0; i < mark_hashes.length;) {
+        for (uint i = 0; i < mark_hashes.length; i++) {
             marks[i] = DELEGATE.HASH_MARKET(mark_hashes[i]);
         }
         return _getMarketReturns(marks, _all, _live, _idxStart, _retCnt);
@@ -190,7 +190,7 @@ contract CallitFactory {
         address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
         require(mark_hashes.length > 0, ' no markets :/ ');
         ICallitLib.MARKET[] memory marks = new ICallitLib.MARKET[](mark_hashes.length);
-        for (uint i = 0; i < mark_hashes.length;) {
+        for (uint i = 0; i < mark_hashes.length; i++) {
             marks[i] = DELEGATE.HASH_MARKET(mark_hashes[i]);
         }
         return _getMarketReturns(marks, _all, _live, _idxStart, _retCnt);

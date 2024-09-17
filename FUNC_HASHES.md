@@ -119,7 +119,7 @@ FORMAT: readable ... CallitToken => 6631 bytes _ limits: 24576 bytes & 49152 byt
 
 ## CallitFactory.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitFactory => 19031 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitFactory => 19821 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0xe0199969": "ACCT_MARKET_REVIEWS(address,uint256)" -> "['address', 'bool', 'address', 'uint256', 'uint64', 'uint64']",
