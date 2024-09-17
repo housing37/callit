@@ -13,6 +13,30 @@ interface ICallitLib {
         address adminCreator; // admin who created this promo
         uint256 blockNumber; // block number this promo was created
     }
+    struct MARKET_INFO {
+        uint256 marketNum;
+        string marketName;
+        string imgUrl;
+        uint256 initUsdAmntLP_tot;
+        string[] resultLabels;
+        address[] resultTickets;
+        uint256[] dtDeadlines; // call closed, vote start, vote end
+        bool live;
+
+
+        // ref: kail_091624
+        // In my opinion, following infos are important and should be returned for the home page.
+        // {
+        //     marketNum
+        //     name
+        //     imgURL
+        //     marketUsdAmnts.usdAmntLP
+        //     marketDatetimes.dtResultVoteEnd
+        //     resultLabels[]
+        //     resultOptionTokens[]
+        //     live
+        // }
+    }
     struct MARKET {
         address maker; // EOA market maker
         uint256 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS

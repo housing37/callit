@@ -173,18 +173,22 @@ contract CallitFactory {
         return DELEGATE.getMarketCntForMaker(_maker);
         // return DELEGATE.ACCT_MARKET_HASHES(_maker).length;
     }
-    function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
+    // function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
+    function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
         require(bytes(_category).length > 0, ' no cat :=0 ');
         address[] memory mark_hashes = DELEGATE.CATEGORY_MARK_HASHES(_category);
+        require(mark_hashes.length > 0, ' no markets :-/ ');
         ICallitLib.MARKET[] memory marks = new ICallitLib.MARKET[](mark_hashes.length);
         for (uint i = 0; i < mark_hashes.length;) {
             marks[i] = DELEGATE.HASH_MARKET(mark_hashes[i]);
         }
         return _getMarketReturns(marks, _all, _live, _idxStart, _retCnt);
     }
-    function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
+    // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
+    function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
         require(_maker != address(0), ' !_maker ;[=] ');
         address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
+        require(mark_hashes.length > 0, ' no markets :/ ');
         ICallitLib.MARKET[] memory marks = new ICallitLib.MARKET[](mark_hashes.length);
         for (uint i = 0; i < mark_hashes.length;) {
             marks[i] = DELEGATE.HASH_MARKET(mark_hashes[i]);
@@ -194,12 +198,15 @@ contract CallitFactory {
         // NOTE: MAX_EOA_MARKETS is uint64
         // return _getMarketReturns(ACCT_MARKETS[_maker], _all, _live, _idxStart, _retCnt);
     }
-    function _getMarketReturns(ICallitLib.MARKET[] memory _marks, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private pure returns(ICallitLib.MARKET[] memory) {
+
+    // function _getMarketReturns(ICallitLib.MARKET[] memory _marks, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private pure returns(ICallitLib.MARKET[] memory) {
+    function _getMarketReturns(ICallitLib.MARKET[] memory _marks, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private pure returns(ICallitLib.MARKET_INFO[] memory) {
         require(_marks.length > 0 && _retCnt > 0 && _marks.length > _idxStart + _retCnt, ' out of range :p ');
 
         // init return array
-        ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt);
-        
+        // ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt);
+        ICallitLib.MARKET_INFO[] memory mark_infos = new ICallitLib.MARKET_INFO[](_retCnt);
+
         // loop through _maker markets & aggregate/return matches to _live 
         uint8 cnt_;
         // for (uint8 i = 0; cnt_ <= _retCnt && i < mark_hashes.length;) {
@@ -211,13 +218,28 @@ contract CallitFactory {
             if (!_all && mark.live != _live) { unchecked {i++;} continue; }
                  
             // log _live market found
-            marks_ret[cnt_] = mark; // note: use 'i' not '_idxStart + i'
+            // marks_ret[cnt_] = mark; // note: use 'i' not '_idxStart + i'
+            uint256[] memory dt_deadlines = new uint256[](3);
+            dt_deadlines[0] = mark.marketDatetimes.dtCallDeadline;
+            dt_deadlines[1] = mark.marketDatetimes.dtResultVoteStart;
+            dt_deadlines[2] = mark.marketDatetimes.dtResultVoteEnd;
+            // [mark.marketDatetimes.dtCallDeadline, mark.marketDatetimes.dtResultVoteStart, mark.marketDatetimes.dtResultVoteEnd]
+            mark_infos[cnt_] = ICallitLib.MARKET_INFO({
+                                marketNum: mark.marketNum, 
+                                marketName: mark.name, 
+                                imgUrl: mark.imgUrl, 
+                                initUsdAmntLP_tot: mark.marketUsdAmnts.usdAmntLP, 
+                                resultLabels: mark.marketResults.resultLabels,
+                                resultTickets: mark.marketResults.resultOptionTokens,
+                                dtDeadlines: dt_deadlines,
+                                live: mark.live
+                            });
             unchecked {
                 i++; cnt_++;
             }
         }
-        require(marks_ret.length > 0, ' none :-( ');
-        return marks_ret;
+        require(mark_infos.length > 0, ' none :-( ');
+        return mark_infos;
     }
 
     /* ref: https://docs.soliditylang.org/en/latest/contracts.html#fallback-function
