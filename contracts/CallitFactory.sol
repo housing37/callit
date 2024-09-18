@@ -71,7 +71,7 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.53';
+    string public tVERSION = '0.55';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -178,33 +178,36 @@ contract CallitFactory {
         require(_maker != address(0), ' !_maker ;[=] ');
         // address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
         address[] memory mark_hashes = DELEGATE.getMarketHashesForMaker(_maker);
-        require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length > _idxStart + _retCnt, ' out of range :p ');
-        return mark_hashes;
-            // LEFT OFF HERE ... just trying to test and get to this return point (v0.52 latest attempt failed)
-        // address[] memory ret_hashes = new address[](_retCnt);
-        // uint8 cnt_;
-        // for (uint8 i = 0; cnt_ <= _retCnt && i < mark_hashes.length;) {
-        //     // check for mismatch, skip & inc only 'i' (note: _all == _live|!_live)
-        //     ICallitLib.MARKET memory mark = DELEGATE.HASH_MARKET(mark_hashes[_idxStart + i]);
-        //     if (!_all && mark.live != _live) { 
-        //         unchecked {i++;} 
-        //         continue; 
-        //     }
+        require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :p ');
+        // return mark_hashes; // NOTE: return succeeds just fine here
 
-        //     // log market hash found; continue w/ inc both 'i' & 'cnt_'
-        //     ret_hashes[cnt_] = mark_hashes[_idxStart + i];
-        //     unchecked {
-        //         i++; cnt_++;
-        //     }
-        // }
-        // return ret_hashes;
+        // LEFT OFF HERE ... the below keeps failing "web3.exceptions.ContractLogicError"
+        address[] memory ret_hashes = new address[](_retCnt);
+        uint8 cnt_;
+        for (uint8 i = 0; cnt_ < _retCnt && _idxStart + i < mark_hashes.length;) {
+            // check for mismatch, skip & inc only 'i' (note: _all == _live|!_live)
+            ICallitLib.MARKET memory mark = DELEGATE.HASH_MARKET(mark_hashes[_idxStart + i]);
+            if (!_all && mark.live != _live) { 
+                unchecked {i++;} 
+                continue; 
+            }
+
+            // log market hash found; continue w/ inc both 'i' & 'cnt_'
+            ret_hashes[cnt_] = mark_hashes[_idxStart + i];
+            unchecked {
+                i++; cnt_++;
+            }
+        }
+        return ret_hashes;
     }
     // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
     function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
         require(_maker != address(0), ' !_maker ;[-] ');
         // address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
         address[] memory mark_hashes = DELEGATE.getMarketHashesForMaker(_maker);
-        require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length > _idxStart + _retCnt, ' out of range :-p ');
+        require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :-p ');
+        
+        // LEFT OFF HERE ... the below keeps failing "web3.exceptions.ContractLogicError"
         return _getMarketReturns(mark_hashes, _all, _live, _idxStart, _retCnt);
     }
     function _getMarketReturns(address[] memory _markHashes, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private view returns(ICallitLib.MARKET_INFO[] memory) {
@@ -212,7 +215,7 @@ contract CallitFactory {
         // ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt);
         ICallitLib.MARKET_INFO[] memory mark_infos = new ICallitLib.MARKET_INFO[](_retCnt);
         uint8 cnt_;
-        for (uint8 i = 0; cnt_ <= _retCnt && i < _markHashes.length;) {
+        for (uint8 i = 0; cnt_ < _retCnt && _idxStart + i < _markHashes.length;) {
             ICallitLib.MARKET memory mark = DELEGATE.HASH_MARKET(_markHashes[_idxStart + i]);
 
             // check for mismatch, skip & inc only 'i' (note: _all = _live|!_live)

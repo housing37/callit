@@ -70,6 +70,22 @@
     address public ADDR_VAULT = address(0x3bBA626b86F568e4D8FA79262Cc1151173C6198E); // CallitVault v0.48
     address public ADDR_DELEGATE = address(0x3Dd0300411D99a0E7Dc4DFa4D82090db551880f9); // CallitDelegate v0.37
     address public ADDR_CALL = address(0x42E9F9246E3cF74ca33104A366096bfB26546C4d); // CallitToken v0.16
+    address public ADDR_FACT = address(0xE3EBb710FaAbe99FA79742D72C1f69AcD5858fAC); // CallitFactory v0.55
+    address public ADDR_CONF = address(0x26c635ef13ff711036896B8f51F87B0EcE3EF7C4); // CallitConfig v0.13
+
+    #-----------------------------------------------------------------------------------------------------------#
+    address public ADDR_LIB = address(0xbE85292784FE3c383BF8a262Be34f4f282A52D05); // CallitLib v0.17
+    address public ADDR_VAULT = address(0x3bBA626b86F568e4D8FA79262Cc1151173C6198E); // CallitVault v0.48
+    address public ADDR_DELEGATE = address(0x3Dd0300411D99a0E7Dc4DFa4D82090db551880f9); // CallitDelegate v0.37
+    address public ADDR_CALL = address(0x42E9F9246E3cF74ca33104A366096bfB26546C4d); // CallitToken v0.16
+    address public ADDR_FACT = address(0xB53A0242b5B0fD810e2D3AB7305d78a3bF4767E4); // CallitFactory v0.54
+    address public ADDR_CONF = address(0x26c635ef13ff711036896B8f51F87B0EcE3EF7C4); // CallitConfig v0.13
+
+    #-----------------------------------------------------------------------------------------------------------#
+    address public ADDR_LIB = address(0xbE85292784FE3c383BF8a262Be34f4f282A52D05); // CallitLib v0.17
+    address public ADDR_VAULT = address(0x3bBA626b86F568e4D8FA79262Cc1151173C6198E); // CallitVault v0.48
+    address public ADDR_DELEGATE = address(0x3Dd0300411D99a0E7Dc4DFa4D82090db551880f9); // CallitDelegate v0.37
+    address public ADDR_CALL = address(0x42E9F9246E3cF74ca33104A366096bfB26546C4d); // CallitToken v0.16
     address public ADDR_FACT = address(0xcf40ebf4606dB4E7e4F7a264eD9514a6809A25D8); // CallitFactory v0.53
     address public ADDR_CONF = address(0x26c635ef13ff711036896B8f51F87B0EcE3EF7C4); // CallitConfig v0.13
 
