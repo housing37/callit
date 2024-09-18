@@ -32,7 +32,7 @@ FORMAT: readable ... CallitLib => 8759 bytes _ limits: 24576 bytes & 49152 bytes
 
 ## CallitVault.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitVault => 24553 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitVault => 24555 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0x9032bcc8": "ACCOUNTS(uint256)" -> "['address']",
@@ -48,7 +48,7 @@ FORMAT: readable ... CallitVault => 24553 bytes _ limits: 24576 bytes & 49152 by
     "0x3b3b19fb": "_payPromotorDeductFeesBuyTicket(uint16,uint64,address,address,address,address,address)" -> "['uint64', 'uint256']",
     "0x09aba2a3": "_payUsdReward(address,uint64,address)" -> "[]",
     "0x17fd5397": "_usd_decimals()" -> "['uint8']",
-    "0x93b64ea6": "createDexLP(string[],uint64,uint16)" -> "['tuple']",
+    "0x03ff3ca2": "createDexLP(string[],uint256,uint16)" -> "['tuple']",
     "0xf340fa01": "deposit(address)" -> "[]",
     "0x958651fa": "edit_ACCT_USD_BALANCES(address,uint64,bool)" -> "[]",
     "0x4ed3c6a3": "exeArbPriceParityForTicket(tuple,uint16,address)" -> "['uint64', 'uint64', 'uint64', 'uint64', 'uint64']",
@@ -59,7 +59,7 @@ FORMAT: readable ... CallitVault => 24553 bytes _ limits: 24576 bytes & 49152 by
 
 ## CallitDelegate.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitDelegate => 23829 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitDelegate => 24535 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0xb018221f": "ACCT_MARKET_HASHES(address,uint256)" -> "['address']",
@@ -80,6 +80,8 @@ FORMAT: readable ... CallitDelegate => 23829 bytes _ limits: 24576 bytes & 49152
     "0xbba29136": "claimVoterRewards(address)" -> "[]",
     "0x981fd888": "closeMarketCalls(tuple)" -> "['uint64']",
     "0x1a4713ee": "getMarketCntForMaker(address)" -> "['uint256']",
+    "0x66c2a7cc": "getMarketForHash(address)" -> "['tuple']",
+    "0xe8f47f2a": "getMarketHashesForMakerOrCategory(address,string)" -> "['address[]']",
     "0x37eca5e9": "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],uint256,address)" -> "['tuple']",
     "0x28bc0594": "pushAcctMarketVote(address,tuple)" -> "[]",
     "0x7acf70b6": "setHashMarket(address,tuple,string)" -> "[]",
@@ -119,7 +121,7 @@ FORMAT: readable ... CallitToken => 6631 bytes _ limits: 24576 bytes & 49152 byt
 
 ## CallitFactory.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitFactory => 19821 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitFactory => 19407 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0xe0199969": "ACCT_MARKET_REVIEWS(address,uint256)" -> "['address', 'bool', 'address', 'uint256', 'uint64', 'uint64']",
@@ -135,8 +137,8 @@ FORMAT: readable ... CallitFactory => 19821 bytes _ limits: 24576 bytes & 49152 
     "0x8be58395": "closeMarketForTicket(address)" -> "[]",
     "0xb12524d6": "exeArbPriceParityForTicket(address)" -> "[]",
     "0x1a4713ee": "getMarketCntForMaker(address)" -> "['uint256']",
-    "0x4d546301": "getMarketsForCategory(string,bool,bool,uint8,uint8)" -> "['tuple[]']",
-    "0x105861c0": "getMarketsForMaker(address,bool,bool,uint8,uint8)" -> "['tuple[]']",
+    "0x72a77e1a": "getMarketHashesForMakerOrCategory(string,address,bool,bool,uint8,uint8)" -> "['address[]']",
+    "0xd8ddf058": "getMarketsForMakerOrCategory(string,address,bool,bool,uint8,uint8)" -> "['tuple[]']",
     "0xce448595": "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])" -> "[]",
     "0xcb73f3ee": "setMarketInfo(address,string,string,string)" -> "[]",
     "0x9a60f330": "tVERSION()" -> "['string']",

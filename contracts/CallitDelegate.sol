@@ -33,7 +33,7 @@ contract CallitDelegate {
     /* GLOBALS (CALLIT) */
     // bool private ONCE_ = true;
     bool private FIRST_ = true;
-    string public constant tVERSION = '0.37'; 
+    string public constant tVERSION = '0.40';  
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
@@ -117,9 +117,20 @@ contract CallitDelegate {
     mapping(string => address[]) public CATEGORY_MARK_HASHES; // store category to list of market hashes
     mapping(address => address[]) public ACCT_MARKET_HASHES; // store maker to list of market hashes
     mapping(address => ICallitLib.MARKET) public HASH_MARKET; // store market hash to its MARKET
-    function getMarketHashesForMaker(address _maker) external view returns(address[] memory) {
-        require(ACCT_MARKET_HASHES[_maker].length > 0, ' no markets :/ ');
-        return ACCT_MARKET_HASHES[_maker];
+    function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory) {
+        ICallitLib.MARKET memory mark = HASH_MARKET[_hash];
+        require(mark.maker != address(0), ' !maker :0 ');
+        return mark;
+    }
+    function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory) {
+        if (bytes(_category).length > 1) { // note: sending a single 'space', signals use _maker
+            require(CATEGORY_MARK_HASHES[_category].length > 0, ' no market cats :/ ');
+            return CATEGORY_MARK_HASHES[_category];
+        }
+        else {
+            require(ACCT_MARKET_HASHES[_maker].length > 0, ' no markets :/ ');
+            return ACCT_MARKET_HASHES[_maker];
+        }
     }
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external onlyFactory {
         require(_maker != address(0) && _markHash != address(0), ' bad maker | hash :*{ ');
@@ -138,7 +149,7 @@ contract CallitDelegate {
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external onlyFactory {
         require(_markHash != address(0), ' bad hash :*{ ');
         HASH_MARKET[_markHash] = _mark;
-        if (bytes(_category).length > 0) CATEGORY_MARK_HASHES[_category].push(_markHash);
+        if (bytes(_category).length > 1) CATEGORY_MARK_HASHES[_category].push(_markHash);
     }
     // // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
     // function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {

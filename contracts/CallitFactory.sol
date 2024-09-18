@@ -52,15 +52,17 @@ interface ICallitDelegate {
     function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
     function CATEGORY_MARK_HASHES(string calldata _key) external view returns(address[] memory);
     // function ACCT_MARKET_HASHES(address _key) external view returns(address[] memory);
-    function HASH_MARKET(address _key) external view returns(ICallitLib.MARKET memory);
+    // function HASH_MARKET(address _key) external view returns(ICallitLib.MARKET memory);
     function claimVoterRewards() external;
     function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external;
-    function pushCatMarketHash(string calldata _category, address _markHash) external;
+    // function pushCatMarketHash(string calldata _category, address _markHash) external;
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
     function _getMarketForTicket(address _maker, address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
-    function getMarketHashesForMaker(address _maker) external view returns(address[] memory);
+    function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
+    function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
+    
 }
 
 contract CallitFactory {
@@ -71,7 +73,7 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.55';
+    string public tVERSION = '0.59'; 
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -172,21 +174,16 @@ contract CallitFactory {
     function getMarketCntForMaker(address _maker) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
         return DELEGATE.getMarketCntForMaker(_maker);
-        // return DELEGATE.ACCT_MARKET_HASHES(_maker).length;
     }
-    function getMarketHashesForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(address[] memory) {
+    function getMarketHashesForMakerOrCategory(string calldata _category, address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(address[] memory) {
         require(_maker != address(0), ' !_maker ;[=] ');
-        // address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
-        address[] memory mark_hashes = DELEGATE.getMarketHashesForMaker(_maker);
+        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :p ');
-        // return mark_hashes; // NOTE: return succeeds just fine here
-
-        // LEFT OFF HERE ... the below keeps failing "web3.exceptions.ContractLogicError"
         address[] memory ret_hashes = new address[](_retCnt);
         uint8 cnt_;
         for (uint8 i = 0; cnt_ < _retCnt && _idxStart + i < mark_hashes.length;) {
             // check for mismatch, skip & inc only 'i' (note: _all == _live|!_live)
-            ICallitLib.MARKET memory mark = DELEGATE.HASH_MARKET(mark_hashes[_idxStart + i]);
+            ICallitLib.MARKET memory mark = DELEGATE.getMarketForHash(mark_hashes[_idxStart + i]);
             if (!_all && mark.live != _live) { 
                 unchecked {i++;} 
                 continue; 
@@ -200,49 +197,50 @@ contract CallitFactory {
         }
         return ret_hashes;
     }
-    // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
-    function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
+    function getMarketsForMakerOrCategory(string calldata _category, address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
+    // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
         require(_maker != address(0), ' !_maker ;[-] ');
-        // address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
-        address[] memory mark_hashes = DELEGATE.getMarketHashesForMaker(_maker);
+        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :-p ');
-        
-        // LEFT OFF HERE ... the below keeps failing "web3.exceptions.ContractLogicError"
         return _getMarketReturns(mark_hashes, _all, _live, _idxStart, _retCnt);
     }
-    function _getMarketReturns(address[] memory _markHashes, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private view returns(ICallitLib.MARKET_INFO[] memory) {
+    function _getMarketReturns(address[] memory _markHashes, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private view returns(ICallitLib.MARKET[] memory) {
+    // function _getMarketReturns(address[] memory _markHashes, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private view returns(ICallitLib.MARKET_INFO[] memory) {
         // init return array
-        // ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt);
-        ICallitLib.MARKET_INFO[] memory mark_infos = new ICallitLib.MARKET_INFO[](_retCnt);
+        ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt);
+        // ICallitLib.MARKET_INFO[] memory mark_infos = new ICallitLib.MARKET_INFO[](_retCnt);
         uint8 cnt_;
         for (uint8 i = 0; cnt_ < _retCnt && _idxStart + i < _markHashes.length;) {
-            ICallitLib.MARKET memory mark = DELEGATE.HASH_MARKET(_markHashes[_idxStart + i]);
+            // ICallitLib.MARKET memory mark = DELEGATE.HASH_MARKET(_markHashes[_idxStart + i]);
+            ICallitLib.MARKET memory mark = DELEGATE.getMarketForHash(_markHashes[_idxStart + i]);
 
             // check for mismatch, skip & inc only 'i' (note: _all = _live|!_live)
             if (!_all && mark.live != _live) { unchecked {i++;} continue; }
                  
             // log market found; continue w/ inc both 'i' & 'cnt_'
-            // marks_ret[cnt_] = mark; // note: use 'cnt_' not '_idxStart + i'
-            uint256[] memory dt_deadlines = new uint256[](3);
-            dt_deadlines[0] = mark.marketDatetimes.dtCallDeadline;
-            dt_deadlines[1] = mark.marketDatetimes.dtResultVoteStart;
-            dt_deadlines[2] = mark.marketDatetimes.dtResultVoteEnd;
-            mark_infos[cnt_] = ICallitLib.MARKET_INFO({
-                                marketNum: mark.marketNum, 
-                                marketName: mark.name, 
-                                imgUrl: mark.imgUrl, 
-                                initUsdAmntLP_tot: mark.marketUsdAmnts.usdAmntLP, 
-                                resultLabels: mark.marketResults.resultLabels,
-                                resultTickets: mark.marketResults.resultOptionTokens,
-                                dtDeadlines: dt_deadlines,
-                                live: mark.live
-                            });
+            marks_ret[cnt_] = mark; // note: use 'cnt_' not '_idxStart + i'
+            // uint256[] memory dt_deadlines = new uint256[](3);
+            // dt_deadlines[0] = mark.marketDatetimes.dtCallDeadline;
+            // dt_deadlines[1] = mark.marketDatetimes.dtResultVoteStart;
+            // dt_deadlines[2] = mark.marketDatetimes.dtResultVoteEnd;
+            // mark_infos[cnt_] = ICallitLib.MARKET_INFO({
+            //                     marketNum: mark.marketNum, 
+            //                     marketName: mark.name, 
+            //                     imgUrl: mark.imgUrl, 
+            //                     initUsdAmntLP_tot: mark.marketUsdAmnts.usdAmntLP, 
+            //                     resultLabels: mark.marketResults.resultLabels,
+            //                     resultTickets: mark.marketResults.resultOptionTokens,
+            //                     dtDeadlines: dt_deadlines,
+            //                     live: mark.live
+            //                 });
             unchecked {
                 i++; cnt_++;
             }
         }
-        require(mark_infos.length > 0, ' none :-( ');
-        return mark_infos;
+        // require(mark_infos.length > 0, ' none :-( ');
+        // return mark_infos;
+        require(marks_ret.length > 0, ' none :-( ');
+        return marks_ret;
     }
     // // function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
     // function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
@@ -334,13 +332,14 @@ contract CallitFactory {
         (ICallitLib.MARKET memory mark,, address mark_hash) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
         require(mark.maker == msg.sender, ' only market maker :( ');
         require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' call deadline passed :( ');
+        require(bytes(_category).length > 1, ' cat too short  :0 ');
         
         mark.category = _category;
         mark.rules = _rules;
         mark.imgUrl = _imgUrl;
 
         // log category created for this ticket's market hash
-        DELEGATE.pushCatMarketHash(_category, mark_hash);
+        // DELEGATE.pushCatMarketHash(_category, mark_hash);
         DELEGATE.setHashMarket(mark_hash, mark, _category);
     }
     function makeNewMarket(string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
