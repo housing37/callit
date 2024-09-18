@@ -33,7 +33,7 @@ contract CallitDelegate {
     /* GLOBALS (CALLIT) */
     // bool private ONCE_ = true;
     bool private FIRST_ = true;
-    string public constant tVERSION = '0.35';  
+    string public constant tVERSION = '0.36';
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
@@ -117,6 +117,10 @@ contract CallitDelegate {
     mapping(string => address[]) public CATEGORY_MARK_HASHES; // store category to list of market hashes
     mapping(address => address[]) public ACCT_MARKET_HASHES; // store maker to list of market hashes
     mapping(address => ICallitLib.MARKET) public HASH_MARKET; // store market hash to its MARKET
+    function getMarketHashesForMaker(address _maker) external view returns(address[] memory) {
+        require(ACCT_MARKET_HASHES[_maker].length > 0, ' no markets :/ ');
+        return ACCT_MARKET_HASHES[_maker];
+    }
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external onlyFactory {
         require(_maker != address(0) && _markHash != address(0), ' bad maker | hash :*{ ');
         // ACCT_MARKETS[_maker].push(_mark);

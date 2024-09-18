@@ -51,7 +51,7 @@ interface ICallitDelegate {
     function closeMarketCalls(ICallitLib.MARKET memory mark) external returns(uint64);
     function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
     function CATEGORY_MARK_HASHES(string calldata _key) external view returns(address[] memory);
-    function ACCT_MARKET_HASHES(address _key) external view returns(address[] memory);
+    // function ACCT_MARKET_HASHES(address _key) external view returns(address[] memory);
     function HASH_MARKET(address _key) external view returns(ICallitLib.MARKET memory);
     function claimVoterRewards() external;
     function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external;
@@ -60,6 +60,7 @@ interface ICallitDelegate {
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
     function _getMarketForTicket(address _maker, address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
+    function getMarketHashesForMaker(address _maker) external view returns(address[] memory);
 }
 
 contract CallitFactory {
@@ -70,7 +71,7 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.48';
+    string public tVERSION = '0.52';  
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -175,28 +176,34 @@ contract CallitFactory {
     }
     function getMarketHashesForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(address[] memory) {
         require(_maker != address(0), ' !_maker ;[=] ');
-        address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
+        // address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
+        address[] memory mark_hashes = DELEGATE.getMarketHashesForMaker(_maker);
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length > _idxStart + _retCnt, ' out of range :p ');
-        address[] memory ret_hashes = new address[](_retCnt);
-        uint8 cnt_;
-        for (uint8 i = 0; cnt_ <= _retCnt && i < mark_hashes.length;) {
-            // check for mismatch, skip & inc only 'i' (note: _all == _live|!_live)
-            if (!_all && DELEGATE.HASH_MARKET(mark_hashes[_idxStart + i]).live != _live) { 
-                unchecked {i++;} 
-                continue; 
-            }
+        return mark_hashes;
+            // LEFT OFF HERE ... just trying to test and get to this return point (v0.52 latest attempt failed)
+        // address[] memory ret_hashes = new address[](_retCnt);
+        // uint8 cnt_;
+        // for (uint8 i = 0; cnt_ <= _retCnt && i < mark_hashes.length;) {
+        //     // check for mismatch, skip & inc only 'i' (note: _all == _live|!_live)
+        //     ICallitLib.MARKET memory mark = DELEGATE.HASH_MARKET(mark_hashes[_idxStart + i]);
+        //     if (!_all && mark.live != _live) { 
+        //         unchecked {i++;} 
+        //         continue; 
+        //     }
 
-            // log market hash found; continue w/ inc both 'i' & 'cnt_'
-            ret_hashes[cnt_] = mark_hashes[_idxStart + i];
-            unchecked {
-                i++; cnt_++;
-            }
-        }
+        //     // log market hash found; continue w/ inc both 'i' & 'cnt_'
+        //     ret_hashes[cnt_] = mark_hashes[_idxStart + i];
+        //     unchecked {
+        //         i++; cnt_++;
+        //     }
+        // }
+        // return ret_hashes;
     }
     // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
     function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
         require(_maker != address(0), ' !_maker ;[-] ');
-        address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
+        // address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
+        address[] memory mark_hashes = DELEGATE.getMarketHashesForMaker(_maker);
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length > _idxStart + _retCnt, ' out of range :-p ');
         return _getMarketReturns(mark_hashes, _all, _live, _idxStart, _retCnt);
     }
