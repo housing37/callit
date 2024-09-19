@@ -9,12 +9,11 @@ CALLIT_FUNC_MAP_READ = {
 	"FACT_ADDR()": ["d1db38d4", [], ['address']],
     
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 
-    "getMarketsForMaker(address,bool,bool,uint8,uint8)": ["105861c0", ["address",'bool','bool','uint8','uint8'], ['tuple[]']],
-	"getMarketCntForMaker(address)": ["1a4713ee", ["address"], ['uint256']],
-    "CALL_ADDR()": ["049191ae", [], ['address']],
-    "DELEGATE_ADDR()": ["24a8eb9d", [], ['address']],
-    "VAULT_ADDR()": ["d440c3c6", [], ['address']],
-    "LIB_ADDR()": ["9b05a663", [], ['address']],
+    "getMarketHashesForMakerOrCategory(string,address,bool,bool,uint8,uint8)": ["72a77e1a", ["string","address",'bool','bool','uint8','uint8'], ['address[]']],
+    "getMarketsForMakerOrCategory(string,address,bool,bool,uint8,uint8)": ["d8ddf058", ["string","address",'bool','bool','uint8','uint8'], ['tuple[]']],
+	"getMarketCntForMakerOrCategory(address,string)": ["de1bc55f", ["address","string"], ['uint256']],
+    
+    "ADDR_CONFIG()": ["70c07591", [], ['address']],
     "EARNED_CALL_VOTES(address)": ["cad8b94d", ["address"], ['uint64']],
     "MAX_EOA_MARKETS()": ["485d44c5", [], ['uint64']],
     "MAX_RESULTS()": ["0c806736", [], ['uint16']],

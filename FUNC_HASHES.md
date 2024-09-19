@@ -121,7 +121,7 @@ FORMAT: readable ... CallitToken => 6631 bytes _ limits: 24576 bytes & 49152 byt
 
 ## CallitFactory.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitFactory => 19407 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitFactory => 19435 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0xe0199969": "ACCT_MARKET_REVIEWS(address,uint256)" -> "['address', 'bool', 'address', 'uint256', 'uint64', 'uint64']",
@@ -136,7 +136,7 @@ FORMAT: readable ... CallitFactory => 19407 bytes _ limits: 24576 bytes & 49152 
     "0x00fa1b81": "closeMarketCallsForTicket(address)" -> "[]",
     "0x8be58395": "closeMarketForTicket(address)" -> "[]",
     "0xb12524d6": "exeArbPriceParityForTicket(address)" -> "[]",
-    "0x1a4713ee": "getMarketCntForMaker(address)" -> "['uint256']",
+    "0xde1bc55f": "getMarketCntForMakerOrCategory(address,string)" -> "['uint256']",
     "0x72a77e1a": "getMarketHashesForMakerOrCategory(string,address,bool,bool,uint8,uint8)" -> "['address[]']",
     "0xd8ddf058": "getMarketsForMakerOrCategory(string,address,bool,bool,uint8,uint8)" -> "['tuple[]']",
     "0xce448595": "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])" -> "[]",
