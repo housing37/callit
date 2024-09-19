@@ -73,7 +73,7 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.59'; 
+    string public tVERSION = '0.60';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -171,9 +171,14 @@ contract CallitFactory {
     //     (ICallitLib.MARKET memory mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
     //     return mark;
     // }
-    function getMarketCntForMaker(address _maker) external view returns(uint256) {
+    // function getMarketCntForMaker(address _maker) external view returns(uint256) {
+    //     // NOTE: MAX_EOA_MARKETS is uint64
+    //     return DELEGATE.getMarketCntForMaker(_maker);
+    // }
+    function getMarketCntForMakerOrCategory(address _maker, string calldata _category) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
-        return DELEGATE.getMarketCntForMaker(_maker);
+        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
+        return mark_hashes.length;
     }
     function getMarketHashesForMakerOrCategory(string calldata _category, address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(address[] memory) {
         require(_maker != address(0), ' !_maker ;[=] ');
