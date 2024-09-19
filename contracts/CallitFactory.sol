@@ -51,19 +51,14 @@ interface ICallitDelegate {
     function closeMarketCalls(ICallitLib.MARKET memory mark) external returns(uint64);
     function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
     function CATEGORY_MARK_HASHES(string calldata _key) external view returns(address[] memory);
-    // function ACCT_MARKET_HASHES(address _key) external view returns(address[] memory);
-    // function HASH_MARKET(address _key) external view returns(ICallitLib.MARKET memory);
     function claimVoterRewards() external;
     function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external;
-    // function pushCatMarketHash(string calldata _category, address _markHash) external;
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
-    // function _getMarketForTicket(address _maker, address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
     function _getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
-    
 }
 
 contract CallitFactory {
@@ -85,21 +80,7 @@ contract CallitFactory {
     
     /* MAPPINGS (CALLIT) */
     // used externals only
-    // mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
     mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
-
-    // used externals & private
-    // NOTE: a copy of all MARKET in ICallitLib.MARKET[] is stored in DELEGATE (via ACCT_MARKET_HASHES -> HASH_MARKET)
-    //  ie. ACCT_MARKETS[_maker][0] == HASH_MARKET[ACCT_MARKET_HASHES[_maker][0]]
-    //      HENCE, always -> ACCT_MARKETS.length == ACCT_MARKET_HASHES.length
-    // mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
-    // mapping(address => ICallitLib.MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & private until market close; live = false) ***
-    
-    // used private only
-    // mapping(address => ICallitLib.MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
-    // mapping(string => address[]) public CATEGORY_MARK_HASHES; // store category to list of market hashes
-    // mapping(address => address[]) public ACCT_MARKET_HASHES; // store maker to list of market hashes
-    // mapping(address => ICallitLib.MARKET) public HASH_MARKET; // store market hash to its MARKET
     
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -171,10 +152,6 @@ contract CallitFactory {
     // function getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory) {
     //     (ICallitLib.MARKET memory mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
     //     return mark;
-    // }
-    // function getMarketCntForMaker(address _maker) external view returns(uint256) {
-    //     // NOTE: MAX_EOA_MARKETS is uint64
-    //     return DELEGATE.getMarketCntForMaker(_maker);
     // }
     function getMarketCntForMakerOrCategory(address _maker, string calldata _category) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
@@ -248,74 +225,6 @@ contract CallitFactory {
         require(marks_ret.length > 0, ' none :-( ');
         return marks_ret;
     }
-    // // function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
-    // function getMarketsForCategory(string calldata _category, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
-    //     require(bytes(_category).length > 0, ' no cat :=0 ');
-    //     address[] memory mark_hashes = DELEGATE.CATEGORY_MARK_HASHES(_category);
-    //     require(mark_hashes.length > 0, ' no markets :-/ ');
-    //     ICallitLib.MARKET[] memory marks = new ICallitLib.MARKET[](mark_hashes.length);
-    //     for (uint i = 0; i < mark_hashes.length; i++) {
-    //         marks[i] = DELEGATE.HASH_MARKET(mark_hashes[i]);
-    //     }
-    //     return _getMarketReturns(marks, _all, _live, _idxStart, _retCnt);
-    // }
-    // // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
-    // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
-    //     require(_maker != address(0), ' !_maker ;[=] ');
-    //     address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
-    //     require(mark_hashes.length > 0, ' no markets :/ ');
-    //     ICallitLib.MARKET[] memory marks = new ICallitLib.MARKET[](mark_hashes.length);
-    //     for (uint i = 0; i < mark_hashes.length; i++) {
-    //         marks[i] = DELEGATE.HASH_MARKET(mark_hashes[i]);
-    //     }
-    //     return _getMarketReturns(marks, _all, _live, _idxStart, _retCnt);
-
-    //     // NOTE: MAX_EOA_MARKETS is uint64
-    //     // return _getMarketReturns(ACCT_MARKETS[_maker], _all, _live, _idxStart, _retCnt);
-    // }
-
-    // // function _getMarketReturns(ICallitLib.MARKET[] memory _marks, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private pure returns(ICallitLib.MARKET[] memory) {
-    // function _getMarketReturns(ICallitLib.MARKET[] memory _marks, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private view returns(ICallitLib.MARKET_INFO[] memory) {
-    //     require(_marks.length > 0 && _retCnt > 0 && _marks.length > _idxStart + _retCnt, ' out of range :p ');
-
-    //     // init return array
-    //     // ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt);
-    //     ICallitLib.MARKET_INFO[] memory mark_infos = new ICallitLib.MARKET_INFO[](_retCnt);
-
-    //     // loop through _maker markets & aggregate/return matches to _live 
-    //     uint8 cnt_;
-    //     // for (uint8 i = 0; cnt_ <= _retCnt && i < mark_hashes.length;) {
-    //     //     ICallitLib.MARKET memory mark = HASH_MARKET[mark_hashes[_idxStart + i]];
-    //     for (uint8 i = 0; cnt_ <= _retCnt && i < _marks.length;) {
-    //         ICallitLib.MARKET memory mark = _marks[_idxStart + i];
-
-    //         // check for mismatch, skip & inc only 'i' (note: _all = _live|!_live)
-    //         if (!_all && mark.live != _live) { unchecked {i++;} continue; }
-                 
-    //         // log _live market found
-    //         // marks_ret[cnt_] = mark; // note: use 'i' not '_idxStart + i'
-    //         uint256[] memory dt_deadlines = new uint256[](3);
-    //         dt_deadlines[0] = mark.marketDatetimes.dtCallDeadline;
-    //         dt_deadlines[1] = mark.marketDatetimes.dtResultVoteStart;
-    //         dt_deadlines[2] = mark.marketDatetimes.dtResultVoteEnd;
-    //         // [mark.marketDatetimes.dtCallDeadline, mark.marketDatetimes.dtResultVoteStart, mark.marketDatetimes.dtResultVoteEnd]
-    //         mark_infos[cnt_] = ICallitLib.MARKET_INFO({
-    //                             marketNum: mark.marketNum, 
-    //                             marketName: mark.name, 
-    //                             imgUrl: mark.imgUrl, 
-    //                             initUsdAmntLP_tot: mark.marketUsdAmnts.usdAmntLP, 
-    //                             resultLabels: mark.marketResults.resultLabels,
-    //                             resultTickets: mark.marketResults.resultOptionTokens,
-    //                             dtDeadlines: dt_deadlines,
-    //                             live: mark.live
-    //                         });
-    //         unchecked {
-    //             i++; cnt_++;
-    //         }
-    //     }
-    //     require(mark_infos.length > 0, ' none :-( ');
-    //     return mark_infos;
-    // }
 
     /* ref: https://docs.soliditylang.org/en/latest/contracts.html#fallback-function
         The fallback function is executed on a call to the contract if none of the other 
@@ -323,9 +232,7 @@ contract CallitFactory {
         or if no data was supplied at all and there is no receive Ether function. 
         The fallback function always receives data, but in order to also receive Ether it must be marked payable.
     */
-    // invoked if ...
-    //  function invoked doesn't exist
-    //  no receive() implemented & ETH received w/o data
+    // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
     fallback() external payable {
         // handle contract USD value deposits (convert PLS to USD stable)
         // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
@@ -648,26 +555,6 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (CALLIT MANAGER) // NOTE: migrate to CallitVault (ALL)
     /* -------------------------------------------------------- */
-    // function _getMarketForTicket(address _maker, address _ticket) private view returns(ICallitLib.MARKET storage, uint16, address) {
-    //     require(_maker != address (0) && _ticket != address(0), ' no address for market ;:[=] ');
-
-    //     // NOTE: MAX_EOA_MARKETS is uint64
-    //     ICallitLib.MARKET[] storage markets = ACCT_MARKETS[_maker];
-    //     address[] memory mark_hashes = DELEGATE.ACCT_MARKET_HASHES(_maker);
-    //     for (uint64 i = 0; i < markets.length;) {
-    //         ICallitLib.MARKET storage mark = markets[i];
-    //         for (uint16 x = 0; x < mark.marketResults.resultOptionTokens.length;) {
-    //             if (mark.marketResults.resultOptionTokens[x] == _ticket)
-    //                 return (mark, x, mark_hashes[i]);
-    //             unchecked {x++;}
-    //         }   
-    //         unchecked {
-    //             i++;
-    //         }
-    //     }
-        
-    //     revert(' market not found :( ');
-    // }
     function _mintCallToksEarned(address _receiver, uint64 _callAmnt) private {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         //  NOTE: _callAmnt decimals should be accounted for on factory invoking side

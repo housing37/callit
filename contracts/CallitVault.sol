@@ -370,9 +370,7 @@ contract CallitVault {
         or if no data was supplied at all and there is no receive Ether function. 
         The fallback function always receives data, but in order to also receive Ether it must be marked payable.
     */
-    // invoked if ...
-    //  function invoked doesn't exist
-    //  no receive() implemented & ETH received w/o data
+    // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
     fallback() external payable {
         deposit(msg.sender);
 

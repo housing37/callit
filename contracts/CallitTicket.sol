@@ -12,11 +12,9 @@ pragma solidity ^0.8.24;
 
 // inherited contracts
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol"; // deploy
-// import "@openzeppelin/contracts/access/Ownable.sol"; // deploy
 
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol"; 
-// import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
 interface ICallitConfig { // don't need everything in ICallitConfig.sol
     function ADDR_VAULT() external view returns(address);
@@ -76,8 +74,8 @@ contract CallitTicket is ERC20 {
         emit BurnForWinLoseClaim(_account, balanceOf(_account));
     }
 
-    // process PLS value received
-    receive() external payable {
+    // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
+    fallback() external payable {
         // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)    
         ICallitVault(CONF.ADDR_VAULT()).deposit{value: msg.value}(msg.sender);
     }

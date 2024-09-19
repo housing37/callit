@@ -43,10 +43,6 @@ contract CallitToken is ERC20, Ownable {
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
-    // address public ADDR_VAULT = address(0x4f7242cC8715f3935Ccec21012D32978e42C7763); // CallitVault v0.28
-    // address public ADDR_FACT; // set via INIT_factory()
-    // ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
-
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -70,11 +66,6 @@ contract CallitToken is ERC20, Ownable {
         require(msg.sender == CONF.ADDR_FACT(), " !fact :+ ");
         _;
     }
-    // modifier onlyOnce() {
-    //     require(ONCE_, ' never again :/ ' );
-    //     ONCE_ = false;
-    //     _;
-    // }
     modifier onlyConfig() { 
         // allows 1st onlyConfig attempt to freely pass
         //  NOTE: don't waste this on anything but CONF_setConfig
@@ -92,11 +83,11 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* PUBLIC - UI (CALLIT)
     /* -------------------------------------------------------- */
-    // handle contract USD value deposits (convert PLS to USD stable)
-    // extract & send PLS to vault for processing (handle swap for usd stable)
-    receive() external payable {        
-        uint256 amntIn = msg.value; 
-        ICallitVault(CONF.ADDR_VAULT()).deposit{value: amntIn}(msg.sender);
+    // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
+    fallback() external payable {
+        // handle contract USD value deposits (convert PLS to USD stable)
+        // extract & send PLS to vault for processing (handle swap for usd stable)
+        ICallitVault(CONF.ADDR_VAULT()).deposit{value: msg.value}(msg.sender);
         
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
     }
@@ -104,15 +95,6 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* FACTORY SUPPORT
     /* -------------------------------------------------------- */
-    // function INIT_factory() external onlyOnce {
-    //     require(ADDR_FACT == address(0), ' factor already set :) ');
-    //     ADDR_FACT = msg.sender;
-    // }
-    // function FACT_setContracts(address _fact, address _vault) external onlyFactory {
-    //     ADDR_FACT = _fact;
-    //     ADDR_VAULT = _vault;
-    //     VAULT = ICallitVault(ADDR_VAULT);
-    // }
     function mintCallToksEarned(address _receiver, uint256 _callAmntMint, uint64 _callVotesEarned, address _sender) external onlyFactory {
         // mint _callAmnt $CALL to _receiver & log $CALL votes earned
         //  NOTE: _callAmnt decimals should be accounted for on factory invoking side
@@ -178,7 +160,6 @@ contract CallitToken is ERC20, Ownable {
         require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;0 ');
         return super.transfer(to, value); // invokes '_transfer(msg.sender, to, value)'
     }
-
 
     /* -------------------------------------------------------- */
     /* PRIVATE HELPERS

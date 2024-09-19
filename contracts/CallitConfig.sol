@@ -196,7 +196,8 @@ contract CallitConfig {
         // emit KeeperTransfer(prev, KEEPER);
     }
     function KEEPER_setContracts(address _lib, address _vault, address _delegate, address _CALL, address _fact, address _conf) external onlyKeeper {
-        // require(_delegate != address(0) && _vault != address(0) && _lib != address(0), ' invalid addies :0 ' );
+        // EOA may indeed send 0x0 to "opt-in" for changing _conf address in support contracts
+        //  if no _conf, update support contracts w/ current CONFIG address
 
         if (     _lib != address(0)) {ADDR_LIB = _lib; LIB = ICallitLib(ADDR_LIB);}
         if (   _vault != address(0)) ADDR_VAULT = _vault;
@@ -211,50 +212,6 @@ contract CallitConfig {
         ISetConfig(ADDR_DELEGATE).CONF_setConfig(_conf);
         ISetConfig(ADDR_CALL).CONF_setConfig(_conf);
         ISetConfig(ADDR_FACT).CONF_setConfig(_conf);
-        // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
-        //  if no _fact, update support contracts w/ current FACTORY address
-        
-
-        // // EOA may indeed send 0x0 to "opt-out" of changing addresses: _delegate, _vault, lib
-        // // EOA may send _new = true to invoke 'INI_factory' for new contract deployments
-        // if (_CALL != address(0)) {
-        //     ADDR_CALL = _CALL;
-        //     CALL = ICallitToken(address(_CALL));
-        //     if (_new) {
-        //         CALL.INIT_factory(); // set ADDR_FACT in CallitToken
-                
-        //         // mint initial CALl to keeper
-        //         _mintCallToksEarned(KEEPER, 37); // LEFT OFF HERE ... testing only (comment out for production)
-        //     }
-            
-        // }
-        // if (_delegate != address(0)) {
-        //     ADDR_DELEGATE = _delegate;
-        //     DELEGATE = ICallitDelegate(address(_delegate));
-        //     if (_new) DELEGATE.INIT_factory(); // set ADDR_FACT in DELEGATE
-        // }
-        // if (_vault != address(0)) {
-        //     ADDR_VAULT = _vault;
-        //     VAULT = ICallitVault(address(_vault));
-        //     if (_new) {
-        //         VAULT.INIT_factory(address(DELEGATE)); // set ADDR_FACT & ADDR_DELEGATE in VAULT
-        //     }
-        // }
-        // if (_lib != address(0)) {
-        //     ADDR_LIB = _lib;
-        //     LIB = ICallitLib(address(_lib));
-        // }
-
-        // // EOA may indeed send 0x0 to "opt-in" for changing _fact address in support contracts
-        // //  if no _fact, update support contracts w/ current FACTORY address
-        // if (_fact == address(0)) {
-        //     _fact = address(this); 
-        // }
-
-        // // update support contracts w/ OG|new addies accordingly
-        // CALL.FACT_setContracts(_fact, address(VAULT));       
-        // DELEGATE.KEEPER_setContracts(_fact, address(VAULT), address(LIB));
-        // VAULT.KEEPER_setContracts(_fact, address(DELEGATE), address(LIB));
     }
     function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim, uint16 _percPromoClaim) external onlyKeeper {
         // no 2 percs taken out of market close
@@ -357,13 +314,11 @@ contract CallitConfig {
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)
     /* -------------------------------------------------------- */
-    // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
-    receive() external payable {
-        // process PLS value sent
-        uint256 amntIn = msg.value;
-        ICallitVault(ADDR_VAULT).deposit{value: amntIn}(msg.sender);
+    // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
+    fallback() external payable {
+        // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
+        ICallitVault(ADDR_VAULT).deposit{value: msg.value}(msg.sender);
     }
-
 
     /* -------------------------------------------------------- */
     /* PRIVATE SUPPORTING

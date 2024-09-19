@@ -38,70 +38,6 @@ contract CallitDelegate {
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
     ICallitVault private VAULT; // set via CONF_setConfig
-    // address public ADDR_LIB = address(0xD0B9031dD3914d3EfCD66727252ACc8f09559265); // CallitLib v0.15
-    // address public ADDR_VAULT = address(0xe727a3F8C658Fadf8F8c02111f2905E8b70D400f); // CallitVault v0.32
-    // address public ADDR_FACT; // set via INIT_factory()
-    // ICallitLib   private LIB = ICallitLib(ADDR_LIB);
-    // ICallitVault private VAULT = ICallitVault(ADDR_VAULT);
-
-    // address public KEEPER;
-    // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
-
-    // note: makeNewMarket
-    // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
-    // address public NEW_TICK_UNISWAP_V2_ROUTER;
-    // address public NEW_TICK_UNISWAP_V2_FACTORY;
-    // address public NEW_TICK_USD_STABLE;
-    // string  public TOK_TICK_NAME_SEED = "TCK#";
-    // string  public TOK_TICK_SYMB_SEED = "CALL-TICKET";
-    // uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
-
-    // // lp settings
-    // // uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
-    // uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
-    // uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
-    //     // NOTE: utilized in 'FACTORY.closeMarketForTicket'
-    //     // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
-    //     //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)    
-        
-    // // note: makeNewMarket
-    // // temp-arrays for 'makeNewMarket' support
-    // address[] private resultOptionTokens;
-    // address[] private resultTokenLPs;
-    // address[] private resultTokenRouters;
-    // address[] private resultTokenFactories;
-
-    // address[] private resultTokenUsdStables;
-    // uint64 [] private resultTokenVotes;
-    // address[] private newTickMaker;
-
-    // // default all fees to 0 (KEEPER setter available)
-    // // uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
-    // // uint16 public PERC_PROMO_BUY_FEE; // note: yes other % fee (promo.percReward)
-    // // uint16 public PERC_ARB_EXE_FEE; // note: no other % fee
-    // uint16 public PERC_MARKET_CLOSE_FEE; // note: yes other % fee (PERC_PRIZEPOOL_VOTERS)
-    // uint16 public PERC_PRIZEPOOL_VOTERS = 200; // (2%) of total prize pool allocated to voter payout _ 10000 = %100.00
-    // uint16 public PERC_VOTER_CLAIM_FEE; // note: no other % fee
-    // uint16 public PERC_WINNER_CLAIM_FEE; // note: no other % fee
-
-    // uint16 public PERC_OF_LOSER_SUPPLY_EARN_CALL = 2500; // (25%) _ 10000 = %100.00; 5000 = %50.00; 0001 = %00.01
-    // uint32 public RATIO_CALL_MINT_PER_LOSER = 1; // amount of all $CALL minted per loser reward (depends on PERC_OF_LOSER_SUPPLY_EARN_CALL)
-
-    // // market action mint incentives
-    // uint32 public RATIO_CALL_MINT_PER_ARB_EXE = 1; // amount of all $CALL minted per arb executer reward // TODO: need KEEPER setter
-    // uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = 1; // amount of all $CALL minted per market call close action reward // TODO: need KEEPER setter
-    // uint32 public RATIO_CALL_MINT_PER_VOTE = 1; // amount of all $CALL minted per vote reward // TODO: need KEEPER setter
-    // uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
-    // uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
-    // uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
-
-    // // arb algorithm settings
-    // // market settings
-    // // uint64 public MIN_USD_CALL_TICK_TARGET_PRICE = 10000; // 10000 == $0.010000 -> likely always be min (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-    // bool    public USE_SEC_DEFAULT_VOTE_TIME = true; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    // uint256 public SEC_DEFAULT_VOTE_TIME = 24 * 60 * 60; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    // uint16  public MAX_RESULTS = 10; // max # of result options a market may have (uint16 max = ~65K -> 65,535)
-    // uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
     mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
@@ -143,44 +79,12 @@ contract CallitDelegate {
         require(_account != address(0), ' bad _account :*{ ');
         ACCT_MARKET_VOTES[_account].push(_markVote);
     }
-    // function pushCatMarketHash(string calldata _category, address _markHash) external onlyFactory {
-    //     require(bytes(_category).length > 0 && _markHash != address(0), ' bad cat | hash :*{ ');
-    //     CATEGORY_MARK_HASHES[_category].push(_markHash);
-    // }
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external onlyFactory {
         require(_markHash != address(0), ' bad hash :*{ ');
         HASH_MARKET[_markHash] = _mark;
         if (bytes(_category).length > 1) CATEGORY_MARK_HASHES[_category].push(_markHash);
     }
-    // // function KEEPER_setMarketSettings(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
-    // function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {
-    //     // MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
-    //     // MAX_EOA_MARKETS = _maxEoaMarkets;
-    //     // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
-    //     // MIN_USD_CALL_TICK_TARGET_PRICE = _minUsdArbTargPrice;
 
-    //     // SEC_DEFAULT_VOTE_TIME = _secDefaultVoteTime; // 24 * 60 * 60 == 86,400 sec == 24 hours
-    //     USE_SEC_DEFAULT_VOTE_TIME = _useDefaultVotetime; // NOTE: false = use msg.sender's _dtResultVoteEnd in 'makerNewMarket'
-    // }
-    
-    // function KEEPER_setMarketLoserMints(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
-    //     require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
-    //     RATIO_CALL_MINT_PER_LOSER = _mintAmnt;
-    //     PERC_OF_LOSER_SUPPLY_EARN_CALL = _percSupplyReq;
-    // }
-
-    // function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external onlyFactory {
-    //     require(_marketMaker != address(0), ' !_marketMaker :- ');
-    //     ACCT_MARKET_REVIEWS[_marketMaker].push(_marketReview);
-    // }
-    // function KEEPER_setMarketActionMints(uint32 _callPerArb, uint32 _callPerMarkCloseCalls, uint32 _callPerVote, uint32 _callPerMarkClose, uint64 _promoUsdPerCall, uint64 _minUsdPromoTarget) external onlyKeeper {
-    //     RATIO_CALL_MINT_PER_ARB_EXE = _callPerArb; // amount of all $CALL minted per arb executer reward
-    //     RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = _callPerMarkCloseCalls; // amount of all $CALL minted per market call close action reward
-    //     RATIO_CALL_MINT_PER_VOTE = _callPerVote; // amount of all $CALL minted per vote reward
-    //     RATIO_CALL_MINT_PER_MARK_CLOSE = _callPerMarkClose; // amount of all $CALL minted per market close action reward
-    //     RATIO_PROMO_USD_PER_CALL_MINT = _promoUsdPerCall; // usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
-    //     MIN_USD_PROMO_TARGET = _minUsdPromoTarget; // min target for creating promo codes ($ target = $ bets this promo brought in)
-    // }
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -194,14 +98,7 @@ contract CallitDelegate {
     /* CONSTRUTOR
     /* -------------------------------------------------------- */
     constructor() {
-        // set KEEPER
-        // KEEPER = msg.sender;
 
-        // // init settings for creating new CallitTicket.sol option results
-        // //  NOTE: VAULT should already be initialized
-        // NEW_TICK_UNISWAP_V2_ROUTER = VAULT.USWAP_V2_ROUTERS(0);
-        // NEW_TICK_UNISWAP_V2_FACTORY = VAULT.ROUTERS_TO_FACTORY(NEW_TICK_UNISWAP_V2_ROUTER);
-        // NEW_TICK_USD_STABLE = VAULT.WHITELIST_USD_STABLES(0);
     }
 
     /* -------------------------------------------------------- */
@@ -238,7 +135,6 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER
     /* -------------------------------------------------------- */
-    // legacy
     function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
         if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
             require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
@@ -251,41 +147,10 @@ contract CallitDelegate {
             // emit KeeperMaintenance(_erc20, _amount);
         }
     }
-    // function KEEPER_setKeeper(address _newKeeper, uint16 _keeperCheck) external onlyKeeper {
-    //     require(_newKeeper != address(0), 'err: 0 address');
-    //     address prev = address(KEEPER);
-    //     KEEPER = _newKeeper;
-    //     if (_keeperCheck > 0)
-    //         KEEPER_CHECK = _keeperCheck;
-    //     emit KeeperTransfer(prev, KEEPER);
-    // }
     function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
-    // function KEEPER_setContracts(address _fact, address _vault, address _lib) external onlyFactory() {
-    //     ADDR_FACT = _fact;
-
-    //     ADDR_LIB = _lib;
-    //     LIB = ICallitLib(ADDR_LIB);
-
-    //     ADDR_VAULT = _vault;
-    //     VAULT = ICallitVault(ADDR_VAULT);
-    // }
-    // // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
-    // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd) external onlyKeeper {
-    //     RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
-    //     RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
-    //     // MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
-    // }
-    // function KEEPER_setNewTicketEnvironment(address _router, address _usdStable) external onlyKeeper {
-    //     // max array size = 255 (uint8 loop)
-    //     // NOTE: if _router not mapped to a factory, then _router not in VAULT.USWAP_V2_ROUTERS
-    //     require(VAULT.ROUTERS_TO_FACTORY(_router) != address(0) && LIB._isAddressInArray(_usdStable, VAULT.getWhitelistStables()), ' !whitelist router|factory|stable :() ');
-    //     NEW_TICK_UNISWAP_V2_ROUTER = _router;
-    //     NEW_TICK_UNISWAP_V2_FACTORY = VAULT.ROUTERS_TO_FACTORY(_router);
-    //     NEW_TICK_USD_STABLE = _usdStable;
-    // }
     
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN SUPPORT
@@ -343,73 +208,6 @@ contract CallitDelegate {
         // deduct 'market maker fees' from _usdAmntLP
         uint64 net_usdAmntLP = LIB._deductFeePerc(_usdAmntLP, CONF.PERC_MARKET_MAKER_FEE(), _usdAmntLP);
 
-        // // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
-        // for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
-        //     // Get/calc amounts for initial LP (usd and token amounts)
-        //     (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);            
-
-        //     // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
-        //     // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-        //     // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
-        //     // address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
-        //     address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), ADDR_FACT, "tTICKET_0", "tTCK0"));
-            
-        //     // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
-        //     address pairAddr = VAULT._createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
-
-        //     // verify ERC20 & LP was created
-        //     require(new_tick_tok != address(0) && pairAddr != address(0), ' err: gen tick tok | lp :( ');
-
-        //     // set this ticket option's settings to index 'i' in storage temp results array
-        //     //  temp array will be added to MARKET struct and returned (then deleted on function return)
-        //     resultOptionTokens[i] = new_tick_tok;
-        //     resultTokenLPs[i] = pairAddr;
-
-        //     resultTokenRouters[i] = NEW_TICK_UNISWAP_V2_ROUTER;
-        //     resultTokenFactories[i] = NEW_TICK_UNISWAP_V2_FACTORY;
-        //     resultTokenUsdStables[i] = NEW_TICK_USD_STABLE;
-        //     resultTokenVotes[i] = 0;
-
-        //     // NOTE: set ticket to maker mapping, handled from factory
-
-        //     unchecked {i++;}
-        // }
-
-        // // deduct full OG usd input from account balance
-        // VAULT.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
-        
-        // // save this market and emit log
-        // ICallitLib.MARKET memory mark = ICallitLib.MARKET({maker:_sender, 
-        //                                         marketNum:_mark_num, 
-        //                                         name:_name,
-
-        //                                         // marketInfo:MARKET_INFO("", "", ""),
-        //                                         category:"",
-        //                                         rules:"", 
-        //                                         imgUrl:"", 
-
-        //                                         marketUsdAmnts:ICallitLib.MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), 
-        //                                         marketDatetimes:ICallitLib.MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), 
-                                                // marketResults:ICallitLib.MARKET_RESULTS(_resultLabels, new string[](_resultLabels.length), resultOptionTokens, resultTokenLPs, resultTokenRouters, resultTokenFactories, resultTokenUsdStables, resultTokenVotes), 
-        //                                         winningVoteResultIdx:0, 
-        //                                         blockTimestamp:block.timestamp, 
-        //                                         blockNumber:block.number, 
-        //                                         live:true}); // true = live
-        
-        // // Step 4: Clear tempArray (optional)
-        // // delete tempArray; // This will NOT effect whats stored in ACCT_MARKETS
-        // delete resultOptionTokens;
-        // delete resultTokenLPs;
-        // delete resultTokenRouters;
-        // delete resultTokenFactories;
-        // delete resultTokenUsdStables;
-        // delete resultTokenVotes;
-
-        // return (mark,_dtResultVoteEnd);
-
-        // ICallitLib.MARKET_RESULTS memory mark_results = VAULT.createDexLP(_resultLabels, net_usdAmntLP);
-        // mark_results.resultLabels = _resultLabels;
-
         // save this market and emit log
         ICallitLib.MARKET memory mark = ICallitLib.MARKET({maker:_sender, 
                                                 marketNum:_mark_num, 
@@ -436,7 +234,7 @@ contract CallitDelegate {
             unchecked {i++;}
         }
 
-        // // deduct full OG usd input from account balance
+        // deduct full OG usd input from account balance
         VAULT.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
 
         // return (mark,_dtResultVoteEnd);
@@ -548,8 +346,6 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     /* PRIVATE SUPPORTING
     /* -------------------------------------------------------- */
-    // function _getMarketForTicket(address _maker, address _ticket) public view returns(ICallitLib.MARKET memory, uint16, address) {
-    // function _getMarketForTicket(address _maker, address _ticket) private view returns(ICallitLib.MARKET storage) {
     function _getMarketForTicket(address _ticket) public view returns(ICallitLib.MARKET memory, uint16, address) {
         require(_ticket != address(0), ' no address for market ;:[=] ');
 
@@ -571,20 +367,4 @@ contract CallitDelegate {
         
         revert(' market not found :( ');
     }
-    // function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external onlyFactory {
-    // function _initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) private returns(address) {
-    //     // no 2 percs taken out of promo buy
-    //     require(CONF.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
-    //     require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= CONF.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
-    //     address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
-    //     ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
-    //     require(promo.promotor == address(0), ' promo already exists :-O ');
-    //     PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, _sender, block.number);
-    //     return promoCodeHash;
-    // }
-    // function _checkPromoBalance(address _promoCodeHash) private view returns(uint64) {
-    //     ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-    //     require(promo.promotor != address(0), ' invalid promo :-O ');
-    //     return promo.usdTarget - promo.usdUsed;
-    // }
 }
