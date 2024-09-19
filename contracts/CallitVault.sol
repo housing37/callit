@@ -42,7 +42,7 @@ contract CallitVault {
     // uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     // bool private ONCE_ = true;
     bool private FIRST_ = true;
-    string public constant tVERSION = '0.48'; 
+    string public constant tVERSION = '0.49';  
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
