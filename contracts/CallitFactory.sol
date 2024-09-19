@@ -32,7 +32,7 @@ interface ICallitToken {
     function balanceOf_voteCnt(address _voter) external view returns(uint64);
 }
 interface ICallitTicket {
-    function burnForWinLoseClaim(address _account) external;
+    function burnForRewardClaim(address _account) external;
     function decimals() external pure returns (uint8);
 }
 interface ICallitDelegate {
@@ -498,7 +498,7 @@ contract CallitFactory {
 
         // burn IERC20(_ticket).balanceOf(msg.sender)
         ICallitTicket cTicket = ICallitTicket(_ticket);
-        cTicket.burnForWinLoseClaim(msg.sender);
+        cTicket.burnForRewardClaim(msg.sender);
 
         // log caller's review of market results
         (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);

@@ -31,7 +31,7 @@ contract CallitTicket is ERC20 {
     address public ADDR_CONFIG; // set via constructor()
     ICallitConfig private CONF; // set via constructor()
     event MintedForPriceParity(address _receiver, uint256 _amount);
-    event BurnForWinLoseClaim(address _account, uint256 _amount);
+    event BurnForRewardClaim(address _account, uint256 _amount);
 
     constructor(uint256 _initSupply, string memory _name, string memory _symbol) ERC20(_name, _symbol) {
         ADDR_CONFIG = msg.sender; // config invokes new CallitTicket(...)
@@ -69,9 +69,9 @@ contract CallitTicket is ERC20 {
         emit MintedForPriceParity(_receiver, _amount);
     }
     // invoked by factory
-    function burnForWinLoseClaim(address _account) external onlyFactory() {
+    function burnForRewardClaim(address _account) external onlyFactory() {
         _burn(_account, balanceOf(_account)); // NOTE: checks _balance[_account]
-        emit BurnForWinLoseClaim(_account, balanceOf(_account));
+        emit BurnForRewardClaim(_account, balanceOf(_account));
     }
 
     // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
