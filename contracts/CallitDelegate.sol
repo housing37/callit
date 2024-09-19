@@ -117,6 +117,7 @@ contract CallitDelegate {
     mapping(string => address[]) public CATEGORY_MARK_HASHES; // store category to list of market hashes
     mapping(address => address[]) public ACCT_MARKET_HASHES; // store maker to list of market hashes
     mapping(address => ICallitLib.MARKET) public HASH_MARKET; // store market hash to its MARKET
+    mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory) {
         ICallitLib.MARKET memory mark = HASH_MARKET[_hash];
         require(mark.maker != address(0), ' !maker :0 ');
@@ -324,7 +325,6 @@ contract CallitDelegate {
         // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
         VAULT.deposit{value: msg.value}(msg.sender);
     }
-    mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                             uint64 _usdAmntLP, 
                             uint256 _dtCallDeadline, 
@@ -492,7 +492,7 @@ contract CallitDelegate {
         uint64 usdRewardOwed = 0;
         for (uint64 i = 0; i < ACCT_MARKET_VOTES[_sender].length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
             ICallitLib.MARKET_VOTE storage m_vote = ACCT_MARKET_VOTES[_sender][i];
-            (ICallitLib.MARKET memory mark,,) = _getMarketForTicket(m_vote.marketMaker, m_vote.voteResultToken); // reverts if market not found | address(0)
+            (ICallitLib.MARKET memory mark,,) = _getMarketForTicket(m_vote.voteResultToken); // reverts if market not found | address(0)
 
             // skip live MARKETs
             if (mark.live) {
@@ -572,16 +572,16 @@ contract CallitDelegate {
         revert(' market not found :( ');
     }
     // function initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) external onlyFactory {
-    function _initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) private returns(address) {
-        // no 2 percs taken out of promo buy
-        require(CONF.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
-        require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= CONF.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
-        address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
-        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
-        require(promo.promotor == address(0), ' promo already exists :-O ');
-        PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, _sender, block.number);
-        return promoCodeHash;
-    }
+    // function _initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward, address _sender) private returns(address) {
+    //     // no 2 percs taken out of promo buy
+    //     require(CONF.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
+    //     require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= CONF.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
+    //     address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
+    //     ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
+    //     require(promo.promotor == address(0), ' promo already exists :-O ');
+    //     PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, _sender, block.number);
+    //     return promoCodeHash;
+    // }
     // function _checkPromoBalance(address _promoCodeHash) private view returns(uint64) {
     //     ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
     //     require(promo.promotor != address(0), ' invalid promo :-O ');

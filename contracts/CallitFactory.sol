@@ -58,7 +58,8 @@ interface ICallitDelegate {
     // function pushCatMarketHash(string calldata _category, address _markHash) external;
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
-    function _getMarketForTicket(address _maker, address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
+    // function _getMarketForTicket(address _maker, address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
+    function _getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
@@ -84,7 +85,7 @@ contract CallitFactory {
     
     /* MAPPINGS (CALLIT) */
     // used externals only
-    mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
+    // mapping(address => address) public TICKET_MAKERS; // store ticket to their MARKET.maker mapping
     mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     // used externals & private
@@ -334,7 +335,7 @@ contract CallitFactory {
     }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _rules, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark,, address mark_hash) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark,, address mark_hash) = DELEGATE._getMarketForTicket(_anyTicket); // reverts if market not found | address(0)
         require(mark.maker == msg.sender, ' only market maker :( ');
         require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' call deadline passed :( ');
         require(bytes(_category).length > 1, ' cat too short  :0 ');
@@ -373,22 +374,22 @@ contract CallitFactory {
         address markHash = LIB._generateAddressHash(msg.sender, string(abi.encodePacked(mark_num)));
         DELEGATE.storeNewMarket(mark, msg.sender, markHash); // invokes 'DELEGATE.setHashMarket'
 
-        // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKERS mapping
-        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
-            // set ticket to maker mapping (additional access support)
-            TICKET_MAKERS[mark.marketResults.resultOptionTokens[i]] = msg.sender;
-            unchecked {i++;}
-        }
+        // // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKERS mapping
+        // for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
+        //     // set ticket to maker mapping (additional access support)
+        //     TICKET_MAKERS[mark.marketResults.resultOptionTokens[i]] = msg.sender;
+        //     unchecked {i++;}
+        // }
         emit MarketCreated(msg.sender, mark_num, _name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark.marketResults.resultOptionTokens, block.timestamp, true); // true = live
 
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }   
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
-        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
+        require(_ticket != address(0), ' invalid _ticket :-{} ');
         require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
         require(mark.maker != msg.sender,' !promo buy for maker ;( '); 
 
@@ -407,10 +408,10 @@ contract CallitFactory {
         }
     }
     function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
-        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
+        require(_ticket != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // calc target usd price for _ticket (in order to bring this market to price parity)
@@ -426,7 +427,7 @@ contract CallitFactory {
       //  emit ArbPriceCorrectionExecuted(msg.sender, _ticket, ticketTargetPriceUSD, tokensToMint, gross_stab_amnt_out, total_usd_cost, net_usd_profits, callEarnedAmnt);
     }
     function closeMarketCallsForTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
-        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{} ');
+        require(_ticket != address(0), ' invalid _ticket :-{} ');
 
         // algorithmic logic...
         //  get market for _ticket
@@ -434,7 +435,7 @@ contract CallitFactory {
         //  loop through _ticket LP addresses and pull all liquidity
 
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark,, address mark_hash) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark,, address mark_hash) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline <= block.timestamp && mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls not ready yet | closed :( ');
         // require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
@@ -449,7 +450,7 @@ contract CallitFactory {
       //  emit MarketCallsClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.marketUsdAmnts.usdAmntPrizePool, callEarnedAmnt);
     }
     function castVoteForMarketTicket(address _ticket) external { // NOTE: !_deductFeePerc; reward mint
-        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{=} ');
+        require(_ticket != address(0), ' invalid _ticket :-{=} ');
         require(IERC20(_ticket).balanceOf(msg.sender) == 0, ' no votes ;( ');
 
         // algorithmic logic...
@@ -460,7 +461,7 @@ contract CallitFactory {
         //  - 
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx, address mark_hash) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx, address mark_hash) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
 
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
@@ -488,7 +489,7 @@ contract CallitFactory {
         _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
     }
     function closeMarketForTicket(address _ticket) external { // _deductFeePerc PERC_MARKET_CLOSE_FEE from mark.marketUsdAmnts.usdAmntPrizePool
-        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{-} ');
+        require(_ticket != address(0), ' invalid _ticket :-{-} ');
         // algorithmic logic...
         //  - count votes in mark.resultTokenVotes 
         //  - set mark.winningVoteResultIdx accordingly
@@ -498,7 +499,7 @@ contract CallitFactory {
         //  - set market 'live' status = false;
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark,, address mark_hash) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark,, address mark_hash) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
 
         // getting winning result index to set mark.winningVoteResultIdx
@@ -540,7 +541,7 @@ contract CallitFactory {
       //  emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote, callEarnedAmnt);
     }
     function claimTicketRewards(address _ticket, bool _resultAgree) external { // _deductFeePerc PERC_WINNER_CLAIM_FEE from usdPrizePoolShare
-        require(_ticket != address(0) && TICKET_MAKERS[_ticket] != address(0), ' invalid _ticket :-{+} ');
+        require(_ticket != address(0), ' invalid _ticket :-{+} ');
         require(IERC20(_ticket).balanceOf(msg.sender) > 0, ' ticket !owned ;( ');
         // algorithmic logic...
         //  - check if market voting ended & makr not live
@@ -551,7 +552,7 @@ contract CallitFactory {
         //  - log _resultAgree in MARKET_REVIEW
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(TICKET_MAKERS[_ticket], _ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(!mark.live && mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market still live|voting ;) ');
 
         bool is_winner = mark.winningVoteResultIdx == tickIdx;
