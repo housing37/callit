@@ -50,9 +50,9 @@ contract CallitDelegate {
     // mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
     mapping(address => ICallitLib.MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & private until market close; live = false) ***
     mapping(address => ICallitLib.MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
-    mapping(string => address[]) public CATEGORY_MARK_HASHES; // store category to list of market hashes
-    mapping(address => address[]) public ACCT_MARKET_HASHES; // store maker to list of market hashes
-    mapping(address => ICallitLib.MARKET) public HASH_MARKET; // store market hash to its MARKET
+    mapping(string => address[]) private CATEGORY_MARK_HASHES; // store category to list of market hashes
+    mapping(address => address[]) private ACCT_MARKET_HASHES; // store maker to list of market hashes
+    mapping(address => ICallitLib.MARKET) private HASH_MARKET; // store market hash to its MARKET
     mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory) {
         ICallitLib.MARKET memory mark = HASH_MARKET[_hash];
