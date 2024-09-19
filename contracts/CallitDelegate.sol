@@ -291,13 +291,25 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     // CALLIT admin
     function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
-        address promoCodeHash = _initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
+        // address promoCodeHash = _initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
+
+        // no 2 percs taken out of promo buy
+        require(CONF.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
+        require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= CONF.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
+        address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
+        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
+        require(promo.promotor == address(0), ' promo already exists :-O ');
+        PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
+        // return promoCodeHash;
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
 
         // LEFT OFF HERE ... never storing promoCodeHash generated (only emitting event with it)
     }
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
-        return _checkPromoBalance(_promoCodeHash);
+        // return _checkPromoBalance(_promoCodeHash);
+        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+        require(promo.promotor != address(0), ' invalid promo :-O ');
+        return promo.usdTarget - promo.usdUsed;
     }
     function getMarketCntForMaker(address _maker) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
@@ -307,12 +319,12 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     /* PUBLIC - FACTORY SUPPORT
     /* -------------------------------------------------------- */
-    // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
-    receive() external payable {
-        // process PLS value sent
-        uint256 amntIn = msg.value;
-        VAULT.deposit{value: amntIn}(msg.sender);
+    // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
+    fallback() external payable {
+        // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
+        VAULT.deposit{value: msg.value}(msg.sender);
     }
+    mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                             uint64 _usdAmntLP, 
                             uint256 _dtCallDeadline, 
@@ -416,6 +428,13 @@ contract CallitDelegate {
                                                 blockTimestamp:block.timestamp, 
                                                 blockNumber:block.number, 
                                                 live:true}); // true = live
+
+        // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKER mapping
+        for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
+            // set ticket to maker mapping (additional access support)
+            TICKET_MAKER[mark.marketResults.resultOptionTokens[i]] = msg.sender;
+            unchecked {i++;}
+        }
 
         // // deduct full OG usd input from account balance
         VAULT.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
@@ -529,12 +548,14 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     /* PRIVATE SUPPORTING
     /* -------------------------------------------------------- */
-    function _getMarketForTicket(address _maker, address _ticket) public view returns(ICallitLib.MARKET memory, uint16, address) {
+    // function _getMarketForTicket(address _maker, address _ticket) public view returns(ICallitLib.MARKET memory, uint16, address) {
     // function _getMarketForTicket(address _maker, address _ticket) private view returns(ICallitLib.MARKET storage) {
-        require(_maker != address (0) && _ticket != address(0), ' no address for market ;:[=] ');
+    function _getMarketForTicket(address _ticket) public view returns(ICallitLib.MARKET memory, uint16, address) {
+        require(_ticket != address(0), ' no address for market ;:[=] ');
 
         // NOTE: MAX_EOA_MARKETS is uint64
-        address[] memory mark_hashes = ACCT_MARKET_HASHES[_maker];
+        // address _maker = TICKET_MAKER[_ticket];
+        address[] memory mark_hashes = ACCT_MARKET_HASHES[TICKET_MAKER[_ticket]];
         for (uint64 i = 0; i < mark_hashes.length;) {
             ICallitLib.MARKET memory mark = HASH_MARKET[mark_hashes[i]];
             for (uint16 x = 0; x < mark.marketResults.resultOptionTokens.length;) {
@@ -561,9 +582,9 @@ contract CallitDelegate {
         PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, _sender, block.number);
         return promoCodeHash;
     }
-    function _checkPromoBalance(address _promoCodeHash) private view returns(uint64) {
-        ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        require(promo.promotor != address(0), ' invalid promo :-O ');
-        return promo.usdTarget - promo.usdUsed;
-    }
+    // function _checkPromoBalance(address _promoCodeHash) private view returns(uint64) {
+    //     ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
+    //     require(promo.promotor != address(0), ' invalid promo :-O ');
+    //     return promo.usdTarget - promo.usdUsed;
+    // }
 }
