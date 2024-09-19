@@ -77,7 +77,7 @@ contract CallitDelegate {
         if (bytes(_category).length > 1) { // note: sending a single 'space', signals use _maker
             require(CATEGORY_MARK_HASHES[_category].length > 0, ' no _cat market :/ ');
             return CATEGORY_MARK_HASHES[_category];
-        } else if (_maker == address(0)) {
+        } else if (_maker != address(0)) {
             require(ACCT_MARKET_HASHES[_maker].length > 0, ' no _maker markets :/ ');
             return ACCT_MARKET_HASHES[_maker];
         } else {
