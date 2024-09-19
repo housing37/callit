@@ -36,6 +36,7 @@ contract CallitConfig {
     /* _ ADMIN SUPPORT (legacy) _ */
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
+    mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
     string public constant tVERSION = '0.13';
     address public ADDR_LIB = address(0xbE85292784FE3c383BF8a262Be34f4f282A52D05); // CallitLib v0.17
     address public ADDR_VAULT = address(0xECA9c5f7e327415919Ed144B7f69c63Cfef71a71); // CallitVault v0.47
@@ -195,6 +196,10 @@ contract CallitConfig {
             KEEPER_CHECK = _keeperCheck;
         // emit KeeperTransfer(prev, KEEPER);
     }
+    function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
+        require(_admin != address(0), ' !_admin :{+} ');
+        ADMINS[_admin] = _enable;
+    }
     function KEEPER_setContracts(address _lib, address _vault, address _delegate, address _CALL, address _fact, address _conf) external onlyKeeper {
         // EOA may indeed send 0x0 to "opt-in" for changing _conf address in support contracts
         //  if no _conf, update support contracts w/ current CONFIG address
@@ -309,6 +314,10 @@ contract CallitConfig {
     }
     function get_USWAP_V2_ROUTERS() external view returns(address[] memory) {
         return USWAP_V2_ROUTERS;
+    }
+    function adminStatus(address _admin) external view returns(bool) {
+        require(_admin != address(0), ' !_admin :/ ');
+        return ADMINS[_admin];
     }
 
     /* -------------------------------------------------------- */

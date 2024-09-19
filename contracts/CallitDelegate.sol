@@ -40,7 +40,7 @@ contract CallitDelegate {
     ICallitVault private VAULT; // set via CONF_setConfig
 
     mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
-    mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
+    // mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
 
     // mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
@@ -54,6 +54,20 @@ contract CallitDelegate {
     mapping(address => address[]) private ACCT_MARKET_HASHES; // store maker to list of market hashes
     mapping(address => ICallitLib.MARKET) private HASH_MARKET; // store market hash to its MARKET
     mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
+    address[] public MARKET_HASH_LST; // store list of all market haches
+
+    // LEFT OFF HERE .. attempting to migrate ACCT_MARKET_REVIEWS from factory to delegate
+    //      having compile size errrors... is it worth it?
+    //      note: people need to get a list of seperate reviews 
+    //              as well as the sum of all agreeCnt & disagreeCnt in all reviews
+    // mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    // function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external onlyFactory {
+    //     ACCT_MARKET_REVIEWS[_marketMaker].push(_marketReview);
+    // }
+    // function getMarketReviewsForMaker(address _maker) external view returns (ICallitLib.MARKET_REVIEW[] memory) {
+    //     require(_maker != address(0), ' !_maker :--/ ');
+    //     return ACCT_MARKET_REVIEWS[_maker];
+    // }
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory) {
         ICallitLib.MARKET memory mark = HASH_MARKET[_hash];
         require(mark.maker != address(0), ' !maker :0 ');
@@ -61,12 +75,14 @@ contract CallitDelegate {
     }
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory) {
         if (bytes(_category).length > 1) { // note: sending a single 'space', signals use _maker
-            require(CATEGORY_MARK_HASHES[_category].length > 0, ' no market cats :/ ');
+            require(CATEGORY_MARK_HASHES[_category].length > 0, ' no _cat market :/ ');
             return CATEGORY_MARK_HASHES[_category];
-        }
-        else {
-            require(ACCT_MARKET_HASHES[_maker].length > 0, ' no markets :/ ');
+        } else if (_maker == address(0)) {
+            require(ACCT_MARKET_HASHES[_maker].length > 0, ' no _maker markets :/ ');
             return ACCT_MARKET_HASHES[_maker];
+        } else {
+            require(MARKET_HASH_LST.length > 0, ' no markets :/ ');
+            return MARKET_HASH_LST;
         }
     }
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external onlyFactory {
@@ -74,6 +90,7 @@ contract CallitDelegate {
         // ACCT_MARKETS[_maker].push(_mark);
         ACCT_MARKET_HASHES[_maker].push(_markHash);
         HASH_MARKET[_markHash] = _mark;
+        MARKET_HASH_LST.push(_markHash);
     }
     function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external onlyFactory {
         require(_account != address(0), ' bad _account :*{ ');
@@ -109,7 +126,8 @@ contract CallitDelegate {
         _;
     }
     modifier onlyAdmin() {
-        require(msg.sender == CONF.KEEPER() || ADMINS[msg.sender] == true, " !admin :p");
+        require(msg.sender == CONF.KEEPER() || CONF.ADMINS(msg.sender) == true, " !admin :p");
+        // require(msg.sender == CONF.KEEPER() || CONF.adminStatus(msg.sender) == true, " !admin :p");
         _;
     }
     modifier onlyFactory() {
@@ -147,10 +165,10 @@ contract CallitDelegate {
             // emit KeeperMaintenance(_erc20, _amount);
         }
     }
-    function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
-        require(_admin != address(0), ' !_admin :{+} ');
-        ADMINS[_admin] = _enable;
-    }
+    // function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
+    //     require(_admin != address(0), ' !_admin :{+} ');
+    //     ADMINS[_admin] = _enable;
+    // }
     
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN SUPPORT
@@ -174,8 +192,8 @@ contract CallitDelegate {
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
         // return _checkPromoBalance(_promoCodeHash);
         ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        require(promo.promotor != address(0), ' invalid promo :-O ');
-        return promo.usdTarget - promo.usdUsed;
+        // require(promo.promotor != address(0), ' invalid promo :-O ');
+        return promo.usdTarget - promo.usdUsed; // note: w/o 'require', should simply return 0
     }
     function getMarketCntForMaker(address _maker) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
@@ -329,7 +347,7 @@ contract CallitDelegate {
         VAULT._payUsdReward(_sender, usdRewardOwed_net, _sender);
         
         // emit log for rewards claimed
-       emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);
+        emit VoterRewardsClaimed(msg.sender, usdRewardOwed, usdRewardOwed_net);
 
         // NOTE: no $CALL tokens minted for this action   
     }

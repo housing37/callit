@@ -2,6 +2,8 @@
 pragma solidity ^0.8.20;
 
 interface ICallitConfig {
+    function ADMINS(address _key) external view returns(bool);
+    // function adminStatus(address _admin) external view returns(bool);
     function KEEPER() external view returns(address);
     function ADDR_LIB() external view returns(address);
     function ADDR_VAULT() external view returns(address);

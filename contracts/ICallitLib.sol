@@ -13,16 +13,16 @@ interface ICallitLib {
         address adminCreator; // admin who created this promo
         uint256 blockNumber; // block number this promo was created
     }
-    struct MARKET_INFO { // 091924: not in use
-        uint256 marketNum;
-        string marketName;
-        string imgUrl;
-        uint256 initUsdAmntLP_tot;
-        string[] resultLabels;
-        address[] resultTickets;
-        uint256[] dtDeadlines; // call closed, vote start, vote end
-        bool live;
-    }
+    // struct MARKET_INFO { // 091924: not in use
+    //     uint256 marketNum;
+    //     string marketName;
+    //     string imgUrl;
+    //     uint256 initUsdAmntLP_tot;
+    //     string[] resultLabels;
+    //     address[] resultTickets;
+    //     uint256[] dtDeadlines; // call closed, vote start, vote end
+    //     bool live;
+    // }
     struct MARKET {
         address maker; // EOA market maker
         uint256 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
