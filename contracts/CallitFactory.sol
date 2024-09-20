@@ -68,7 +68,7 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.61';  
+    string public tVERSION = '0.62';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -158,8 +158,8 @@ contract CallitFactory {
         return mark_hashes.length;
     }
     function getMarketHashesForMakerOrCategory(string calldata _category, address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(address[] memory) {
-        require(_maker != address(0), ' !_maker ;[=] ');
-        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
+        // require(_maker != address(0), ' !_maker ;[=] '); // 
+        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1 & _maker != address(0)
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :p ');
         address[] memory ret_hashes = new address[](_retCnt);
         uint8 cnt_;
@@ -181,8 +181,8 @@ contract CallitFactory {
     }
     function getMarketsForMakerOrCategory(string calldata _category, address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
     // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
-        require(_maker != address(0), ' !_maker ;[-] ');
-        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
+        // require(_maker != address(0), ' !_maker ;[-] ');
+        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1 & _maker != address(0)
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :-p ');
         return _getMarketReturns(mark_hashes, _all, _live, _idxStart, _retCnt);
     }
