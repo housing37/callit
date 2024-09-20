@@ -56,18 +56,6 @@ contract CallitDelegate {
     mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
     address[] public MARKET_HASH_LST; // store list of all market haches
 
-    // LEFT OFF HERE .. attempting to migrate ACCT_MARKET_REVIEWS from factory to delegate
-    //      having compile size errrors... is it worth it?
-    //      note: people need to get a list of seperate reviews 
-    //              as well as the sum of all agreeCnt & disagreeCnt in all reviews
-    // mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
-    // function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external onlyFactory {
-    //     ACCT_MARKET_REVIEWS[_marketMaker].push(_marketReview);
-    // }
-    // function getMarketReviewsForMaker(address _maker) external view returns (ICallitLib.MARKET_REVIEW[] memory) {
-    //     require(_maker != address(0), ' !_maker :--/ ');
-    //     return ACCT_MARKET_REVIEWS[_maker];
-    // }
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory) {
         ICallitLib.MARKET memory mark = HASH_MARKET[_hash];
         require(mark.maker != address(0), ' !maker :0 ');

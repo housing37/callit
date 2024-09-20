@@ -56,7 +56,6 @@ interface ICallitLib {
         address[] resultOptionTokens; // required: length == _resultLabels == _resultDescrs
         address[] resultTokenLPs; // // required: length == _resultLabels == _resultDescrs == resultOptionTokens
         address[] resultTokenRouters;
-        // address[] resultTokenFactories;
         address[] resultTokenUsdStables;
         uint64[] resultTokenVotes;
     }
