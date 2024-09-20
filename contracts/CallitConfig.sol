@@ -123,7 +123,11 @@ contract CallitConfig {
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
-
+    // legacy
+    // event KeeperTransfer(address _prev, address _new);
+    // event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
+    // event DexRouterUpdated(address _router, bool _add);
+    
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR
     /* -------------------------------------------------------- */

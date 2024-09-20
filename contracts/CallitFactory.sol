@@ -74,6 +74,7 @@ contract CallitFactory {
     ICallitVault private VAULT; // set via CONF_setConfig
     ICallitDelegate private DELEGATE; // set via CONF_setConfig
     ICallitToken private CALL;  // set via CONF_setConfig
+    uint64 private CALL_INIT_MINT;
     
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -89,7 +90,6 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR (legacy)
     /* -------------------------------------------------------- */
-    uint64 private CALL_INIT_MINT;
     constructor(uint64 _CALL_initSupply) {
         CALL_INIT_MINT = _CALL_initSupply;
         // NOTE: CALL initSupply is minted to KEEPER via CONF_setConfig init call (ie. _mintCallToksEarned)

@@ -40,9 +40,6 @@ contract CallitDelegate {
     ICallitVault private VAULT; // set via CONF_setConfig
 
     mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
-    // mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
-
-    // mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     // // NOTE: a copy of all MARKET in ICallitLib.MARKET[] is stored in DELEGATE (via ACCT_MARKET_HASHES -> HASH_MARKET)
     // //  ie. ACCT_MARKETS[_maker][0] == HASH_MARKET[ACCT_MARKET_HASHES[_maker][0]]
@@ -153,10 +150,6 @@ contract CallitDelegate {
             // emit KeeperMaintenance(_erc20, _amount);
         }
     }
-    // function KEEPER_editAdmin(address _admin, bool _enable) external onlyKeeper {
-    //     require(_admin != address(0), ' !_admin :{+} ');
-    //     ADMINS[_admin] = _enable;
-    // }
     
     /* -------------------------------------------------------- */
     /* PUBLIC - ADMIN SUPPORT
