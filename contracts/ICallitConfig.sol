@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
-
+import "./ICallitLib.sol";
 interface ICallitConfig {
+    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external;
+    function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
+
     function ADMINS(address _key) external view returns(bool);
     // function adminStatus(address _admin) external view returns(bool);
     function KEEPER() external view returns(address);

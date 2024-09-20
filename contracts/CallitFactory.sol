@@ -36,8 +36,6 @@ interface ICallitTicket {
     function decimals() external pure returns (uint8);
 }
 interface ICallitDelegate {
-    // function ACCT_MARKET_REVIEWS(address _key) external view returns(ICallitLib.MARKET_REVIEW[] memory);
-    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _marketMaker) external;
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                         uint64 _usdAmntLP, 
                         uint256 _dtCallDeadline, 
@@ -76,10 +74,6 @@ contract CallitFactory {
     ICallitVault private VAULT; // set via CONF_setConfig
     ICallitDelegate private DELEGATE; // set via CONF_setConfig
     ICallitToken private CALL;  // set via CONF_setConfig
-    
-    /* MAPPINGS (CALLIT) */
-    // used externals only
-    mapping(address => ICallitLib.MARKET_REVIEW[]) public ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
     
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -503,9 +497,8 @@ contract CallitFactory {
         cTicket.burnForRewardClaim(msg.sender);
 
         // log caller's review of market results
-        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, ACCT_MARKET_REVIEWS[mark.maker], _resultAgree);
-        ACCT_MARKET_REVIEWS[mark.maker].push(marketReview);
-        // DELEGATE.pushAcctMarketReview(marketReview, mark.maker);
+        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, CONF.getMarketReviewsForMaker(mark.maker), _resultAgree);
+        CONF.pushAcctMarketReview(marketReview, mark.maker);
 
         // emit log event for reviewing market result
         emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, markHash, agreeCnt, disagreeCnt);

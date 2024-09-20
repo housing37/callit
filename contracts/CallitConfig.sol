@@ -118,6 +118,8 @@ contract CallitConfig {
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
     address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
+    mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -167,6 +169,10 @@ contract CallitConfig {
     }
     modifier onlyVault() {
         require(msg.sender == ADDR_VAULT, " !vault ;[] ");
+        _;
+    }
+    modifier onlyFactory() {
+        require(msg.sender == ADDR_FACT, " !fact :+[ ");
         _;
     }
     function keeperCheck(uint256 _check) external view returns(bool) { 
@@ -301,6 +307,22 @@ contract CallitConfig {
     }
     function VAULT_getStableTokenLowMarketValue() external view onlyVault returns(address) {
         return LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
+    }
+
+    /* -------------------------------------------------------- */
+    /* PUBLIC - FACTORY
+    /* -------------------------------------------------------- */
+    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external onlyFactory {
+        require(_maker != address(0), ' !_maker :=/ ');
+        ACCT_MARKET_REVIEWS[_maker].push(_marketReview);
+    }
+    function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory) {
+        require(_maker != address(0), ' !_maker :--/ ');
+        return ACCT_MARKET_REVIEWS[_maker];
+
+        // LEFT OFF HERE ...
+        //  people need to get a list of seperate reviews 
+        //  as well as the sum of all agreeCnt & disagreeCnt in all reviews
     }
     
     /* -------------------------------------------------------- */
