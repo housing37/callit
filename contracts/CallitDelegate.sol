@@ -33,7 +33,7 @@ contract CallitDelegate {
     /* GLOBALS (CALLIT) */
     // bool private ONCE_ = true;
     bool private FIRST_ = true;
-    string public constant tVERSION = '0.41';
+    string public constant tVERSION = '0.42'; 
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
@@ -229,7 +229,7 @@ contract CallitDelegate {
         // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKER mapping
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
             // set ticket to maker mapping (additional access support)
-            TICKET_MAKER[mark.marketResults.resultOptionTokens[i]] = msg.sender;
+            TICKET_MAKER[mark.marketResults.resultOptionTokens[i]] = _sender;
             unchecked {i++;}
         }
 
