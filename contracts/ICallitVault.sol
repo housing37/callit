@@ -7,12 +7,12 @@ interface ICallitVault {
     function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external returns(uint64, uint64, uint64, uint64, uint64);
     function deposit(address _depositor) external payable;
 
-    // NOTE: legacy public globals
-    function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
-    function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
+    // // NOTE: legacy public globals
+    // function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
+    // function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
     
-    // NOTE: new public helpers for legacy public globals
-    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
+    // // NOTE: new public helpers for legacy public globals
+    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
     
     // NOTE: legacy private (now public)
     function _usd_decimals() external pure returns (uint8);

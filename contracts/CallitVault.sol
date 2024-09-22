@@ -42,6 +42,7 @@ contract CallitVault {
     string public constant tVERSION = '0.49';  
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
+    ICallitConfigMarket private CONFM; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
 
     /* -------------------------------------------------------- */
@@ -58,21 +59,21 @@ contract CallitVault {
     address[] private resultTokenUsdStables;
     uint64 [] private resultTokenVotes;   
 
-    /* _ ACCOUNT SUPPORT (legacy) _ */
-    // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
-    // NOTE: all USD bals & payouts stores uint precision to 6 decimals
-    // NOTE: legacy public
-    mapping(address => uint64) public ACCT_USD_BALANCES; 
-    address[] public ACCOUNTS; // NOTE: private is more secure; consider external KEEPER getter instead
-    mapping(address => address) private TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
-    mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
+    // /* _ ACCOUNT SUPPORT (legacy) _ */
+    // // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
+    // // NOTE: all USD bals & payouts stores uint precision to 6 decimals
+    // // NOTE: legacy public
+    // mapping(address => uint64) public ACCT_USD_BALANCES; 
+    // address[] public ACCOUNTS; // NOTE: private is more secure; consider external KEEPER getter instead
+    // mapping(address => address) private TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
+    // mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
 
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
     event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
-    // event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
-    // event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
+    event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
+    event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event PromoRewardLogged(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
 
     constructor() {
@@ -104,20 +105,38 @@ contract CallitVault {
         require(_conf != address(0), ' !addy :< ');
         ADDR_CONFIG = _conf;
         CONF = ICallitConfig(_conf);
+        CONFM = ICallitConfigMarket(CONF.ADDR_CONFM());
         LIB = ICallitLib(CONF.ADDR_LIB());
     }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - KEEPER
     /* -------------------------------------------------------- */
-    // legacy
+    function KEEPER_maintenanceLP(address _erc20, uint256 _amount, bool _totBal, bool _all) external onlyKeeper() {
+        if (_all) { // get all from all live pairs
+            address[] memory liveTickets = CONFM.getLiveTickets();
+            for(uint256 i=0; i < liveTickets.length;) {
+                address pair = CONFM.TICK_PAIR_ADDR(liveTickets[i]);
+                IERC20(pair).transfer(CONF.KEEPER(), IERC20(pair).balanceOf(address(this)));
+                unchecked {
+                    i++;
+                }
+            }
+        } else { 
+            address pair = CONFM.TICK_PAIR_ADDR(_erc20);
+            if (_totBal) // get all amount from specific live pair
+                IERC20(pair).transfer(CONF.KEEPER(), IERC20(pair).balanceOf(address(this)));
+            else // get specific amount from specific live pair
+                IERC20(pair).transfer(CONF.KEEPER(), _amount); // reverts if bal < _amount
+        }
+    }
     function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
         if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
             require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
             payable(CONF.KEEPER()).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
-            //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
+            //  NOTE: _amount must be in uint precision to _erc20.decimals()
             require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
             IERC20(_erc20).transfer(CONF.KEEPER(), _amount);
             // emit KeeperMaintenance(_erc20, _amount);
@@ -131,17 +150,17 @@ contract CallitVault {
         // return _collectiveStableBalances(WHITELIST_USD_STABLES);
 
         // (address[] memory stables,,) = CONF.getDexAddies();
-        uint64 gross_bal = _grossStableBalance(CONF.get_WHITELIST_USD_STABLES());
-        uint64 owed_bal = _owedStableBalance();
+        uint64 gross_bal = CONFM.grossStableBalance(CONF.get_WHITELIST_USD_STABLES(), address(this));
+        uint64 owed_bal = CONFM.owedStableBalance();
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
         return (gross_bal, owed_bal, net_bal);
     }
     // callit
-    function KEEPER_withdrawTicketLP(address _ticket) external onlyKeeper {
-        // NOTE: can only withdraw LP from one _ticket at a time
-        //  bc no current way to get market for _ticket (from FACTORY)
-        IERC20(TICK_PAIR_ADDR[_ticket]).transfer(CONF.KEEPER(), IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
-    }
+    // function KEEPER_withdrawTicketLP(address _ticket) external onlyKeeper {
+    //     // NOTE: can only withdraw LP from one _ticket at a time
+    //     //  bc no current way to get market for _ticket (from FACTORY)
+    //     IERC20(TICK_PAIR_ADDR[_ticket]).transfer(CONF.KEEPER(), IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
+    // }
     // function KEEPER_logTicketPair(address _ticket, address _pair) external onlyFactory() {
     //     require(_ticket != address(0) && _pair != address(0), ' 0 address :[ ');
     //     TICK_PAIR_ADDR[_ticket] = _pair;
@@ -159,9 +178,9 @@ contract CallitVault {
             // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals)
             // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     }
-    function getAccounts() external view returns (address[] memory) {
-        return ACCOUNTS;
-    }
+    // function getAccounts() external view returns (address[] memory) {
+    //     return ACCOUNTS;
+    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)
@@ -218,8 +237,9 @@ contract CallitVault {
         uint64 stableAmntOut = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(pls_stab_path[1]).decimals(), amntOut[amntOut.length - 1], _usd_decimals())); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
         
         // update account balance
-        ACCT_USD_BALANCES[_depositor] += stableAmntOut;
-        ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
+        // ACCT_USD_BALANCES[_depositor] += stableAmntOut;
+        // ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
+        CONFM.edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
 
         emit DepositReceived(_depositor, msgValue, stableAmntOut);
 
@@ -247,7 +267,8 @@ contract CallitVault {
         // calc influencer reward from _usdAmnt to send to promo.promotor
         //  and update amount owed for this _promoCodeHash
         uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
-        PROMO_USD_OWED[_promoCodeHash] += usdReward;
+        // PROMO_USD_OWED[_promoCodeHash] += usdReward;
+        CONF.setUsdOwedForPromoHash(CONF.PROMO_USD_OWED(_promoCodeHash) + usdReward, _promoCodeHash);
         emit PromoRewardLogged(_promoCodeHash, usdReward, _promotor, _sender, _ticket);
 
         // deduct usdReward & promo buy fee _usdAmnt
@@ -259,9 +280,9 @@ contract CallitVault {
         uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
         if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
             uint64 net_usdAmnt_needed = net_usdAmnt - _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_tick_stable_tok).decimals(), contr_stab_bal, _usd_decimals()));
-            // (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
-            _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
-            // emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
+            (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+            // _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+            emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
             // verify
             require(IERC20(_tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
@@ -275,22 +296,24 @@ contract CallitVault {
         uint256 tick_amnt_out = _exeSwapTokForTok(net_usdAmnt, usd_tick_path, _sender, true); // buyer = _receiver // true = _fromUsdAcctBal
 
         // deduct full OG input _usdAmnt from account balance
-        edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
+        CONFM.edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
 
         return (net_usdAmnt, tick_amnt_out);
     }
     function payPromoUsdReward(address _sender, address _promoCodeHash, uint64 _usdReward, address _receiver) external onlyFactory returns(uint64) {
-        uint64 usdOwed = PROMO_USD_OWED[_promoCodeHash];
+        // uint64 usdOwed = PROMO_USD_OWED[_promoCodeHash];
+        uint64 usdOwed = CONF.PROMO_USD_OWED(_promoCodeHash);
         require(_promoCodeHash != address(0) && usdOwed > 0 && _usdReward <= usdOwed, ' not enough owed ;[ ');
         uint64 net_usdReward = LIB._deductFeePerc(usdOwed, CONF.PERC_PROMO_CLAIM_FEE(), usdOwed);
         _payUsdReward(_sender, net_usdReward, _receiver); // pay w/ lowest value whitelist stable held (returns on 0 reward)
-        PROMO_USD_OWED[_promoCodeHash] = usdOwed - _usdReward; // deduct entire _usdReward from owed (not just net)
+        // PROMO_USD_OWED[_promoCodeHash] = usdOwed - _usdReward; // deduct entire _usdReward from owed (not just net)
+        CONF.setUsdOwedForPromoHash(usdOwed - _usdReward, _promoCodeHash); // deduct entire _usdReward from owed (not just net)
         return net_usdReward; // return what was actually paid (ie. net)
     }
     // note: migrate to CallitBank
     function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) public onlyFactory() {
         if (_usdReward == 0) {
-            // emit AlertZeroReward(_sender, _usdReward, _receiver);
+            emit AlertZeroReward(_sender, _usdReward, _receiver);
             return;
         }
         // Get stable to work with ... (any stable that covers 'usdReward' is fine)
@@ -393,8 +416,9 @@ contract CallitVault {
             address pairAddr = IUniswapV2Factory(router.factory()).getPair(new_tick_tok, stable_addr);
                 // address pairAddr = address(0x3700000000000000000000000000000000000037);
             
-            // map new ticket created to its pair address created
-            TICK_PAIR_ADDR[new_tick_tok] = pairAddr;
+            // add new ticket address to config's live ticket array
+            //  NOTE: sets pairAddr to TICK_PAIR_ADDR[new_tick_tok] mapping, w/ 'true' add
+            CONFM.editLiveTicketList(new_tick_tok, pairAddr, true); // true = add
             /** _FROM VAULT_ */
 
             // verify ERC20 & LP was created
@@ -458,6 +482,10 @@ contract CallitVault {
             block.timestamp + 300 // Deadline (5 minutes from now)
         );
 
+        // remove ticket address from config's live ticket array
+        //  NOTE: address(0) (ie. _pairAddr), not used w/ 'false' remove
+        CONFM.editLiveTicketList(_usdStable, address(0), false); // false = remove
+
         // verify correct ticket token stable was pulled and recieved
         require(IERC20(_usdStable).balanceOf(address(this)) >= OG_stable_bal, ' stab bal mismatch after liq pull :+( ');
         return amountToken1;
@@ -477,11 +505,13 @@ contract CallitVault {
         if (_arbExecuter != CONF.KEEPER()) { // free for KEEPER
             // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
             //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from this contract
-            require(ACCT_USD_BALANCES[_arbExecuter] >= total_usd_cost, ' low balance :( ');
+            // require(ACCT_USD_BALANCES[_arbExecuter] >= total_usd_cost, ' low balance :( ');
+            require(CONFM.getUsdBalanceForAcct(_arbExecuter) >= total_usd_cost, ' low balance :( ');
+            
 
             // deduce that sale amount from their account balance
             // CALLIT_VAULT.ACCT_USD_BALANCES[_arbExecuter] -= total_usd_cost; 
-            edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
+            CONFM.edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
         }
         
         // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
@@ -538,34 +568,34 @@ contract CallitVault {
         uint64 convertedValue = uint64(value);
         return convertedValue;
     }
-    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
-    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) public onlyFactory() {
-        if (_add) {
-            require(_usdAmnt > 0, ' !add 0 :/ ' );
-            ACCT_USD_BALANCES[_acct] += _usdAmnt;
-        } else {
-            require(ACCT_USD_BALANCES[_acct] >= _usdAmnt, ' !deduct low balance :{} ');
-            ACCT_USD_BALANCES[_acct] -= _usdAmnt;    
-        }
-    }
-    function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
-        uint64 gross_bal = 0;
-        for (uint8 i = 0; i < _stables.length;) {
-            // NOTE: more efficient algorithm taking up less stack space with local vars
-            require(IERC20x(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
-            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
-            unchecked {i++;}
-        }
-        return gross_bal;
-    }
-    function _owedStableBalance() private view returns (uint64) {
-        uint64 owed_bal = 0;
-        for (uint256 i = 0; i < ACCOUNTS.length;) {
-            owed_bal += ACCT_USD_BALANCES[ACCOUNTS[i]];
-            unchecked {i++;}
-        }
-        return owed_bal;
-    }
+    // // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
+    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) public onlyFactory() {
+    //     if (_add) {
+    //         require(_usdAmnt > 0, ' !add 0 :/ ' );
+    //         ACCT_USD_BALANCES[_acct] += _usdAmnt;
+    //     } else {
+    //         require(ACCT_USD_BALANCES[_acct] >= _usdAmnt, ' !deduct low balance :{} ');
+    //         ACCT_USD_BALANCES[_acct] -= _usdAmnt;    
+    //     }
+    // }
+    // function _grossStableBalance(address[] memory _stables) private view returns (uint64) {
+    //     uint64 gross_bal = 0;
+    //     for (uint8 i = 0; i < _stables.length;) {
+    //         // NOTE: more efficient algorithm taking up less stack space with local vars
+    //         require(IERC20x(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
+    //         gross_bal += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
+    //         unchecked {i++;}
+    //     }
+    //     return gross_bal;
+    // }
+    // function _owedStableBalance() private view returns (uint64) {
+    //     uint64 owed_bal = 0;
+    //     for (uint256 i = 0; i < ACCOUNTS.length;) {
+    //         owed_bal += ACCT_USD_BALANCES[ACCOUNTS[i]];
+    //         unchecked {i++;}
+    //     }
+    //     return owed_bal;
+    // }
     function _stableHoldingsCovered(uint64 _usdAmnt, address _usdStable) private view returns (bool) {
         if (_usdStable == address(0x0)) 
             return false;

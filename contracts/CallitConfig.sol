@@ -119,6 +119,10 @@ contract CallitConfig {
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
     address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
+
+    mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
+    mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
+
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -191,7 +195,7 @@ contract CallitConfig {
             payable(KEEPER).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
-            //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
+            //  NOTE: _amount must be in uint precision to _erc20.decimals()
             require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
             IERC20(_erc20).transfer(KEEPER, _amount);
             // emit KeeperMaintenance(_erc20, _amount);
@@ -329,6 +333,17 @@ contract CallitConfig {
     function adminStatus(address _admin) external view returns(bool) {
         require(_admin != address(0), ' !_admin :/ ');
         return ADMINS[_admin];
+    }
+    function getPomoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory) {
+        require(_promoHash != address(0), ' no hash :/ ');
+        return HASH_PROMO[_promoHash];
+    }
+    function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external {
+        require(_promo.promotor != address(0) && _promoHash != address(0), ' no promo|hash :/ ');
+        HASH_PROMO[_promoHash] = _promo;
+    }
+    function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external onlyVault {
+        PROMO_USD_OWED[_promoCodeHash] = _usdOwed;
     }
 
     /* -------------------------------------------------------- */

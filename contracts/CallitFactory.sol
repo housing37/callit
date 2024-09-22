@@ -47,7 +47,7 @@ interface ICallitDelegate {
                         ) external returns(ICallitLib.MARKET memory);
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _reciever) external returns(uint64, uint256);
     function closeMarketCalls(ICallitLib.MARKET memory mark) external returns(uint64);
-    function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
+    // function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
     function claimVoterRewards() external;
     // function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external;
     // function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
@@ -132,10 +132,12 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
         if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
+            require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
             payable(CONF.KEEPER()).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
             //  NOTE: _amount must be in uint precision to _erc20.decimals()
+            require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
             IERC20(_erc20).transfer(CONF.KEEPER(), _amount);
             // emit KeeperMaintenance(_erc20, _amount);
         }
@@ -286,7 +288,7 @@ contract CallitFactory {
     }   
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
         require(_ticket != address(0), ' invalid _ticket :-{} ');
-        require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
+        require(CONFM.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
@@ -387,7 +389,7 @@ contract CallitFactory {
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
         //  NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
         // DELEGATE.ACCT_MARKET_VOTES[msg.sender].push(ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
-        CONFM.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false), false); // false = not paid
+        CONFM.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false), false); // false, false = un-paid, un-paid
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned

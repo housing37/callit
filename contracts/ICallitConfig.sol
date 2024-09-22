@@ -2,11 +2,23 @@
 pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
 interface ICallitConfigMarket {
-    function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external;
-    function getPomoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory);
+    // vault migration
+    function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
+    function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
+    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
+    function getUsdBalanceForAcct(address _acct) external view returns(uint64);
+    function grossStableBalance(address[] memory _stables, address _vault) external view returns (uint64);
+    function owedStableBalance() external view returns (uint64);
+    // function LIVE_PAIR_ADDIES(uint256 _idx) external view returns(address);
+    // function getLivePairAddies() external view returns(address[] memory);
+    // function getLivePairAddiesCnt() external view returns(uint256);
+    // function editLivePairAddress(address _pairAddr, address _ticket, bool _add) external;
+    function getLiveTickets() external view returns(address[] memory);
+    function editLiveTicketList(address _ticket, address  _pairAddr, bool _add) external;
+    function TICK_PAIR_ADDR(address _key) external view returns(address);
 
     function _getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
-    function getMakerForTicket(address _ticket) external view returns(address);
+    // function getMakerForTicket(address _ticket) external view returns(address);
     function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote, bool _paid) external;
     function getMarketVotesForAcct(address _account, bool _paid) external view returns(ICallitLib.MARKET_VOTE[] memory);
     function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external;
@@ -15,12 +27,18 @@ interface ICallitConfigMarket {
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
+    // function HASH_MARKET(address _key) external view returns(ICallitLib.MARKET memory);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
 
     function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external;
     function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
 }
 interface ICallitConfig {
+    // vault migration
+    function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external;
+    function getPomoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory);
+    function PROMO_USD_OWED(address _key) external view returns(uint64);
+    function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external;
 
     function ADMINS(address _key) external view returns(bool);
     // function adminStatus(address _admin) external view returns(bool);
@@ -84,7 +102,6 @@ interface ICallitConfig {
 
     // // lp settings
     // function KEEPER_logTicketPair(address _ticket, address _pair) external;
-    // // function TICK_PAIR_ADDR(address _key) external view returns(address);
     // function MIN_USD_MARK_LIQ() external view returns(uint64);
     // // function RATIO_LP_TOK_PER_USD() external view returns(uint16);
     // // function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);

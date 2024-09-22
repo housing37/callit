@@ -11,9 +11,17 @@
 pragma solidity ^0.8.24;
 
 import './ICallitConfig.sol';
+import './ICallitVault.sol';
+
 interface IERC20 {
     function transfer(address _to, uint256 _amount) external;
+    function balanceOf(address _account) external view returns(uint256);
+    function decimals() external pure returns (uint8);
 }
+// interface IERC20x {
+//     function decimals() external pure returns (uint8);
+//     function approve(address spender, uint256 value) external returns (bool);
+// }
 contract CallitConfigMarket {
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
@@ -26,23 +34,35 @@ contract CallitConfigMarket {
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
-    // ICallitLib private LIB;     // set via CONF_setConfig
-    // ICallitVault private VAULT; // set via CONF_setConfig
+    ICallitLib private LIB;     // set via CONF_setConfig
+    ICallitVault private VAULT; // set via CONF_setConfig
     // ICallitDelegate private DELEGATE; // set via CONF_setConfig
     // ICallitToken private CALL;  // set via CONF_setConfig
 
-    mapping(address => ICallitLib.PROMO) public PROMO_CODE_HASHES; // store promo code hashes to their PROMO mapping
+    /* _ ACCOUNT SUPPORT (legacy) _ */
+    // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
+    // NOTE: all USD bals & payouts stores uint precision to 6 decimals
+    // NOTE: legacy public
+    mapping(address => uint64) public ACCT_USD_BALANCES; 
+    address[] public ACCOUNTS; // NOTE: private is more secure; consider external KEEPER getter instead
+    mapping(address => address) public TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
+    address[] public LIVE_TICKETS_LST;
+    // mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
+    // mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
     mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     // NOTE: a copy of all MARKET in ICallitLib.MARKET[] is stored in DELEGATE (via ACCT_MARKET_HASHES -> HASH_MARKET)
     //  ie. ACCT_MARKETS[_maker][0] == HASH_MARKET[ACCT_MARKET_HASHES[_maker][0]]
     //      HENCE, always -> ACCT_MARKETS.length == ACCT_MARKET_HASHES.length
     // mapping(address => ICallitLib.MARKET[]) public ACCT_MARKETS; // store maker to all their MARKETs created mapping ***
+    // NOTE: aut-generated mapping getters will include idx param for arrays 
+    //          & return data inside structs (not the struct itself)
+    //  ref: https://docs.soliditylang.org/en/v0.8.0/contracts.html#getter-functions
     mapping(address => ICallitLib.MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & private until market close; live = false) ***
     mapping(address => ICallitLib.MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
     mapping(string => address[]) private CATEGORY_MARK_HASHES; // store category to list of market hashes
     mapping(address => address[]) private ACCT_MARKET_HASHES; // store maker to list of market hashes
-    mapping(address => ICallitLib.MARKET) private HASH_MARKET; // store market hash to its MARKET
+    mapping(address => ICallitLib.MARKET) public HASH_MARKET; // store market hash to its MARKET
     mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
     address[] public MARKET_HASH_LST; // store list of all market haches
 
@@ -69,6 +89,10 @@ contract CallitConfigMarket {
         require(msg.sender == CONF.ADDR_FACT() || msg.sender == CONF.ADDR_DELEGATE() || msg.sender == CONF.KEEPER(), " !keeper & !fact :p");
         _;
     }
+    modifier onlyVault {
+        require(msg.sender == CONF.ADDR_VAULT() || msg.sender == CONF.KEEPER(), ' only vault :0 ');
+        _;
+    }
     modifier onlyConfig() { 
         // allows 1st onlyConfig attempt to freely pass
         //  NOTE: don't waste this on anything but CONF_setConfig
@@ -81,8 +105,8 @@ contract CallitConfigMarket {
         require(_conf != address(0), ' !addy :< ');
         ADDR_CONFIG = _conf;
         CONF = ICallitConfig(ADDR_CONFIG);
-        // LIB = ICallitLib(CONF.ADDR_LIB());
-        // VAULT = ICallitVault(CONF.ADDR_VAULT()); // set via CONF_setConfig
+        LIB = ICallitLib(CONF.ADDR_LIB());
+        VAULT = ICallitVault(CONF.ADDR_VAULT()); // set via CONF_setConfig
         // DELEGATE = ICallitDelegate(CONF.ADDR_DELEGATE());
         // CALL = ICallitToken(CONF.ADDR_CALL());
     }
@@ -92,17 +116,39 @@ contract CallitConfigMarket {
     /* -------------------------------------------------------- */
     function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
         if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
+            require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
             payable(CONF.KEEPER()).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
             //  NOTE: _amount must be in uint precision to _erc20.decimals()
+            require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
             IERC20(_erc20).transfer(CONF.KEEPER(), _amount);
             // emit KeeperMaintenance(_erc20, _amount);
         }
     }
+
     /* -------------------------------------------------------- */
     /* PUBLIC - MUTATORS
     /* -------------------------------------------------------- */
+    // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
+    function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external onlyVault {
+        if (_add) {
+            require(_usdAmnt > 0, ' !add 0 :/ ' );
+            ACCT_USD_BALANCES[_acct] += _usdAmnt;
+            ACCOUNTS = LIB._addAddressToArraySafe(_acct, ACCOUNTS, true); // true = no dups
+        } else {
+            require(ACCT_USD_BALANCES[_acct] >= _usdAmnt, ' !deduct low balance :{} ');
+            ACCT_USD_BALANCES[_acct] -= _usdAmnt;    
+        }
+    }
+    function editLiveTicketList(address _ticket, address  _pairAddr, bool _add) external onlyVault {
+        if (_add) {
+            TICK_PAIR_ADDR[_ticket] = _pairAddr;
+            LIVE_TICKETS_LST = LIB._addAddressToArraySafe(_ticket, LIVE_TICKETS_LST, true); // true = no dups
+        } else {
+            LIVE_TICKETS_LST = LIB._remAddressFromArray(_ticket, LIVE_TICKETS_LST);
+        }
+    }
     function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external onlyFactory {
         require(_maker != address(0), ' !_maker :=/ ');
         ACCT_MARKET_REVIEWS[_maker].push(_marketReview);
@@ -151,22 +197,58 @@ contract CallitConfigMarket {
             unchecked {i++;}
         }
     }
-    function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external {
-        require(_promo.promotor != address(0) && _promoHash != address(0), ' no promo|hash :/ ');
-        PROMO_CODE_HASHES[_promoHash] = _promo;
-    }
+    // function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external {
+    //     require(_promo.promotor != address(0) && _promoHash != address(0), ' no promo|hash :/ ');
+    //     HASH_PROMO[_promoHash] = _promo;
+    // }
+    // function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external onlyVault {
+    //     PROMO_USD_OWED[_promoCodeHash] = _usdOwed;
+    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
     /* -------------------------------------------------------- */
-    function getPomoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory) {
-        require(_promoHash != address(0), ' no hash :/ ');
-        return PROMO_CODE_HASHES[_promoHash];
+    function getLiveTicketCnt() external view returns(uint256) {
+        return LIVE_TICKETS_LST.length;
     }
-    function getMakerForTicket(address _ticket) external view returns(address) {
-        require(_ticket != address(0), ' !_maker ;() ');
-        return TICKET_MAKER[_ticket];
+    function getLiveTickets() external view returns(address[] memory) {
+        return LIVE_TICKETS_LST;
     }
+    function grossStableBalance(address[] memory _stables, address _vault) external view returns (uint64) {
+        // NOTE: no onlyVault needed, anyone can call this function
+        //  ie. simply gets a gross bal of whatever tokens & for whatever addy they want
+        uint64 gross_bal = 0;
+        for (uint8 i = 0; i < _stables.length;) {
+            // NOTE: more efficient algorithm taking up less stack space with local vars
+            require(IERC20(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
+            gross_bal += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(IERC20(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(_vault), VAULT._usd_decimals()));
+            unchecked {i++;}
+        }
+        return gross_bal;
+    }
+    function owedStableBalance() external view onlyVault returns (uint64) {
+        uint64 owed_bal = 0;
+        for (uint256 i = 0; i < ACCOUNTS.length;) {
+            owed_bal += ACCT_USD_BALANCES[ACCOUNTS[i]];
+            unchecked {i++;}
+        }
+        return owed_bal;
+    }
+    function getUsdBalanceForAcct(address _acct) external view returns(uint64) {
+        require(_acct != address(0), ' bad _acct :/ ');
+        return ACCT_USD_BALANCES[_acct];
+    }
+    function getAccounts() external view returns (address[] memory) {
+        return ACCOUNTS;
+    }
+    // function getPomoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory) {
+    //     require(_promoHash != address(0), ' no hash :/ ');
+    //     return HASH_PROMO[_promoHash];
+    // }
+    // function getMakerForTicket(address _ticket) external view returns(address) {
+    //     require(_ticket != address(0), ' !_maker ;() ');
+    //     return TICKET_MAKER[_ticket];
+    // }
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory) {
         ICallitLib.MARKET memory mark = HASH_MARKET[_hash];
         require(mark.maker != address(0), ' !maker :0 ');
@@ -186,8 +268,11 @@ contract CallitConfigMarket {
     }
     function getMarketVotesForAcct(address _account, bool _paid) external view returns(ICallitLib.MARKET_VOTE[] memory) {
         require(_account != address(0), ' bad _account :{ ');
-        if (_paid) return ACCT_MARKET_VOTES[_account];
-        else return ACCT_MARKET_VOTES_PAID[_account];
+        if (!_paid) {
+            require(msg.sender == CONF.ADDR_FACT() || msg.sender == CONF.ADDR_DELEGATE(), ' only factory :0 ');
+            return ACCT_MARKET_VOTES[_account];
+        } else 
+            return ACCT_MARKET_VOTES_PAID[_account];
     }
     function getMarketCntForMaker(address _maker) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
@@ -199,7 +284,6 @@ contract CallitConfigMarket {
         // NOTE: MAX_EOA_MARKETS is uint64
         // address _maker = TICKET_MAKER[_ticket];
         address[] memory mark_hashes = ACCT_MARKET_HASHES[TICKET_MAKER[_ticket]];
-        // address[] memory mark_hashes = CONF.getMarketHashesForMakerOrCategory(CONF.getMakerForTicket(_ticket), '');
         for (uint64 i = 0; i < mark_hashes.length;) {
             ICallitLib.MARKET memory mark = HASH_MARKET[mark_hashes[i]];
             for (uint16 x = 0; x < mark.marketResults.resultOptionTokens.length;) {

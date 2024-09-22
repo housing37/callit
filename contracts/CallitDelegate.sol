@@ -146,7 +146,7 @@ contract CallitDelegate {
             payable(CONF.KEEPER()).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
-            //  NOTE: _tokAmnt must be in uint precision to _tokAddr.decimals()
+            //  NOTE: _amount must be in uint precision to _erc20.decimals()
             require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
             IERC20(_erc20).transfer(CONF.KEEPER(), _amount);
             // emit KeeperMaintenance(_erc20, _amount);
@@ -164,11 +164,10 @@ contract CallitDelegate {
         require(CONF.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
         require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= CONF.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
         address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
-        // ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[promoCodeHash];
-        ICallitLib.PROMO memory promo = CONFM.getPomoForHash(promoCodeHash);
+        ICallitLib.PROMO memory promo = CONF.getPomoForHash(promoCodeHash);
         require(promo.promotor == address(0), ' promo already exists :-O ');
         // PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
-        CONFM.setPromoForHash(promoCodeHash, ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
+        CONF.setPromoForHash(promoCodeHash, ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
         // return promoCodeHash;
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
 
@@ -176,8 +175,7 @@ contract CallitDelegate {
     }
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
         // return _checkPromoBalance(_promoCodeHash);
-        // ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        ICallitLib.PROMO memory promo = CONFM.getPomoForHash(_promoCodeHash);
+        ICallitLib.PROMO memory promo = CONF.getPomoForHash(_promoCodeHash);
         // require(promo.promotor != address(0), ' invalid promo :-O ');
         return promo.usdTarget - promo.usdUsed; // note: w/o 'require', should simply return 0
     }
@@ -203,7 +201,8 @@ contract CallitDelegate {
                             uint256 _mark_num,
                             address _sender
                             ) external onlyFactory returns(ICallitLib.MARKET memory) { 
-        require(VAULT.ACCT_USD_BALANCES(_sender) >= _usdAmntLP, ' low balance ;{ ');
+        // require(VAULT.ACCT_USD_BALANCES(_sender) >= _usdAmntLP, ' low balance ;{ ');
+        require(CONFM.ACCT_USD_BALANCES(_sender) >= _usdAmntLP, ' low balance ;{ ');
         require(block.timestamp < _dtCallDeadline && _dtCallDeadline < _dtResultVoteStart && _dtResultVoteStart < _dtResultVoteEnd, ' invalid dt settings :[] ');
 
         // check for admin defualt vote time, update _dtResultVoteEnd accordingly
@@ -242,15 +241,15 @@ contract CallitDelegate {
         // }
 
         // deduct full OG usd input from account balance
-        VAULT.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
+        // VAULT.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
+        CONFM.edit_ACCT_USD_BALANCES(_sender, _usdAmntLP, false); // false = sub
 
         // return (mark,_dtResultVoteEnd);
         return mark;
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _sender) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
-        // ICallitLib.PROMO storage promo = PROMO_CODE_HASHES[_promoCodeHash];
-        ICallitLib.PROMO memory promo = CONFM.getPomoForHash(_promoCodeHash);
+        ICallitLib.PROMO memory promo = CONF.getPomoForHash(_promoCodeHash);
         require(promo.promotor != address(0) && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != _sender, ' invalid promo :-O ');
 
         // NOTE: algorithmic logic...
@@ -276,11 +275,11 @@ contract CallitDelegate {
         //  loop through _ticket LP addresses and pull all liquidity
 
         // loop through pair addresses and pull liquidity 
-        address[] memory _ticketLPs = mark.marketResults.resultTokenLPs;
+        address[] memory ticketLPs = mark.marketResults.resultTokenLPs;
         uint64 usdAmntPrizePool = 0;
-        for (uint16 i = 0; i < _ticketLPs.length;) { // MAX_RESULTS is uint16
+        for (uint16 i = 0; i < ticketLPs.length;) { // MAX_RESULTS is uint16
             // NOTE: amountToken1 = usd stable amount received (which is all we care about)
-            uint256 amountToken1 = VAULT._exePullLiquidityFromLP(mark.marketResults.resultTokenRouters[i], _ticketLPs[i], mark.marketResults.resultOptionTokens[i], mark.marketResults.resultTokenUsdStables[i]);
+            uint256 amountToken1 = VAULT._exePullLiquidityFromLP(mark.marketResults.resultTokenRouters[i], ticketLPs[i], mark.marketResults.resultOptionTokens[i], mark.marketResults.resultTokenUsdStables[i]);
 
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
             usdAmntPrizePool += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(IERC20x(mark.marketResults.resultTokenUsdStables[i]).decimals(), amountToken1, VAULT._usd_decimals())); 
@@ -345,8 +344,7 @@ contract CallitDelegate {
         // NOTE: no $CALL tokens minted for this action   
     }
     function claimPromotorRewards(address _promoCodeHash) external {
-        // ICallitLib.PROMO memory promo = PROMO_CODE_HASHES[_promoCodeHash];
-        ICallitLib.PROMO memory promo = CONFM.getPomoForHash(_promoCodeHash);
+        ICallitLib.PROMO memory promo = CONF.getPomoForHash(_promoCodeHash);
         require(promo.promotor != address(0), ' !promotor :p ');
 
         uint64 usdTargRem = promo.usdTarget - promo.usdUsed;
