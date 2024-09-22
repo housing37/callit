@@ -43,6 +43,7 @@ contract CallitConfig {
     address public ADDR_DELEGATE = address(0xFe6A77210F51cF3E577c3fedc3cB36881E784A8F); // CallitDelegate v0.41
     address public ADDR_CALL = address(0x40aDcbBEcB250e4C0a840D48C7acD396266f444c); // CallitToken v0.17
     address public ADDR_FACT = address(0xf37eAc68037E31faa789241E1160661A37Be8743); // CallitFactory v0.61
+    address public ADDR_CONFM = address(0x0000000000000000000000000000000000000000); // CallitConfig v0.1
     // address public ADDR_CONF = address(0xf29A815628bd59e1324a3b17B8a5aD2e2D863667); // CallitConfig v0.14
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
 
@@ -85,7 +86,7 @@ contract CallitConfig {
     uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS = 1; // amount of all $CALL minted per market call close action reward // TODO: need KEEPER setter
     uint32 public RATIO_CALL_MINT_PER_VOTE = 1; // amount of all $CALL minted per vote reward // TODO: need KEEPER setter
     uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
-    uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = %1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
+    uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = $1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
     uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
 
     // arb algorithm settings
@@ -97,7 +98,7 @@ contract CallitConfig {
     uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
     // lp settings
-    uint64 public MIN_USD_MARK_LIQ = 1000000; // (1000000 = $1.000000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    uint64 public MIN_USD_MARK_LIQ = 500000; // (500000 = $0.500000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     uint16 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
     uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
@@ -118,8 +119,6 @@ contract CallitConfig {
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
     address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
-    mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
-
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -127,7 +126,7 @@ contract CallitConfig {
     // event KeeperTransfer(address _prev, address _new);
     // event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
     // event DexRouterUpdated(address _router, bool _add);
-    
+
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR
     /* -------------------------------------------------------- */
@@ -210,7 +209,7 @@ contract CallitConfig {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
-    function KEEPER_setContracts(address _lib, address _vault, address _delegate, address _CALL, address _fact, address _conf) external onlyKeeper {
+    function KEEPER_setContracts(address _lib, address _vault, address _delegate, address _CALL, address _fact, address _confMark, address _conf) external onlyKeeper {
         // EOA may indeed send 0x0 to "opt-in" for changing _conf address in support contracts
         //  if no _conf, update support contracts w/ current CONFIG address
 
@@ -219,6 +218,7 @@ contract CallitConfig {
         if (_delegate != address(0)) ADDR_DELEGATE = _delegate;
         if (    _CALL != address(0)) ADDR_CALL = _CALL;
         if (    _fact != address(0)) ADDR_FACT = _fact; 
+        if (    _fact != address(0)) ADDR_CONFM = _confMark; 
         if (    _conf == address(0)) _conf = address(this);
 
         // NOTE: make sure everything is done and set (above) before updating contract configs
@@ -227,6 +227,7 @@ contract CallitConfig {
         ISetConfig(ADDR_DELEGATE).CONF_setConfig(_conf);
         ISetConfig(ADDR_CALL).CONF_setConfig(_conf);
         ISetConfig(ADDR_FACT).CONF_setConfig(_conf);
+        ISetConfig(ADDR_CONFM).CONF_setConfig(_conf);
     }
     function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim, uint16 _percPromoClaim) external onlyKeeper {
         // no 2 percs taken out of market close
@@ -311,22 +312,6 @@ contract CallitConfig {
     }
     function VAULT_getStableTokenLowMarketValue() external view onlyVault returns(address) {
         return LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);
-    }
-
-    /* -------------------------------------------------------- */
-    /* PUBLIC - FACTORY
-    /* -------------------------------------------------------- */
-    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external onlyFactory {
-        require(_maker != address(0), ' !_maker :=/ ');
-        ACCT_MARKET_REVIEWS[_maker].push(_marketReview);
-    }
-    function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory) {
-        require(_maker != address(0), ' !_maker :--/ ');
-        return ACCT_MARKET_REVIEWS[_maker];
-
-        // LEFT OFF HERE ...
-        //  people need to get a list of seperate reviews 
-        //  as well as the sum of all agreeCnt & disagreeCnt in all reviews
     }
     
     /* -------------------------------------------------------- */

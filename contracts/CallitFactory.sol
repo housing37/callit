@@ -49,13 +49,13 @@ interface ICallitDelegate {
     function closeMarketCalls(ICallitLib.MARKET memory mark) external returns(uint64);
     function PROMO_CODE_HASHES(address _key) external view returns(ICallitLib.PROMO memory);
     function claimVoterRewards() external;
-    function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external;
-    function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
-    function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
-    function _getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
-    function getMarketCntForMaker(address _maker) external view returns(uint256);
-    function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
-    function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
+    // function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote) external;
+    // function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
+    // function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
+    // function _getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
+    // function getMarketCntForMaker(address _maker) external view returns(uint256);
+    // function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
+    // function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
 }
 
 contract CallitFactory {
@@ -70,6 +70,7 @@ contract CallitFactory {
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
+    ICallitConfigMarket private CONFM; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
     ICallitVault private VAULT; // set via CONF_setConfig
     ICallitDelegate private DELEGATE; // set via CONF_setConfig
@@ -88,7 +89,7 @@ contract CallitFactory {
     event TicketRewardsClaimed(address _sender, address _ticket, bool _is_winner, bool _resultAgree);
 
     /* -------------------------------------------------------- */
-    /* CONSTRUCTOR (legacy)
+    /* CONSTRUCTOR
     /* -------------------------------------------------------- */
     constructor(uint64 _CALL_initSupply) {
         CALL_INIT_MINT = _CALL_initSupply;
@@ -119,6 +120,7 @@ contract CallitFactory {
         require(_conf != address(0), ' !addy :< ');
         ADDR_CONFIG = _conf;
         CONF = ICallitConfig(ADDR_CONFIG);
+        CONFM = ICallitConfigMarket(CONF.ADDR_CONFM());
         LIB = ICallitLib(CONF.ADDR_LIB());
         VAULT = ICallitVault(CONF.ADDR_VAULT()); // set via CONF_setConfig
         DELEGATE = ICallitDelegate(CONF.ADDR_DELEGATE());
@@ -148,18 +150,18 @@ contract CallitFactory {
     // }
     function getMarketCntForMakerOrCategory(address _maker, string calldata _category) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
-        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
+        address[] memory mark_hashes = CONFM.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
         return mark_hashes.length;
     }
     function getMarketHashesForMakerOrCategory(string calldata _category, address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(address[] memory) {
         // require(_maker != address(0), ' !_maker ;[=] '); // 
-        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1 & _maker != address(0)
+        address[] memory mark_hashes = CONFM.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1 & _maker != address(0)
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :p ');
         address[] memory ret_hashes = new address[](_retCnt);
         uint8 cnt_;
         for (uint8 i = 0; cnt_ < _retCnt && _idxStart + i < mark_hashes.length;) {
             // check for mismatch, skip & inc only 'i' (note: _all == _live|!_live)
-            ICallitLib.MARKET memory mark = DELEGATE.getMarketForHash(mark_hashes[_idxStart + i]);
+            ICallitLib.MARKET memory mark = CONFM.getMarketForHash(mark_hashes[_idxStart + i]);
             if (!_all && mark.live != _live) { 
                 unchecked {i++;} 
                 continue; 
@@ -176,7 +178,7 @@ contract CallitFactory {
     function getMarketsForMakerOrCategory(string calldata _category, address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET[] memory) {
     // function getMarketsForMaker(address _maker, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) external view returns(ICallitLib.MARKET_INFO[] memory) {
         // require(_maker != address(0), ' !_maker ;[-] ');
-        address[] memory mark_hashes = DELEGATE.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1 & _maker != address(0)
+        address[] memory mark_hashes = CONFM.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1 & _maker != address(0)
         require(mark_hashes.length > 0 && _retCnt > 0 && mark_hashes.length >= _idxStart + _retCnt, ' out of range :-p ');
         return _getMarketReturns(mark_hashes, _all, _live, _idxStart, _retCnt);
     }
@@ -187,7 +189,7 @@ contract CallitFactory {
         // ICallitLib.MARKET_INFO[] memory mark_infos = new ICallitLib.MARKET_INFO[](_retCnt);
         uint8 cnt_;
         for (uint8 i = 0; cnt_ < _retCnt && _idxStart + i < _markHashes.length;) {
-            ICallitLib.MARKET memory mark = DELEGATE.getMarketForHash(_markHashes[_idxStart + i]);
+            ICallitLib.MARKET memory mark = CONFM.getMarketForHash(_markHashes[_idxStart + i]);
 
             // check for mismatch, skip & inc only 'i' (note: _all = _live|!_live)
             if (!_all && mark.live != _live) { unchecked {i++;} continue; }
@@ -234,7 +236,7 @@ contract CallitFactory {
     }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _rules, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark,, address markHash) = DELEGATE._getMarketForTicket(_anyTicket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark,, address markHash) = CONFM._getMarketForTicket(_anyTicket); // reverts if market not found | address(0)
         require(mark.maker == msg.sender, ' only market maker :( ');
         require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' call deadline passed :( ');
         require(bytes(_category).length > 1, ' cat too short  :0 ');
@@ -244,7 +246,7 @@ contract CallitFactory {
         mark.imgUrl = _imgUrl;
 
         // log category created for this ticket's market hash
-        DELEGATE.setHashMarket(markHash, mark, _category);
+        CONFM.setHashMarket(markHash, mark, _category);
     }
     function makeNewMarket(string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                             uint64 _usdAmntLP, 
@@ -258,7 +260,7 @@ contract CallitFactory {
         require(2 <= _resultLabels.length && _resultLabels.length <= CONF.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
 
         // initilize/validate market number for struct MARKET tracking
-        uint256 mark_num = DELEGATE.getMarketCntForMaker(msg.sender);
+        uint256 mark_num = CONFM.getMarketCntForMaker(msg.sender);
         require(mark_num <= CONF.MAX_EOA_MARKETS(), ' > MAX_EOA_MARKETS :O ');
 
         // save this market and emit log
@@ -269,7 +271,7 @@ contract CallitFactory {
 
         // gen market hash references & store w/ new market in delegate
         address markHash = LIB._generateAddressHash(msg.sender, string(abi.encodePacked(mark_num)));
-        DELEGATE.storeNewMarket(mark, msg.sender, markHash); // invokes 'DELEGATE.setHashMarket'
+        CONFM.storeNewMarket(mark, msg.sender, markHash); // invokes 'DELEGATE.setHashMarket'
 
         // // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKERS mapping
         // for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
@@ -287,7 +289,7 @@ contract CallitFactory {
         require(VAULT.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
         require(mark.maker != msg.sender,' !promo buy for maker ;( '); 
 
@@ -311,7 +313,7 @@ contract CallitFactory {
         require(_ticket != address(0), ' invalid _ticket :-{} ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline > block.timestamp, ' _ticket call deadline has passed :( ');
 
         // calc target usd price for _ticket (in order to bring this market to price parity)
@@ -336,13 +338,13 @@ contract CallitFactory {
         //  loop through _ticket LP addresses and pull all liquidity
 
         // get MARKET & idx for _ticket & validate call time indeed ended (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark,, address markHash) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark,, address markHash) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtCallDeadline <= block.timestamp && mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls not ready yet | closed :( ');
         // require(mark.marketUsdAmnts.usdAmntPrizePool == 0, ' calls closed already :p '); // usdAmntPrizePool: defaults to 0, unless closed and liq pulled to fill it
 
         // note: loops through market pair addresses and pulls liquidity for each
         mark.marketUsdAmnts.usdAmntPrizePool = DELEGATE.closeMarketCalls(mark); // NOTE: write to market
-        DELEGATE.setHashMarket(markHash, mark, '');
+        CONFM.setHashMarket(markHash, mark, '');
 
         // mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt = CONF.RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS();
@@ -363,7 +365,7 @@ contract CallitFactory {
         //  - 
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx, address markHash) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx, address markHash) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
 
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
@@ -380,12 +382,12 @@ contract CallitFactory {
 
         //  - store vote in struct MARKET
         mark.marketResults.resultTokenVotes[tickIdx] += vote_cnt; // NOTE: write to market
-        DELEGATE.setHashMarket(markHash, mark, '');
+        CONFM.setHashMarket(markHash, mark, '');
 
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
         //  NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
         // DELEGATE.ACCT_MARKET_VOTES[msg.sender].push(ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
-        DELEGATE.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
+        CONFM.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false), false); // false = not paid
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
@@ -411,7 +413,7 @@ contract CallitFactory {
         //  - set market 'live' status = false;
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark,, address markHash) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark,, address markHash) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market voting not done yet ;=) ');
 
         // getting winning result index to set mark.winningVoteResultIdx
@@ -444,7 +446,7 @@ contract CallitFactory {
 
         // close market
         mark.live = false; // NOTE: write to market
-        DELEGATE.setHashMarket(markHash, mark, '');
+        CONFM.setHashMarket(markHash, mark, '');
 
         // mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt = CONF.RATIO_CALL_MINT_PER_MARK_CLOSE();
@@ -465,7 +467,7 @@ contract CallitFactory {
         //  - log _resultAgree in MARKET_REVIEW
 
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (ICallitLib.MARKET memory mark, uint16 tickIdx, address markHash) = DELEGATE._getMarketForTicket(_ticket); // reverts if market not found | address(0)
+        (ICallitLib.MARKET memory mark, uint16 tickIdx, address markHash) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
         require(!mark.live && mark.marketDatetimes.dtResultVoteEnd <= block.timestamp, ' market still live|voting ;) ');
 
         bool is_winner = mark.winningVoteResultIdx == tickIdx;
@@ -497,8 +499,8 @@ contract CallitFactory {
         cTicket.burnForRewardClaim(msg.sender);
 
         // log caller's review of market results
-        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, CONF.getMarketReviewsForMaker(mark.maker), _resultAgree);
-        CONF.pushAcctMarketReview(marketReview, mark.maker);
+        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, CONFM.getMarketReviewsForMaker(mark.maker), _resultAgree);
+        CONFM.pushAcctMarketReview(marketReview, mark.maker);
 
         // emit log event for reviewing market result
         emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, markHash, agreeCnt, disagreeCnt);
