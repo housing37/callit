@@ -34,11 +34,15 @@ interface ICallitConfigMarket {
     function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
 }
 interface ICallitConfig {
+    // token migration
+    function setAcctHandle(address _sender, string calldata _handle) external;
+
     // vault migration
     function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external;
-    function getPomoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory);
+    function getPromoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory);
     function PROMO_USD_OWED(address _key) external view returns(uint64);
     function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external;
+    function getPromoHashesForAcct(address _acct) external view returns(address[] memory);
 
     function ADMINS(address _key) external view returns(bool);
     // function adminStatus(address _admin) external view returns(bool);

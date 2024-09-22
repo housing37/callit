@@ -19,10 +19,15 @@ import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./node_modules/@openzeppelin/contracts/access/Ownable.sol";
 
 import "./ICallitVault.sol";
+// import "./ICallitConfig.sol";
 
 interface ICallitConfig { // do not need all of ICallitConfig.sol
     function ADDR_FACT() external view returns(address);
     function ADDR_VAULT() external view returns(address);
+    function EARNED_CALL_VOTES(address _key) external view returns(uint64);
+    function setCallVoteCntEarned(address _acct, uint64 _votesCnt) external;
+    function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256);
+    function setCallTokenVoteLock(address _sender, bool _lock) external;
 }
 
 contract CallitToken is ERC20, Ownable {
@@ -38,17 +43,18 @@ contract CallitToken is ERC20, Ownable {
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
     // string private TOK_NAME = "CALL-IT VOTE";
-    // bool private ONCE_ = true;
-    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
-    mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
-    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+
+    // mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
+    // mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
+    // mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
     event CallTokensEarned(address _sender, address _receiver, uint256 _callAmntEarned, uint64 _callVotesEarned, uint64 _callPrevBal, uint64 _callCurrBal);
-    // event TokenNameSymbolUpdated(string TOK_NAME, string TOK_SYMB);
-    
+    event TokenNameSymbolUpdated(string _prev_name, string _prev_symb, string _new_name, string _new_symn);
+    event CallTokenLockUpdated(uint256 _prevLockTime, uint256 _newLockTime);
+
     /* -------------------------------------------------------- */
     /* CONSTRUCTOR SUPPORT
     /* -------------------------------------------------------- */
@@ -101,40 +107,52 @@ contract CallitToken is ERC20, Ownable {
         //      allows for factory minting fractions of a token if needed
         _mint(_receiver, _callAmntMint);
 
-        uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
-        EARNED_CALL_VOTES[_receiver] += _callVotesEarned; 
+        // uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
+        // EARNED_CALL_VOTES[_receiver] += _callVotesEarned; 
+        uint64 prevEarned = CONF.EARNED_CALL_VOTES(_receiver);
+        CONF.setCallVoteCntEarned(_receiver, prevEarned + _callVotesEarned);
         
         // emit log for call tokens earned
-        emit CallTokensEarned(_sender, _receiver, _callAmntMint, _callVotesEarned, prevEarned, EARNED_CALL_VOTES[_receiver]);
+        emit CallTokensEarned(_sender, _receiver, _callAmntMint, _callVotesEarned, prevEarned, CONF.EARNED_CALL_VOTES(_receiver));
     }
 
     /* -------------------------------------------------------- */
     /* PUBLIC SETTERS
     /* -------------------------------------------------------- */
     function setCallTokenVoteLock(bool _lock) external {
-        ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
+        uint256 _prev = CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender);
+        CONF.setCallTokenVoteLock(msg.sender, _lock);
+        emit CallTokenLockUpdated(_prev, CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender));
+        // ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
     }
     function balanceOf_voteCnt(address _voter) external view returns(uint64) {
         return _uint64_from_uint256(balanceOf(_voter) / 10**uint8(decimals())); // do not return decimals
             // NOTE: _uint64_from_uint256 checks out OK
     }
-    function setAcctHandle(string calldata _handle) external {
-        require(bytes(_handle).length >= 1 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
-        if (_validNonWhiteSpaceString(_handle))
-            ACCT_HANDLES[msg.sender] = _handle;
-        else
-            revert(' !blank space handles :-[=] ');     
+    // function setAcctHandle(string calldata _handle) external {
+    //     require(bytes(_handle).length >= 1 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
+    //     if (_validNonWhiteSpaceString(_handle))
+    //         ACCT_HANDLES[msg.sender] = _handle;
+    //     else
+    //         revert(' !blank space handles :-[=] ');     
+    // }
+    function setTokenNameSymbol(string calldata _name, string calldata _symbol) external onlyConfig {
+        string memory prev_name = TOK_NAME;
+        string memory prev_symb = TOK_SYMB;
+        TOK_NAME = _name;
+        TOK_SYMB = _symbol;
+        emit TokenNameSymbolUpdated(prev_name, prev_symb, TOK_NAME, TOK_SYMB);
     }
 
     /* -------------------------------------------------------- */
     /* ERC20 - OVERRIDES                                        */
     /* -------------------------------------------------------- */
-    // function symbol() public view override returns (string memory) {
-    //     return TOK_SYMB;
-    // }
-    // function name() public view override returns (string memory) {
-    //     return TOK_NAME;
-    // }
+    function symbol() public view override returns (string memory) {
+        return TOK_SYMB;
+    }
+    function name() public view override returns (string memory) {
+        return TOK_NAME;
+    }
     function burn(uint256 _burnAmnt) external {
         require(_burnAmnt > 0, ' burn nothing? :0 ');
         _burn(msg.sender, _burnAmnt); // NOTE: checks _balance[msg.sender]
@@ -151,13 +169,16 @@ contract CallitToken is ERC20, Ownable {
             // uint128 max USD: ~340T -> 340,282,366,920,938,463,463.374607431768211455 (18 decimals)
     }
     function transferFrom(address from, address to, uint256 value) public override returns (bool) {
-        require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;) ');
+        // require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;) ');
+        require(CONF.ACCT_CALL_VOTE_LOCK_TIME(from) == 0, ' tokens locked for voting ;) ');
+        
         // checks msg.sender 'allowance(from, msg.sender, value)' 
         //  then invokes '_transfer(from, to, value)'
         return super.transferFrom(from, to, value);
     }
     function transfer(address to, uint256 value) public override returns (bool) {
-        require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;0 ');
+        // require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;0 ');
+        require(CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender) == 0, ' tokens locked voting ;) ');
         return super.transfer(to, value); // invokes '_transfer(msg.sender, to, value)'
     }
 
@@ -169,18 +190,18 @@ contract CallitToken is ERC20, Ownable {
         uint64 convertedValue = uint64(value);
         return convertedValue;
     }
-    function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) { // from CallitLib.sol
-        for (uint8 i=0; i < bytes(_s).length;) {
-            if (bytes(_s)[i] != 0x20) {
-                // Found a non-space character, return true
-                return true; 
-            }
-            unchecked {
-                i++;
-            }
-        }
+    // function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) { // from CallitLib.sol
+    //     for (uint8 i=0; i < bytes(_s).length;) {
+    //         if (bytes(_s)[i] != 0x20) {
+    //             // Found a non-space character, return true
+    //             return true; 
+    //         }
+    //         unchecked {
+    //             i++;
+    //         }
+    //     }
 
-        // found string with all whitespaces as chars
-        return false;
-    }
+    //     // found string with all whitespaces as chars
+    //     return false;
+    // }
 } 

@@ -150,6 +150,18 @@ contract CallitFactory {
     //     (ICallitLib.MARKET memory mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
     //     return mark;
     // }
+    function getPromosForAcct(address _acct) external view returns(ICallitLib.PROMO[] memory) {
+        address[] memory promoHashes = CONF.getPromoHashesForAcct(_acct); // checks require on _acct & length > 0
+        ICallitLib.PROMO[] memory ret_promos = new ICallitLib.PROMO[](promoHashes.length);
+        for (uint64 i=0; i < promoHashes.length;) {
+            ICallitLib.PROMO memory promo = CONF.getPromoForHash(promoHashes[i]);
+            ret_promos[i] = promo;
+            unchecked { i++; }
+        }
+
+        require(ret_promos[0].promotor != address(0), ' no promos found :// ');
+        return ret_promos;
+    }
     function getMarketCntForMakerOrCategory(address _maker, string calldata _category) external view returns(uint256) {
         // NOTE: MAX_EOA_MARKETS is uint64
         address[] memory mark_hashes = CONFM.getMarketHashesForMakerOrCategory(_maker, _category); // note: checks for _category.length > 1
@@ -187,7 +199,7 @@ contract CallitFactory {
     function _getMarketReturns(address[] memory _markHashes, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private view returns(ICallitLib.MARKET[] memory) {
     // function _getMarketReturns(address[] memory _markHashes, bool _all, bool _live, uint8 _idxStart, uint8 _retCnt) private view returns(ICallitLib.MARKET_INFO[] memory) {
         // init return array
-        ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt);
+        ICallitLib.MARKET[] memory marks_ret = new ICallitLib.MARKET[](_retCnt); // pre-verified _retCnt > 0
         // ICallitLib.MARKET_INFO[] memory mark_infos = new ICallitLib.MARKET_INFO[](_retCnt);
         uint8 cnt_;
         for (uint8 i = 0; cnt_ < _retCnt && _idxStart + i < _markHashes.length;) {
@@ -218,7 +230,7 @@ contract CallitFactory {
         }
         // require(mark_infos.length > 0, ' none :-( ');
         // return mark_infos;
-        require(marks_ret.length > 0, ' none :-( ');
+        require(marks_ret[0].maker != address(0), ' none :-( ');
         return marks_ret;
     }
 
@@ -235,6 +247,9 @@ contract CallitFactory {
         VAULT.deposit{value: msg.value}(msg.sender);
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
         //  emit DepositReceived(msg.sender, amntIn, 0);
+    }
+    function setAcctHandle(string calldata _handle) external {
+        CONF.setAcctHandle(msg.sender, _handle); // checks require for _handle
     }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _rules, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)

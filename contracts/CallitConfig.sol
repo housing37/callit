@@ -24,12 +24,16 @@ import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Rout
 
 import "./CallitTicket.sol"; // imports ERC20.sol // declares ICallitVault.deposit
 import "./ICallitLib.sol";
+// import "./CallitToken.sol";
 
 // interface IERC20x {
 //     function decimals() external pure returns (uint8);
 // }
 interface ISetConfig {
     function CONF_setConfig(address _conf) external;
+}
+interface ICallitToken {
+    function setTokenNameSymbol(string calldata _name, string calldata _symbol) external;
 }
 
 contract CallitConfig {
@@ -46,6 +50,7 @@ contract CallitConfig {
     address public ADDR_CONFM = address(0x0000000000000000000000000000000000000000); // CallitConfig v0.1
     // address public ADDR_CONF = address(0xf29A815628bd59e1324a3b17B8a5aD2e2D863667); // CallitConfig v0.14
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
+    ICallitToken private CALL = ICallitToken(ADDR_CALL);
 
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
@@ -60,7 +65,6 @@ contract CallitConfig {
     // note: makeNewMarket
     // call ticket token settings (note: init supply -> RATIO_LP_TOK_PER_USD)
     address public NEW_TICK_UNISWAP_V2_ROUTER;
-    // address public NEW_TICK_UNISWAP_V2_FACTORY;
     address public NEW_TICK_USD_STABLE;
     string  public TOK_TICK_NAME_SEED = "TCK#";
     string  public TOK_TICK_SYMB_SEED = "CALL-TICKET";
@@ -119,14 +123,18 @@ contract CallitConfig {
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
     address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
-
     mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
     mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
+    mapping(address => address[]) public PROMOTOR_HASHES; // map promo code list to their promotor
+
+    // migrated from CallitToken
+    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
+    mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
+    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
-    // legacy
     // event KeeperTransfer(address _prev, address _new);
     // event WhitelistStableUpdated(address _usdStable, uint8 _decimals, bool _add);
     // event DexRouterUpdated(address _router, bool _add);
@@ -172,6 +180,10 @@ contract CallitConfig {
     /* -------------------------------------------------------- */
     modifier onlyKeeper() {
         require(msg.sender == KEEPER, " !keeper :[ ");
+        _;
+    }
+    modifier onlyCALL {
+        require(msg.sender == ADDR_CALL, ' not allowed :{=} ');
         _;
     }
     modifier onlyVault() {
@@ -232,6 +244,10 @@ contract CallitConfig {
         ISetConfig(ADDR_CALL).CONF_setConfig(_conf);
         ISetConfig(ADDR_FACT).CONF_setConfig(_conf);
         ISetConfig(ADDR_CONFM).CONF_setConfig(_conf);
+
+        // reset configs used in this contract
+        LIB = ICallitLib(ADDR_LIB);
+        CALL = ICallitToken(ADDR_CALL);
     }
     function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim, uint16 _percPromoClaim) external onlyKeeper {
         // no 2 percs taken out of market close
@@ -282,6 +298,10 @@ contract CallitConfig {
     function KEEPER_setTicketNameSymbSeeds(string calldata _nameSeed, string calldata _symbSeed) external onlyKeeper {
         TOK_TICK_NAME_SEED = _nameSeed;
         TOK_TICK_SYMB_SEED = _symbSeed;
+    }
+    function KEEPER_setCallTokNameSymb(string calldata _tok_name, string calldata _tok_symb) external onlyKeeper() {
+        require(bytes(_tok_name).length > 0 && bytes(_tok_symb).length > 0, ' invalid input  :<> ');
+        CALL.setTokenNameSymbol(_tok_name, _tok_symb); // emits 'TokenNameSymbolUpdated'
     }
     function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
     // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd) external onlyKeeper {
@@ -334,18 +354,37 @@ contract CallitConfig {
         require(_admin != address(0), ' !_admin :/ ');
         return ADMINS[_admin];
     }
-    function getPomoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory) {
+    function getPromoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory) {
         require(_promoHash != address(0), ' no hash :/ ');
         return HASH_PROMO[_promoHash];
+    }
+    function getPromoHashesForAcct(address _acct) external view returns(address[] memory) {
+        require(_acct != address(0) && PROMOTOR_HASHES[_acct].length > 0, ' no _acct :/ ');
+        return PROMOTOR_HASHES[_acct];
     }
     function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external {
         require(_promo.promotor != address(0) && _promoHash != address(0), ' no promo|hash :/ ');
         HASH_PROMO[_promoHash] = _promo;
+        PROMOTOR_HASHES[_promo.promotor].push(_promoHash);
     }
     function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external onlyVault {
         PROMO_USD_OWED[_promoCodeHash] = _usdOwed;
     }
-
+    function setCallVoteCntEarned(address _acct, uint64 _votesCnt) external onlyCALL {
+        require(_acct != address(0), ' bad _acct  ;) ');
+        EARNED_CALL_VOTES[_acct] += _votesCnt; 
+    }
+    function setCallTokenVoteLock(address _sender, bool _lock) external onlyCALL {
+        require(_sender != address(0), ' bad _sender :/ '); 
+        ACCT_CALL_VOTE_LOCK_TIME[_sender] = _lock ? block.timestamp : 0;
+    }
+    function setAcctHandle(address _sender, string calldata _handle) external onlyFactory {
+        require(_sender != address(0) && bytes(_handle).length >= 2 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
+        if (LIB._validNonWhiteSpaceString(_handle))
+            ACCT_HANDLES[_sender] = _handle;
+        else
+            revert(' !blank space handles :-[=] ');     
+    }
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)
     /* -------------------------------------------------------- */
