@@ -18,8 +18,8 @@ LST_CONTR_ABI_BIN = [
     "../bin/contracts/CallitDelegate",
     "../bin/contracts/CallitToken",
     "../bin/contracts/CallitFactory",
-    "../bin/contracts/CallitConfig",
     "../bin/contracts/CallitConfigMarket",
+    "../bin/contracts/CallitConfig",
 ]
 
 # Function to calculate the selector from a function signature

@@ -30,7 +30,7 @@ contract CallitConfigMarket {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.1';
+    string public tVERSION = '0.3'; 
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -58,6 +58,7 @@ contract CallitConfigMarket {
     // NOTE: aut-generated mapping getters will include idx param for arrays 
     //          & return data inside structs (not the struct itself)
     //  ref: https://docs.soliditylang.org/en/v0.8.0/contracts.html#getter-functions
+    //  ref: https://docs.soliditylang.org/en/v0.8.0/types.html#mappings
     mapping(address => ICallitLib.MARKET_VOTE[]) private ACCT_MARKET_VOTES; // store voter to their non-paid MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & private until market close; live = false) ***
     mapping(address => ICallitLib.MARKET_VOTE[]) public ACCT_MARKET_VOTES_PAID; // store voter to their 'paid' MARKET_VOTEs (ICallitLib.MARKETs voted in) mapping (note: used & avail when market close; live = false) *
     mapping(string => address[]) private CATEGORY_MARK_HASHES; // store category to list of market hashes
@@ -90,7 +91,7 @@ contract CallitConfigMarket {
         _;
     }
     modifier onlyVault {
-        require(msg.sender == CONF.ADDR_VAULT() || msg.sender == CONF.KEEPER(), ' only vault :0 ');
+        require(msg.sender == CONF.ADDR_VAULT() || msg.sender == CONF.ADDR_DELEGATE() || msg.sender == CONF.KEEPER(), ' only vault :0 ');
         _;
     }
     modifier onlyConfig() { 
@@ -195,7 +196,7 @@ contract CallitConfigMarket {
         if (bytes(_category).length > 1) CATEGORY_MARK_HASHES[_category].push(_markHash);
     }
     function setMakerForTickets(address _maker, address[] memory _tickets) external onlyFactory {
-        require(_tickets.length > 0 && _maker != address(0));
+        require(_tickets.length > 0 && _maker != address(0), ' bad _maker|_ticket :/ ');
         // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKER mapping
         for (uint16 i = 0; i < _tickets.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
             // set ticket to maker mapping (additional access support)

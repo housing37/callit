@@ -23,7 +23,7 @@ interface ICallitConfigMarket {
     function getMarketVotesForAcct(address _account, bool _paid) external view returns(ICallitLib.MARKET_VOTE[] memory);
     function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external;
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
-    function setMakerForTickets(address _maker, address[] memory _tickets) external returns(address);
+    function setMakerForTickets(address _maker, address[] memory _tickets) external;
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker) external;
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);

@@ -41,14 +41,14 @@ contract CallitConfig {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
-    string public constant tVERSION = '0.14';   
-    address public ADDR_LIB = address(0xbf6E0bF35BAA885D7E2628B475BDFa8557B39184); // CallitLib v0.18
-    address public ADDR_VAULT = address(0xa2E88412826A08F1D08597C9b0DAc289A80c47C8); // CallitVault v0.49
-    address public ADDR_DELEGATE = address(0xFe6A77210F51cF3E577c3fedc3cB36881E784A8F); // CallitDelegate v0.41
-    address public ADDR_CALL = address(0x40aDcbBEcB250e4C0a840D48C7acD396266f444c); // CallitToken v0.17
-    address public ADDR_FACT = address(0xf37eAc68037E31faa789241E1160661A37Be8743); // CallitFactory v0.61
-    address public ADDR_CONFM = address(0x0000000000000000000000000000000000000000); // CallitConfig v0.1
-    // address public ADDR_CONF = address(0xf29A815628bd59e1324a3b17B8a5aD2e2D863667); // CallitConfig v0.14
+    string public constant tVERSION = '0.16'; 
+    address public ADDR_LIB = address(0x34Ac2E41777b17c104c1545405F7384E46F7e33D); // CallitLib v0.20
+    address public ADDR_VAULT = address(0x4C484C02915853F4B588720494B84ba145436621); // CallitVault v0.50
+    address public ADDR_DELEGATE = address(0xBB88b0d66f1D323FE0c544d6D02a41BcBC90e1A1); // CallitDelegate v0.43
+    address public ADDR_CALL = address(0x20c05a15477aC128924009893ddfAA89fb4F9AbF); // CallitToken v0.18
+    address public ADDR_FACT = address(0x26e0E127a35c3777fB258f4884E5D92B0055A97b); // CallitFactory v0.63
+    address public ADDR_CONFM = address(0xBAa4415D87a21eF2C4C47E530bd4ad21C577B0C8); // CallitConfigMarket v0.3
+    // address public ADDR_CONF = address(0x2Cf7387BFaFcFE9Dd3fc4c767d3ccB446977e826); // CallitConfig v0.16
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
     ICallitToken private CALL = ICallitToken(ADDR_CALL);
 
@@ -234,7 +234,7 @@ contract CallitConfig {
         if (_delegate != address(0)) ADDR_DELEGATE = _delegate;
         if (    _CALL != address(0)) ADDR_CALL = _CALL;
         if (    _fact != address(0)) ADDR_FACT = _fact; 
-        if (    _fact != address(0)) ADDR_CONFM = _confMark; 
+        if (    _confMark != address(0)) ADDR_CONFM = _confMark; 
         if (    _conf == address(0)) _conf = address(this);
 
         // NOTE: make sure everything is done and set (above) before updating contract configs

@@ -27,6 +27,7 @@ LST_CONTR_ABI_BIN = [
     "../bin/contracts/CallitDelegate",
     "../bin/contracts/CallitToken",
     "../bin/contracts/CallitFactory",
+    "../bin/contracts/CallitConfigMarket",
     "../bin/contracts/CallitConfig",
 ]
 

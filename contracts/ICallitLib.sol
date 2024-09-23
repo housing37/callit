@@ -74,6 +74,7 @@ interface ICallitLib {
         bool resultAgree;
         address marketMaker;
         uint256 marketNum;
+        // LEFT OFF HERE ... need address marketHash;
         uint64 agreeCnt;
         uint64 disagreeCnt;
     }
