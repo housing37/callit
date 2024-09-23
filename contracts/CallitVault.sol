@@ -169,6 +169,9 @@ contract CallitVault {
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
     /* -------------------------------------------------------- */
+    function getUsdBalanceForAcct(address _acct) external view returns(uint64) {
+        return CONFM.ACCT_USD_BALANCES(_acct);
+    }
     // NOTE: attempts to refactor this function into a global, 
     //  results in increased compilation file size (despite being invoked 11 or 12)
     function _usd_decimals() public pure returns (uint8) {
