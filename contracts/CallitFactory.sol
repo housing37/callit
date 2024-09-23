@@ -290,8 +290,8 @@ contract CallitFactory {
         // ACCT_MARKETS[msg.sender].push(mark);
 
         // gen market hash references & store w/ new market in delegate
-        address markHash = LIB._generateAddressHash(msg.sender, string(abi.encodePacked(mark_num)));
-        CONFM.storeNewMarket(mark, msg.sender, markHash); // invokes 'DELEGATE.setHashMarket'
+        // address markHash = LIB._generateAddressHash(msg.sender, string(abi.encodePacked(mark_num)));
+        CONFM.storeNewMarket(mark, msg.sender); // sets HASH_MARKET
 
         // // Loop through _resultLabels and log deployed ERC20s tickets into TICKET_MAKERS mapping
         // for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
@@ -300,7 +300,7 @@ contract CallitFactory {
         //     unchecked {i++;}
         // }
         // emit MarketCreated(msg.sender, mark_num, _name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark.marketResults.resultOptionTokens, block.timestamp, true); // true = live
-        emit MarketCreated(msg.sender, mark_num, markHash, _name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark.marketResults.resultOptionTokens, block.timestamp, true); // true = live
+        emit MarketCreated(msg.sender, mark_num, mark.marketHash, _name, _usdAmntLP, _dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd, _resultLabels, mark.marketResults.resultOptionTokens, block.timestamp, true); // true = live
 
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }   

@@ -26,6 +26,7 @@ interface ICallitLib {
     struct MARKET {
         address maker; // EOA market maker
         uint256 marketNum; // used incrementally for MARKET[] in ACCT_MARKETS
+        address marketHash; // uesd to ref market in HASH_MARKET
         string name; // display name for this market (maybe auto-generate w/ )
         string category;
         string rules;

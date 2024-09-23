@@ -24,7 +24,7 @@ interface ICallitConfigMarket {
     function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external;
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
     function setMakerForTickets(address _maker, address[] memory _tickets) external returns(address);
-    function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external;
+    function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker) external;
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
     // function HASH_MARKET(address _key) external view returns(ICallitLib.MARKET memory);

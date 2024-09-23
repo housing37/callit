@@ -208,9 +208,13 @@ contract CallitDelegate {
         // deduct 'market maker fees' from _usdAmntLP
         uint64 net_usdAmntLP = LIB._deductFeePerc(_usdAmntLP, CONF.PERC_MARKET_MAKER_FEE(), _usdAmntLP);
 
+        // gen market hash references & store w/ new market in delegate
+        address markHash = LIB._generateAddressHash(_sender, string(abi.encodePacked(_mark_num)));
+
         // save this market and emit log
         ICallitLib.MARKET memory mark = ICallitLib.MARKET({maker:_sender, 
                                                 marketNum:_mark_num, 
+                                                marketHash:markHash,
                                                 name:_name,
 
                                                 // marketInfo:MARKET_INFO("", "", ""),
