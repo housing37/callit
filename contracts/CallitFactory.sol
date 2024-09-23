@@ -146,16 +146,19 @@ contract CallitFactory {
     /* -------------------------------------------------------- */
     /* PUBLIC - UI (CALLIT)
     /* -------------------------------------------------------- */
-    // function getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory) {
-    //     (ICallitLib.MARKET memory mark,) = _getMarketForTicket(TICKET_MAKERS[_anyTicket], _anyTicket); // reverts if market not found | address(0)
-    //     return mark;
-    // }
+    function getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory) {
+        (ICallitLib.MARKET memory mark,,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
+        return mark;
+    }
+    function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory) {
+        return CONFM.getMarketForHash(_hash); // checks require
+    }
     function getPromosForAcct(address _acct) external view returns(ICallitLib.PROMO[] memory) {
         address[] memory promoHashes = CONF.getPromoHashesForAcct(_acct); // checks require on _acct & length > 0
         ICallitLib.PROMO[] memory ret_promos = new ICallitLib.PROMO[](promoHashes.length);
         for (uint64 i=0; i < promoHashes.length;) {
-            ICallitLib.PROMO memory promo = CONF.getPromoForHash(promoHashes[i]);
-            ret_promos[i] = promo;
+            // ICallitLib.PROMO memory promo = CONF.getPromoForHash(promoHashes[i]);
+            ret_promos[i] = CONF.getPromoForHash(promoHashes[i]);
             unchecked { i++; }
         }
 
