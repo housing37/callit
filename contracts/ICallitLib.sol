@@ -7,6 +7,7 @@ interface ICallitLib {
     struct PROMO {
         address promotor; // influencer wallet this promo is for
         string promoCode;
+        // LEFT OFF HERE ... need address promoCodeHash;
         uint64 usdTarget; // usd amount this promo is good for
         uint64 usdUsed; // usd amount this promo has used so far
         uint8 percReward; // % of caller buys rewarded
@@ -67,6 +68,7 @@ interface ICallitLib {
         uint64 voteResultCnt;
         address marketMaker;
         uint256 marketNum;
+        // LEFT OFF HERE ... need address marketHash;
         bool paid;
     }
     struct MARKET_REVIEW { 

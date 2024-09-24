@@ -225,7 +225,7 @@ contract CallitDelegate {
                                                 marketUsdAmnts:ICallitLib.MARKET_USD_AMNTS(_usdAmntLP, 0, 0, 0, 0), 
                                                 marketDatetimes:ICallitLib.MARKET_DATETIMES(_dtCallDeadline, _dtResultVoteStart, _dtResultVoteEnd), 
                                                 // marketResults:mark_results,
-                                                marketResults:VAULT.createDexLP(_resultLabels, net_usdAmntLP, CONF.RATIO_LP_TOK_PER_USD()), 
+                                                marketResults:VAULT.createDexLP(_sender, _mark_num, _resultLabels, net_usdAmntLP, CONF.RATIO_LP_TOK_PER_USD()), 
                                                 winningVoteResultIdx:0, 
                                                 blockTimestamp:block.timestamp, 
                                                 blockNumber:block.number, 

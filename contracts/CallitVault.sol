@@ -331,7 +331,7 @@ contract CallitVault {
         IERC20(lowStableHeld).transfer(_receiver, _normalizeStableAmnt(_usd_decimals(), _usdReward, IERC20x(lowStableHeld).decimals()));
     }
 
-    function createDexLP(string[] calldata _resultLabels, uint256 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
+    function createDexLP(address _sender, uint256 _markNum, string[] calldata _resultLabels, uint256 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
 
         // // note: makeNewMarket
         // // temp-arrays for 'makeNewMarket' support
@@ -382,7 +382,9 @@ contract CallitVault {
             // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
             // address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
             // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), ADDR_FACT, "tTICKET_0", "tTCK0"));
-            address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, "tTICKET_0", "tTCK0");
+            // address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, "tTICKET_0", "tTCK0");
+            (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _markNum, i, CONF.TOK_TICK_NAME_SEED(), CONF.TOK_TICK_SYMB_SEED());
+            address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, tok_name, tok_symb);
                 // LEFT OFF HERE ... needs to add 'LIB._genTokenNameSymbol' integration
             
             // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
