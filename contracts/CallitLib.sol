@@ -306,11 +306,33 @@ library CallitLib {
         // found string with all whitespaces as chars
         return false;
     }
+    function genHashOfAddies(address[] calldata addies) external pure returns (address) {
+        // Initialize a bytes array for encoding
+        bytes memory data;
+
+        // Loop through each address in the array and append it to the data
+        for (uint i = 0; i < addies.length; i++) {
+            data = abi.encodePacked(data, addies[i]);
+        }
+
+        // // Append the UID string to the encoded data
+        // data = abi.encodePacked(data, uid);
+
+        // Hash the concatenated data
+        bytes32 hash = keccak256(data);
+
+        // Cast the resulting hash to an address, similar to before
+        address hashAddy = address(uint160(uint256(hash))); // note: triple cast correct & required
+        return hashAddy;
+    }
     function _generateAddressHash(address host, string memory uid) external pure returns (address) {
         // Concatenate the address and the string, and then hash the result
         bytes32 hash = keccak256(abi.encodePacked(host, uid));
 
-        // NOTE: ... is this a bug? 'uint160' ? shoudl be uint16? 
+        // NOTE: ... required & not a bug
+        //  keccak256 returns a bytes32 hash, which is a 256-bit value (uint256)
+        //  Ethereum addresses are 160 bits long (20 bytes), 
+        //   when converting a bytes32 hash to address, truncating required to fit into 160 bits
         address generatedAddress = address(uint160(uint256(hash)));
         return generatedAddress;
     }

@@ -34,6 +34,9 @@ interface ICallitConfigMarket {
     function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
 }
 interface ICallitConfig {
+    function initVoterHashForAcct(address _acct) external;
+    function getVoterHashForAcct(address _acct) external view returns(address);
+
     function TOK_TICK_NAME_SEED() external view returns(string calldata);
     function TOK_TICK_SYMB_SEED() external view returns(string calldata);
 

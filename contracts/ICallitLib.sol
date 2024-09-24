@@ -88,6 +88,7 @@ interface ICallitLib {
     // function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64);
     function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
     function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool);
+    function genHashOfAddies(address[] calldata addies) external pure returns (address);
     function _generateAddressHash(address host, string memory uid) external pure returns (address);
     function _getWinningVoteIdxForMarket(uint64[] memory _resultTokenVotes) external view returns(uint16);
     function _perc_of_uint64(uint32 _perc, uint64 _num) external pure returns (uint64);

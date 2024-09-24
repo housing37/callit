@@ -25,10 +25,14 @@ import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Rout
 import "./CallitTicket.sol"; // imports ERC20.sol // declares ICallitVault.deposit
 import "./ICallitLib.sol";
 // import "./CallitToken.sol";
+// import "./ICallitConfig.sol";
 
 // interface IERC20x {
 //     function decimals() external pure returns (uint8);
 // }
+interface ICallitConfigMarket {
+    function getLiveTicketCnt() external view returns(uint256);
+}
 interface ISetConfig {
     function CONF_setConfig(address _conf) external;
 }
@@ -51,6 +55,7 @@ contract CallitConfig {
     // address public ADDR_CONF = address(0x2Cf7387BFaFcFE9Dd3fc4c767d3ccB446977e826); // CallitConfig v0.16
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
     ICallitToken private CALL = ICallitToken(ADDR_CALL);
+    ICallitConfigMarket private CONFM = ICallitConfigMarket(ADDR_CONFM);
 
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
@@ -132,6 +137,37 @@ contract CallitConfig {
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+
+    mapping(address => address) private ACCT_VOTER_HASH; // address hash used for generating _senderTicketHash in FACT.castVoteForMarketTicket
+
+    function getVoterHashForAcct(address _acct) external view onlyFactory returns(address) {
+        require(_acct != address(0) && ACCT_VOTER_HASH[_acct] != address(0), ' no vote hash, call init :-/ ');
+        return ACCT_VOTER_HASH[_acct];
+    }
+    function initVoterHashForAcct(address _acct) external onlyFactory {
+        require(_acct != address(0) && ACCT_VOTER_HASH[_acct] == address(0), ' no _acct | prev-set :/ ');
+        // Combine block properties with msg.sender to create a pseudo-random number
+        uint256 rdm = uint256(keccak256(abi.encodePacked(
+            block.timestamp,    // Current block timestamp
+            blockhash(block.number - 1),  // Hash of the previous block
+            msg.sender,          // Address of the transaction sender
+            CONFM.getLiveTicketCnt()
+        )));
+        // Truncate the random number to 160 bits (Ethereum address size)
+        ACCT_VOTER_HASH[_acct] = address(uint160(rdm));
+
+            // NOTE: this integration hides ticket address voting for from mempool/on-chain logs
+            //     ie. they only see the _senderTicketHash generated 
+            //         along w/ what market is being voted on
+            //         but they can’t see which actual ticket
+            //     note: if a malicious actor sees the code for CONF.initVoterHashForAcct
+            //         then they can indeed figure out an EOA’s voter hash by reviewing 
+            //          the chain’s call history for ‘initVoterHashForAcct’
+            //          and replicating it using the seed params found inside the function code
+            //         if they have an EOA’s voter hash, they can then loop through all 
+            //          resultOptionTokens for the market (markHash) that was voted on,
+            //          and retrieve the ticket address that _senderTicketHash references 
+    }
 
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -249,6 +285,7 @@ contract CallitConfig {
         // reset configs used in this contract
         LIB = ICallitLib(ADDR_LIB);
         CALL = ICallitToken(ADDR_CALL);
+        CONFM = ICallitConfigMarket(ADDR_CONFM);
     }
     function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim, uint16 _percPromoClaim) external onlyKeeper {
         // no 2 percs taken out of market close
