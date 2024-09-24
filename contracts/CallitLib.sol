@@ -148,11 +148,16 @@ library CallitLib {
         disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
         return (ICallitLib.MARKET_REVIEW(_sender, _resultAgree, _mark.maker, _mark.marketNum, _mark.marketHash, agreeCnt, disagreeCnt, reviewCnt));
     }
-    function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
+    // function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
+    function getValidVoteCount(uint64 _tokensHeld_noDecs, uint32 _ratioTokPerVote, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
+        // calc organic votes held based on ratio input & add to votes earned input
+        uint64 votes_held =  _tokensHeld_noDecs * _ratioTokPerVote;
+        _votesEarned += votes_held;
+
         // NOTE: this function accounts for whole number votes (ie. no decimals)
         // if indeed locked && locked before _mark start time, calc & return active vote count
         if (_voterLockTime > 0 && _voterLockTime <= _markCreateTime) {
-            uint64 votes_active = votes_held >= _votesEarned ? _votesEarned : votes_held;
+            uint64 votes_active = _tokensHeld_noDecs >= _votesEarned ? _votesEarned : _tokensHeld_noDecs;
             return votes_active;
         }
         else

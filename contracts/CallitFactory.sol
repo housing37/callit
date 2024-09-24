@@ -395,7 +395,8 @@ contract CallitFactory {
 
         //  - verify $CALL token held/locked through out this market time period
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
-        uint64 vote_cnt = LIB._validVoteCount(CALL.balanceOf_voteCnt(msg.sender), CALL.EARNED_CALL_VOTES(msg.sender), CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
+        // uint64 vote_cnt = LIB._validVoteCount(CALL.balanceOf_voteCnt(msg.sender), CALL.EARNED_CALL_VOTES(msg.sender), CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
+        uint64 vote_cnt = LIB.getValidVoteCount(CALL.balanceOf_voteCnt(msg.sender), CONF.RATIO_CALL_TOK_PER_VOTE(), CALL.EARNED_CALL_VOTES(msg.sender), CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
         require(vote_cnt > 0, ' invalid voter :{=} ');
             // LEFT OFF HERE ... integrate ability for regular $CALL holders to vote 
             //  (ie. at lower ratio... maybe 1:10 votes to holdings)

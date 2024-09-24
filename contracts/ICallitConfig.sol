@@ -101,6 +101,7 @@ interface ICallitConfig {
     function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);
     function RATIO_CALL_MINT_PER_MARK_CLOSE_CALLS() external view returns(uint32);
     function RATIO_CALL_MINT_PER_VOTE() external view returns(uint32);
+    function RATIO_CALL_TOK_PER_VOTE() external view returns(uint32);
     function RATIO_CALL_MINT_PER_MARK_CLOSE() external view returns(uint32);
     function RATIO_CALL_MINT_PER_LOSER() external view returns(uint32);
     function PERC_OF_LOSER_SUPPLY_EARN_CALL() external view returns(uint16);
