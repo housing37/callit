@@ -407,7 +407,7 @@ contract CallitFactory {
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
         //  NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
         // DELEGATE.ACCT_MARKET_VOTES[msg.sender].push(ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
-        CONFM.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false), false); // false, false = un-paid, un-paid
+        CONFM.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, mark.marketHash, false), false); // false, false = un-paid, un-paid
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
@@ -519,11 +519,12 @@ contract CallitFactory {
         cTicket.burnForRewardClaim(msg.sender);
 
         // log caller's review of market results
-        (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, CONFM.getMarketReviewsForMaker(mark.maker), _resultAgree);
+        // (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, CONFM.getMarketReviewsForMaker(mark.maker), _resultAgree);
+        ICallitLib.MARKET_REVIEW memory marketReview = LIB.genMarketResultReview(msg.sender, mark, CONFM.getMarketReviewsForMaker(mark.maker), _resultAgree);
         CONFM.pushAcctMarketReview(marketReview, mark.maker);
 
         // emit log event for reviewing market result
-        emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, markHash, agreeCnt, disagreeCnt);
+        emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, markHash, marketReview.agreeCnt, marketReview.disagreeCnt);
           
         // emit log event for claimed ticket
         emit TicketRewardsClaimed(msg.sender, _ticket, is_winner, _resultAgree);

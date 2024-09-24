@@ -7,7 +7,7 @@ interface ICallitLib {
     struct PROMO {
         address promotor; // influencer wallet this promo is for
         string promoCode;
-        // LEFT OFF HERE ... need address promoCodeHash;
+        address promoCodeHash;
         uint64 usdTarget; // usd amount this promo is good for
         uint64 usdUsed; // usd amount this promo has used so far
         uint8 percReward; // % of caller buys rewarded
@@ -68,20 +68,22 @@ interface ICallitLib {
         uint64 voteResultCnt;
         address marketMaker;
         uint256 marketNum;
-        // LEFT OFF HERE ... need address marketHash;
+        address marketHash;
         bool paid;
     }
-    struct MARKET_REVIEW { 
-        address caller;
+    struct MARKET_REVIEW { // NOTE: acts as a running log of totals w/ each review data
+        address reviewer;
         bool resultAgree;
         address marketMaker;
         uint256 marketNum;
-        // LEFT OFF HERE ... need address marketHash;
+        address marketHash;
         uint64 agreeCnt;
         uint64 disagreeCnt;
+        uint64 reviewCnt;
     }
     // note: only these used in CallitFactory ... (maybe less after CallitDelegate integration)    
-    function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
+    // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64);
+    function genMarketResultReview(address _sender, ICallitLib.MARKET memory _mark, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory);
     function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64);
     function _addressIsMarketMakerOrCaller(address _addr, address _markMaker, address[] memory _resultOptionTokens) external view returns(bool, bool);
     function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool);

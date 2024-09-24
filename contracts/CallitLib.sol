@@ -134,7 +134,8 @@ library CallitLib {
         int64 target_price = 1 - int64(alt_sum);
         return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
     }
-    function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
+    // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
+    function genMarketResultReview(address _sender, ICallitLib.MARKET memory _mark, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external pure returns(ICallitLib.MARKET_REVIEW memory) {
         uint64 agreeCnt = 0;
         uint64 disagreeCnt = 0;
         uint64 reviewCnt = _uint64_from_uint256(_makerReviews.length);
@@ -145,7 +146,7 @@ library CallitLib {
 
         agreeCnt = _resultAgree ? agreeCnt+1 : agreeCnt;
         disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
-        return (ICallitLib.MARKET_REVIEW(msg.sender, _resultAgree, _maker, _markNum, agreeCnt, disagreeCnt), agreeCnt, disagreeCnt);
+        return (ICallitLib.MARKET_REVIEW(_sender, _resultAgree, _mark.maker, _mark.marketNum, _mark.marketHash, agreeCnt, disagreeCnt, reviewCnt));
     }
     function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
         // NOTE: this function accounts for whole number votes (ie. no decimals)

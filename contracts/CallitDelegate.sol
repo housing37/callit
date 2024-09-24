@@ -166,8 +166,7 @@ contract CallitDelegate {
         address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
         ICallitLib.PROMO memory promo = CONF.getPromoForHash(promoCodeHash);
         require(promo.promotor == address(0), ' promo already exists :-O ');
-        // PROMO_CODE_HASHES[promoCodeHash] = ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
-        CONF.setPromoForHash(promoCodeHash, ICallitLib.PROMO(_promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number));
+        CONF.setPromoForHash(promoCodeHash, ICallitLib.PROMO(_promotor, _promoCode, promoCodeHash, _usdTarget, 0, _percReward, msg.sender, block.number));
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
