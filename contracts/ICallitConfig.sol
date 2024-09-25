@@ -6,7 +6,6 @@ interface ICallitConfigMarket {
     function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
-    function getUsdBalanceForAcct(address _acct) external view returns(uint64);
     function grossStableBalance(address[] memory _stables, address _vault) external view returns (uint64);
     function owedStableBalance() external view returns (uint64);
     // function LIVE_PAIR_ADDIES(uint256 _idx) external view returns(address);

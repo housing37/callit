@@ -241,10 +241,6 @@ contract CallitConfigMarket {
         }
         return owed_bal;
     }
-    function getUsdBalanceForAcct(address _acct) external view returns(uint64) {
-        require(_acct != address(0), ' bad _acct :/ ');
-        return ACCT_USD_BALANCES[_acct];
-    }
     function getAccounts() external view returns (address[] memory) {
         return ACCOUNTS;
     }

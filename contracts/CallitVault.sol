@@ -510,12 +510,9 @@ contract CallitVault {
         if (_arbExecuter != CONF.KEEPER()) { // free for KEEPER
             // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
             //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from this contract
-            // require(ACCT_USD_BALANCES[_arbExecuter] >= total_usd_cost, ' low balance :( ');
-            require(CONFM.getUsdBalanceForAcct(_arbExecuter) >= total_usd_cost, ' low balance :( ');
-            
+            require(CONFM.ACCT_USD_BALANCES(_arbExecuter) >= total_usd_cost, ' low balance :( ');
 
             // deduce that sale amount from their account balance
-            // CALLIT_VAULT.ACCT_USD_BALANCES[_arbExecuter] -= total_usd_cost; 
             CONFM.edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
         }
         
