@@ -264,33 +264,70 @@ library CallitLib {
     //         // string private TOK_SYMB = string(abi.encodePacked("tCALL", tVERSION));
     //         // string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // }
+    // function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external returns(string memory, string memory) { 
+    //     emit StepLog('step', 0, '', '');
+    //     // Concatenate to form symbol & name
+    //     // string memory last4 = _getLast4Chars(_maker);
+    //     // Convert the last 2 bytes (4 characters) of the address to a string
+    //     bytes memory addrBytes = abi.encodePacked(_maker);
+    //     bytes memory last4 = new bytes(4);
+        
+    //     emit StepLog('step', 1, '', '');
+        
+    //     for (uint256 i = 0; i < 4; i++) {
+    //         last4[i] = addrBytes[addrBytes.length - 4 + i];
+    //     }
+    //     // last4[0] = addrBytes[18];
+    //     // last4[1] = addrBytes[19];
+    //     // last4[2] = addrBytes[20];
+    //     // last4[3] = addrBytes[21];
+    //     last4 = "37";
+
+    //     emit StepLog('step', 2, '', '');
+
+    //     // return string(last4);
+    //     string memory tokenSymbol = string(abi.encodePacked(_nameSeed, last4, _markNum, string(abi.encodePacked(_resultNum))));
+    //     string memory tokenName = string(abi.encodePacked(_symbSeed, " ", last4, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
+
+    //     emit StepLog('step', 3, tokenSymbol, tokenName);
+    //     return (tokenName, tokenSymbol);
+    // }
     function _genTokenNameSymbol(address _maker, uint256 _markNum, uint16 _resultNum, string calldata _nameSeed, string calldata _symbSeed) external returns(string memory, string memory) { 
-        emit StepLog('step', 0, '', '');
-        // Concatenate to form symbol & name
-        // string memory last4 = _getLast4Chars(_maker);
-        // Convert the last 2 bytes (4 characters) of the address to a string
-        bytes memory addrBytes = abi.encodePacked(_maker);
-        bytes memory last4 = new bytes(4);
-        
-        emit StepLog('step', 1, '', '');
-        
-        for (uint256 i = 0; i < 4; i++) {
-            last4[i] = addrBytes[addrBytes.length - 4 + i];
-        }
-        // last4[0] = addrBytes[18];
-        // last4[1] = addrBytes[19];
-        // last4[2] = addrBytes[20];
-        // last4[3] = addrBytes[21];
-        last4 = "37";
-
         emit StepLog('step', 2, '', '');
-
+        string memory str_maker = addressToString(_maker);
+        string memory last4 = getLastNChars(str_maker, 4);
+        // str_maker = getLastNChars(addressToString(_maker), 4);
         // return string(last4);
         string memory tokenSymbol = string(abi.encodePacked(_nameSeed, last4, _markNum, string(abi.encodePacked(_resultNum))));
         string memory tokenName = string(abi.encodePacked(_symbSeed, " ", last4, "-", _markNum, "-", string(abi.encodePacked(_resultNum))));
 
         emit StepLog('step', 3, tokenSymbol, tokenName);
         return (tokenName, tokenSymbol);
+    }
+    function addressToString(address _addr) public pure returns (string memory) {
+        bytes32 value = bytes32(uint256(uint160(_addr)));
+        bytes memory alphabet = "0123456789abcdef";
+
+        bytes memory str = new bytes(42);
+        str[0] = '0';
+        str[1] = 'x';
+        for (uint i = 0; i < 20; i++) {
+            str[2+i*2] = alphabet[uint(uint8(value[i + 12] >> 4))];
+            str[3+i*2] = alphabet[uint(uint8(value[i + 12] & 0x0f))];
+        }
+        return string(str);
+    }
+    function getLastNChars(string memory str, uint256 n) public pure returns (string memory) {
+        bytes memory strBytes = bytes(str);
+        require(n <= strBytes.length, "N exceeds string length");
+
+        bytes memory result = new bytes(n);
+        uint start = strBytes.length - n;
+        for (uint i = 0; i < n; i++) {
+            result[i] = strBytes[start + i];
+        }
+
+        return string(result);
     }
     function _validNonWhiteSpaceString(string calldata _s) external pure returns(bool) {
         for (uint8 i=0; i < bytes(_s).length;) {
