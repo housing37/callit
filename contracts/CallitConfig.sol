@@ -45,14 +45,14 @@ contract CallitConfig {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
-    string public constant tVERSION = '0.16'; 
-    address public ADDR_LIB = address(0x34Ac2E41777b17c104c1545405F7384E46F7e33D); // CallitLib v0.20
-    address public ADDR_VAULT = address(0x4C484C02915853F4B588720494B84ba145436621); // CallitVault v0.50
-    address public ADDR_DELEGATE = address(0xBB88b0d66f1D323FE0c544d6D02a41BcBC90e1A1); // CallitDelegate v0.43
-    address public ADDR_CALL = address(0x20c05a15477aC128924009893ddfAA89fb4F9AbF); // CallitToken v0.18
-    address public ADDR_FACT = address(0x26e0E127a35c3777fB258f4884E5D92B0055A97b); // CallitFactory v0.63
-    address public ADDR_CONFM = address(0xBAa4415D87a21eF2C4C47E530bd4ad21C577B0C8); // CallitConfigMarket v0.3
-    // address public ADDR_CONF = address(0x2Cf7387BFaFcFE9Dd3fc4c767d3ccB446977e826); // CallitConfig v0.16
+    string public constant tVERSION = '0.17';
+    address public ADDR_LIB = address(0xE6C904be220a0F3BDA2228b87c398B818F74Bfb8); // CallitLib v0.21
+    address public ADDR_VAULT = address(0xE6A3288AB88B88A83D92Fb3Ba9c14699ef62b29d); // CallitVault v0.51
+    address public ADDR_DELEGATE = address(0x423214aE55DD15AC198267F7A851b5C9b1e9295F); // CallitDelegate v0.45
+    address public ADDR_CALL = address(0x0b8C202F4af1A7F24083e3e781fdB595464e538b); // CallitToken v0.19
+    address public ADDR_FACT = address(0x8E3Ae95196536c8E3c830e4711Da80207954f680); // CallitFactory v0.64
+    address public ADDR_CONFM = address(0xeD673eFf28fDF24ac469EC3198336C5eA5B88FFc); // CallitConfigMarket v0.4
+    // address public ADDR_CONF = address(0x7cBcC733F41C338b754a52f1f5EBd4613e0CE57B); // CallitConfig v0.17
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
     ICallitToken private CALL = ICallitToken(ADDR_CALL);
     ICallitConfigMarket private CONFM = ICallitConfigMarket(ADDR_CONFM);
