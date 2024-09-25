@@ -97,7 +97,8 @@ interface ICallitConfig {
     function get_WHITELIST_USD_STABLES() external view returns(address[] memory);
     function get_USWAP_V2_ROUTERS() external view returns(address[] memory);
     // function VAULT_getStableTokenLowMarketValue() external view returns(address);
-    function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);
+    // function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);
+    function VAULT_deployTicket(address _sender, uint256 _markNum, uint16 _tickIdx, uint256 _initSupplyNoDecs) external returns(address);
 
     // call token mint rewards
     function RATIO_CALL_MINT_PER_ARB_EXE() external view returns(uint32);

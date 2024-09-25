@@ -366,13 +366,18 @@ contract CallitConfig {
     /* -------------------------------------------------------- */
     /* PUBLIC - VAULT
     /* -------------------------------------------------------- */
-    function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external onlyVault returns(address) {
+    
+    // function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external onlyVault returns(address) {
+    function VAULT_deployTicket(address _sender, uint256 _markNum, uint16 _tickIdx, uint256 _initSupplyNoDecs) external onlyVault returns(address) {
+        // address new_tick_tok = CONF.VAULT_deployTicket(_sender, _markNum, i, tokenAmount);
+
         // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
         // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
         // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
         // address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
-
-        return address(new CallitTicket(_initSupplyNoDecs, _tokName, _tokSymb)); // _config = address(this)
+        // return address(new CallitTicket(_initSupplyNoDecs, _tokName, _tokSymb)); // _config = address(this)
+        (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _markNum, _tickIdx, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
+        return address(new CallitTicket(_initSupplyNoDecs, tok_name, tok_symb)); // _config = address(this)
     }
     function VAULT_getStableTokenLowMarketValue() external view onlyVault returns(address) {
         return LIB._getStableTokenLowMarketValue(WHITELIST_USD_STABLES, USWAP_V2_ROUTERS);

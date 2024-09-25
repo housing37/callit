@@ -383,8 +383,9 @@ contract CallitVault {
             // address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
             // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), ADDR_FACT, "tTICKET_0", "tTCK0"));
             // address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, "tTICKET_0", "tTCK0");
-            (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _markNum, i, CONF.TOK_TICK_NAME_SEED(), CONF.TOK_TICK_SYMB_SEED());
-            address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, tok_name, tok_symb);
+            // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _markNum, i, CONF.TOK_TICK_NAME_SEED(), CONF.TOK_TICK_SYMB_SEED());
+            // address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, tok_name, tok_symb);
+            address new_tick_tok = CONF.VAULT_deployTicket(_sender, _markNum, i, tokenAmount);
                 // LEFT OFF HERE ... needs to add 'LIB._genTokenNameSymbol' integration
             
             // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
