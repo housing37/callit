@@ -559,6 +559,10 @@ contract CallitFactory {
 
                 // NOTE: this action could open up a secondary OTC market for collecting loser tickets
                 //  ie. collecting losers = minting $CALL
+            } else {
+                // if msg.sender doesn't have enough to claim as loser
+                //  then revert (ie. do not burn, leave loser tokens on the market)
+                revert(' need more losers :O ');
             }
         }
 
