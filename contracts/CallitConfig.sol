@@ -63,6 +63,9 @@ contract CallitConfig {
     // address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
 
+    // set by CONFM on every LIVE_TICKETS_LST update
+    uint64 private LIVE_TICKET_COUNT; // uint64 = max 18,000Q live tickets it can account for
+    
     // note: receive / deposit
     address public DEPOSIT_USD_STABLE;
     address public DEPOSIT_ROUTER;
@@ -151,12 +154,12 @@ contract CallitConfig {
             block.timestamp,    // Current block timestamp
             blockhash(block.number - 1),  // Hash of the previous block
             msg.sender,          // Address of the transaction sender
-            CONFM.getLiveTicketCnt()
+            LIVE_TICKET_COUNT // local var seed (shouldn't be trackable w/in on-chain call stack)
         )));
         // Truncate the random number to 160 bits (Ethereum address size)
         ACCT_VOTER_HASH[_acct] = address(uint160(rdm));
 
-            // NOTE: this integration hides ticket address voting for from mempool/on-chain logs
+            // NOTE: this integration hides ticket address voting for from mempool/call-stack logs
             //     ie. they only see the _senderTicketHash generated 
             //         along w/ what market is being voted on
             //         but they can’t see which actual ticket
@@ -231,6 +234,11 @@ contract CallitConfig {
         require(msg.sender == ADDR_FACT, " !fact :+[ ");
         _;
     }
+    modifier onlyConfM() {
+        require(msg.sender == ADDR_CONFM, " !fact :+[ ");
+        _;
+    }
+
     function keeperCheck(uint256 _check) external view returns(bool) { 
         return _check == KEEPER_CHECK; 
     }
@@ -364,9 +372,16 @@ contract CallitConfig {
     }
 
     /* -------------------------------------------------------- */
+    /* PUBLIC - CONFM
+    /* -------------------------------------------------------- */
+    function setLiveTcktCnt(uint256 _cnt) external onlyConfM {
+        // uint64 = max 18,000Q live tickets it can account for
+        LIVE_TICKET_COUNT = LIB._uint64_from_uint256(_cnt); 
+    }
+
+    /* -------------------------------------------------------- */
     /* PUBLIC - VAULT
     /* -------------------------------------------------------- */
-    
     // function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external onlyVault returns(address) {
     function VAULT_deployTicket(address _sender, uint256 _markNum, uint16 _tickIdx, uint256 _initSupplyNoDecs) external onlyVault returns(address) {
         // address new_tick_tok = CONF.VAULT_deployTicket(_sender, _markNum, i, tokenAmount);

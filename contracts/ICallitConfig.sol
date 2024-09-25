@@ -33,6 +33,8 @@ interface ICallitConfigMarket {
     function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
 }
 interface ICallitConfig {
+    function setLiveTcktCnt(uint256 _cnt) external;
+
     function initVoterHashForAcct(address _acct) external;
     function getVoterHashForAcct(address _acct) external view returns(address);
 

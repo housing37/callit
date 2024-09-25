@@ -149,6 +149,7 @@ contract CallitConfigMarket {
         } else {
             LIVE_TICKETS_LST = LIB._remAddressFromArray(_ticket, LIVE_TICKETS_LST);
         }
+        CONF.setLiveTcktCnt(LIVE_TICKETS_LST.length);
     }
     function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external onlyFactory {
         require(_maker != address(0), ' !_maker :=/ ');
