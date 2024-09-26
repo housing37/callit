@@ -93,7 +93,7 @@ contract CallitDelegate {
     /* -------------------------------------------------------- */
     // legacy & callit promo
     event KeeperTransfer(address _prev, address _new);
-    event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint8 _percReward, address _creator, uint256 _blockNumber);
+    event PromoCreated(address _promoHash, address _promotor, string _promoCode, uint64 _usdTarget, uint64 usdUsed, uint16 _percReward, address _creator, uint256 _blockNumber);
     event PromoRewardsPaid(address _sender, address _promoCodeHash, uint64 _usdPaid, address _promotor);
     event VoterRewardsClaimed(address _claimer, uint64 _usdRewardOwed, uint64 _usdRewardOwed_net);
 
@@ -157,7 +157,7 @@ contract CallitDelegate {
     /* PUBLIC - ADMIN SUPPORT
     /* -------------------------------------------------------- */
     // CALLIT admin
-    function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint8 _percReward) external onlyAdmin {
+    function ADMIN_initPromoForWallet(address _promotor, string calldata _promoCode, uint64 _usdTarget, uint16 _percReward) external onlyAdmin {
         // address promoCodeHash = _initPromoForWallet(_promotor, _promoCode, _usdTarget, _percReward, msg.sender);
 
         // no 2 percs taken out of promo buy

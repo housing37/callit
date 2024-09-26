@@ -10,7 +10,7 @@ interface ICallitLib {
         address promoCodeHash;
         uint64 usdTarget; // usd amount this promo is good for
         uint64 usdUsed; // usd amount this promo has used so far
-        uint8 percReward; // % of caller buys rewarded
+        uint16 percReward; // % of caller buys rewarded 100000 = 100.00%
         address adminCreator; // admin who created this promo
         uint256 blockNumber; // block number this promo was created
     }
