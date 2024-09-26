@@ -66,13 +66,13 @@
         0x0000000000000000000000000000000000000000
     #-----------------------------------------------------------------------------------------------------------#
     #-----------------------------------------------------------------------------------------------------------#
-    address public ADDR_LIB = address(0xE6C904be220a0F3BDA2228b87c398B818F74Bfb8); // CallitLib v0.21
+    address public ADDR_LIB = address(0x84Ac3BE8Bc1393385A2ec18A4cf4A4BB93721b83); // CallitLib v0.30
     address public ADDR_VAULT = address(0xE6A3288AB88B88A83D92Fb3Ba9c14699ef62b29d); // CallitVault v0.51
     address public ADDR_DELEGATE = address(0x423214aE55DD15AC198267F7A851b5C9b1e9295F); // CallitDelegate v0.45
     address public ADDR_CALL = address(0x0b8C202F4af1A7F24083e3e781fdB595464e538b); // CallitToken v0.19
     address public ADDR_FACT = address(0x8E3Ae95196536c8E3c830e4711Da80207954f680); // CallitFactory v0.64
     address public ADDR_CONFM = address(0xeD673eFf28fDF24ac469EC3198336C5eA5B88FFc); // CallitConfigMarket v0.4
-    address public ADDR_CONF = address(0x7cBcC733F41C338b754a52f1f5EBd4613e0CE57B); // CallitConfig v0.17
+    address public ADDR_CONF = address(0x18E11C72B82C34ED16814C4884EE01DC16B407Ab); // CallitConfig v0.19
 
     #-----------------------------------------------------------------------------------------------------------#
     address public ADDR_LIB = address(0x34Ac2E41777b17c104c1545405F7384E46F7e33D); // CallitLib v0.20

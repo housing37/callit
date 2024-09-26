@@ -13,12 +13,14 @@ pragma solidity ^0.8.24;
 // inherited contracts
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
 // import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol"; // deploy
+// import "@openzeppelin/contracts/utils/Strings.sol";
 // import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 // import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 // local _ $ npm install @openzeppelin/contracts
 import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "./node_modules/@openzeppelin/contracts/utils/Strings.sol";
 // import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 // import "./node_modules/@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
@@ -45,8 +47,8 @@ contract CallitConfig {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
-    string public constant tVERSION = '0.17';
-    address public ADDR_LIB = address(0xE6C904be220a0F3BDA2228b87c398B818F74Bfb8); // CallitLib v0.21
+    string public constant tVERSION = '0.19';  
+    address public ADDR_LIB = address(0x7592765CFC0DB62AB5aed0b0b4D79A25Fb4f55df); // CallitLib v0.29
     address public ADDR_VAULT = address(0xE6A3288AB88B88A83D92Fb3Ba9c14699ef62b29d); // CallitVault v0.51
     address public ADDR_DELEGATE = address(0x423214aE55DD15AC198267F7A851b5C9b1e9295F); // CallitDelegate v0.45
     address public ADDR_CALL = address(0x0b8C202F4af1A7F24083e3e781fdB595464e538b); // CallitToken v0.19
