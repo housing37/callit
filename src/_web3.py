@@ -163,53 +163,58 @@ class myWEB3:
         to_addr = account.address  # Sending to yourself
         # to_addr = "0x26c7C431534b4E6b2bF1b9ebc5201bEf2f8477F5"  # Sending to vault
         # to_addr = "0x86726f5a4525D83a5dd136744A844B14Eb0f880c"  # Sending to factory
-        inp_go = input(f"\n Execute nonce kill attempt? [y/n]\n  (send {send_amnt_eth} PLS to '{to_addr}')\n > ")
-        if inp_go.lower() != 'y' and inp_go != '1':
-            print(' nonce kill denied\n')
-            return
-        
-        # Set the transaction parameters
-        tx_nonce = w3.eth.get_transaction_count(account.address)
-        tx_params = {
-            'to': to_addr, 
-            'value': w3.to_wei(send_amnt_eth, 'ether'),
-            'nonce': tx_nonce,  # Get the nonce
-            'chainId': self.CHAIN_ID  # Mainnet (1), Rinkeby (4), PulseChain (369), etc.
-        }
-        
-        # append gas params
-        lst_gas_params = [{'gas':self.GAS_LIMIT}, {'maxFeePerGas': self.MAX_FEE}, {'maxPriorityFeePerGas': int(self.MAX_FEE * self.MAX_PRIOR_FEE_RATIO)}]
-        for d in lst_gas_params: tx_params.update(d)
+        go = True
+        while go:
+            inp_go = input(f"\n Execute nonce kill attempt? [y/n]\n  (send {send_amnt_eth} PLS to '{to_addr}')\n > ")
+            if inp_go.lower() != 'y' and inp_go != '1':
+                print(' nonce kill denied\n')
+                return
+            
+            # Set the transaction parameters
+            tx_nonce = w3.eth.get_transaction_count(account.address)
+            tx_params = {
+                'to': to_addr, 
+                'value': w3.to_wei(send_amnt_eth, 'ether'),
+                'nonce': tx_nonce,  # Get the nonce
+                'chainId': self.CHAIN_ID  # Mainnet (1), Rinkeby (4), PulseChain (369), etc.
+            }
+            
+            # append gas params
+            lst_gas_params = [{'gas':self.GAS_LIMIT}, {'maxFeePerGas': self.MAX_FEE}, {'maxPriorityFeePerGas': int(self.MAX_FEE * self.MAX_PRIOR_FEE_RATIO)}]
+            for d in lst_gas_params: tx_params.update(d)
 
-        print(f'built tx w/ NONCE: {tx_nonce} ...')
-        print(f'signing and sending tx ... {get_time_now()}')
-        # Sign & send the transaction
-        signed_tx = account.sign_transaction(tx_params)
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            print(f'built tx w/ NONCE: {tx_nonce} ...')
+            print(f'signing and sending tx ... {get_time_now()}')
+            # Sign & send the transaction
+            signed_tx = account.sign_transaction(tx_params)
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-        # Get the transaction hash
-        print(cStrDivider_1, f'waiting for receipt ... {get_time_now()}', sep='\n')
-        print(f'    tx_hash: {tx_hash.hex()}')
+            # Get the transaction hash
+            print(cStrDivider_1, f'waiting for receipt ... {get_time_now()}', sep='\n')
+            print(f'    tx_hash: {tx_hash.hex()}')
 
-        # Optionally, wait for the transaction to be mined
-        # Wait for the transaction to be mined
-        wait_time = 300 # sec
-        try:
-            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=wait_time)
-            print("Transaction confirmed in block:", tx_receipt.blockNumber, f' ... {get_time_now()}')
-        except Exception as e:
-            print(f"\n{get_time_now()}\n Transaction not confirmed within the specified timeout... wait_time: {wait_time}")
-            print_except(e)
-            exit(1)
+            # Optionally, wait for the transaction to be mined
+            # Wait for the transaction to be mined
+            wait_time = 300 # sec
+            try:
+                tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=wait_time)
+                print("Transaction confirmed in block:", tx_receipt.blockNumber, f' ... {get_time_now()}')
+            except Exception as e:
+                print(f"\n{get_time_now()}\n Transaction not confirmed within the specified timeout... wait_time: {wait_time}")
+                print_except(e)
+                exit(1)
 
-        # print incoming tx receipt (requires pprint & AttributeDict)
-        tx_receipt = AttributeDict(tx_receipt) # import required
-        tx_rc_print = pprint.PrettyPrinter().pformat(tx_receipt)
-        print(cStrDivider_1, f'RECEIPT:\n {tx_rc_print}', sep='\n')
-        print(cStrDivider_1, f"\n\n Contract deployed at address: {tx_receipt['contractAddress']}\n\n", sep='\n')
-        
-        print(f"Transaction receipt: {tx_receipt}")
-        print(cStrDivider_1, cStrDivider_1, sep='\n')
+            # print incoming tx receipt (requires pprint & AttributeDict)
+            tx_receipt = AttributeDict(tx_receipt) # import required
+            tx_rc_print = pprint.PrettyPrinter().pformat(tx_receipt)
+            print(cStrDivider_1, f'RECEIPT:\n {tx_rc_print}', sep='\n')
+            print(cStrDivider_1, f"\n\n Contract deployed at address: {tx_receipt['contractAddress']}\n\n", sep='\n')
+            
+            print(f"Transaction receipt: {tx_receipt}")
+            print(cStrDivider_1, cStrDivider_1, sep='\n')
+
+            again = input("\n\n __ ATTEMPT KILL AGAIN? [y/n] __\n > ")
+            go = again.lower() == 'y' or again == '1'
 
     def set_gas_params(self, w3, _gas_limit=6_000_000, _fee_perc_markup=0.55):
         print(f' setting default gas params ... (w/ fee % markup: {_fee_perc_markup})')
