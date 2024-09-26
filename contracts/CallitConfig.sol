@@ -47,14 +47,14 @@ contract CallitConfig {
     address public KEEPER;
     uint256 private KEEPER_CHECK; // misc key, set to help ensure no-one else calls 'KEEPER_collectiveStableBalances'
     mapping(address => bool) public ADMINS; // enable/disable admins (for promo support, etc)
-    string public constant tVERSION = '0.19';  
-    address public ADDR_LIB = address(0x7592765CFC0DB62AB5aed0b0b4D79A25Fb4f55df); // CallitLib v0.29
+    string public constant tVERSION = '0.20';
+    address public ADDR_LIB = address(0x84Ac3BE8Bc1393385A2ec18A4cf4A4BB93721b83); // CallitLib v0.30
     address public ADDR_VAULT = address(0xE6A3288AB88B88A83D92Fb3Ba9c14699ef62b29d); // CallitVault v0.51
-    address public ADDR_DELEGATE = address(0x423214aE55DD15AC198267F7A851b5C9b1e9295F); // CallitDelegate v0.45
+    address public ADDR_DELEGATE = address(0xa050195E1483D530A3A72481CB16f4669190Ded0); // CallitDelegate v0.46
     address public ADDR_CALL = address(0x0b8C202F4af1A7F24083e3e781fdB595464e538b); // CallitToken v0.19
-    address public ADDR_FACT = address(0x8E3Ae95196536c8E3c830e4711Da80207954f680); // CallitFactory v0.64
+    address public ADDR_FACT = address(0xf0Fbe29Bb8b8637a82075207B46e4CA40EF63e55); // CallitFactory v0.65
     address public ADDR_CONFM = address(0xeD673eFf28fDF24ac469EC3198336C5eA5B88FFc); // CallitConfigMarket v0.4
-    // address public ADDR_CONF = address(0x7cBcC733F41C338b754a52f1f5EBd4613e0CE57B); // CallitConfig v0.17
+    // address public ADDR_CONF = address(0x18E11C72B82C34ED16814C4884EE01DC16B407Ab); // CallitConfig v0.19
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
     ICallitToken private CALL = ICallitToken(ADDR_CALL);
     ICallitConfigMarket private CONFM = ICallitConfigMarket(ADDR_CONFM);
@@ -102,7 +102,7 @@ contract CallitConfig {
     uint32 public RATIO_CALL_TOK_PER_VOTE = 100; // amount of call tokens (non-earned) required per vote count
     uint32 public RATIO_CALL_MINT_PER_MARK_CLOSE = 1; // amount of all $CALL minted per market close action reward // TODO: need KEEPER setter
     uint64 public RATIO_PROMO_USD_PER_CALL_MINT = 1000000; // (1000000 = $1.000000; 6 decimals) usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
-    uint64 public MIN_USD_PROMO_TARGET = 1000000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
+    uint64 public MIN_USD_PROMO_TARGET = 500000; // (1000000 = $1.000000) min target for creating promo codes ($ target = $ bets this promo brought in)
 
     // arb algorithm settings
     // market settings
@@ -134,16 +134,19 @@ contract CallitConfig {
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
     address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
+    // *WARNING* -> re-deploy means wiping promo & vote data & account handles
+    // promo data storage
     mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
     mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
     mapping(address => address[]) public PROMOTOR_HASHES; // map promo code list to their promotor
 
-    // migrated from CallitToken
+    // vote data storage
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
-    mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
-
     mapping(address => address) private ACCT_VOTER_HASH; // address hash used for generating _senderTicketHash in FACT.castVoteForMarketTicket
+
+    // market makers (etc.) can set their own handles
+    mapping(address => string) public ACCT_HANDLES;
 
     function getVoterHashForAcct(address _acct) external view onlyFactory returns(address) {
         require(_acct != address(0) && ACCT_VOTER_HASH[_acct] != address(0), ' no vote hash, call init :-/ ');
