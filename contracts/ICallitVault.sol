@@ -17,9 +17,10 @@ interface ICallitVault {
     // NOTE: legacy private (now public)
     function _usd_decimals() external pure returns (uint8);
     function _payUsdReward(address _sender, uint64 _usdReward, address _receiver) external;
-    function createDexLP(address _sender, uint256 _markNum, string[] calldata _resultLabels, uint256 _net_usdAmntLP, uint16 _ratioLpTokPerUsd) external returns(ICallitLib.MARKET_RESULTS memory);
+    function createDexLP(address _sender, uint256 _markNum, string[] calldata _resultLabels, uint256 _net_usdAmntLP, uint32 _ratioLpTokPerUsd) external returns(ICallitLib.MARKET_RESULTS memory);
     function _exePullLiquidityFromLP(address _tokenRouter, address _pairAddress, address _token, address _usdStable) external returns(uint256);
 
     // NOTE: callit market management
     function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, address _buyer) external returns(uint64, uint256);
+    // function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, address _sender) external onlyFactory returns(uint64, uint256) {
 }

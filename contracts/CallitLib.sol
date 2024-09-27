@@ -187,10 +187,16 @@ library CallitLib {
         return idxCurrHigh;
     }
     function _getAmountsForInitLP(uint256 _usdAmntLP, uint256 _resultOptionCnt, uint32 _tokPerUsd) external pure returns(uint64, uint256) {
-        // NOTE: _usdAmntLP coming in from DELEGATE.makeNewMarket, will always be within uint64 range
         require (_usdAmntLP > 0 && _resultOptionCnt > 0 && _tokPerUsd > 0, ' uint == 0 :{} ');
-        return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
+        // return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
             // NOTE: _uint64_from_uint256 checked OK
+
+        uint64 usdAmountLP = _uint64_from_uint256(_usdAmntLP / _resultOptionCnt);
+        uint256 tokAmntLP = _normalizeStableAmnt(6, usdAmountLP * _tokPerUsd, 18); // convert from usd decs to ticket decs
+        return (usdAmountLP, tokAmntLP);
+            // NOTE: _usdAmntLP & _tokPerUsd coming in from DELEGATE.makeNewMarket -> VAULT.createDexLP
+            //  _usdAmntLP, will always be w/in uint64 range, formated in VAULT._usd_decimals() -> 6
+            //  _tokPerUsd, hence needs to add 10**12 decimals, matching ERC20's standard -> 18 (needed for CallitTicket.sol)
     }
     function _calculateTokensToMint(address _pairAddr, uint256 _usdTargetPrice) external view returns (uint256) {
         // NOTE: chatGPT requirements ...
