@@ -250,7 +250,7 @@ contract CallitDelegate {
     }
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _sender) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
         ICallitLib.PROMO memory promo = CONF.getPromoForHash(_promoCodeHash);
-        require(promo.promotor != address(0) && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != _sender, ' invalid promo :-O ');
+        require(promo.promotor != address(0) && promo.promotor != _sender && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != _sender, ' invalid promo :-O ');
 
         // NOTE: algorithmic logic...
         //  - admins initialize promo codes for EOAs (generates promoCodeHash and stores in PROMO struct for EOA influencer)
