@@ -115,11 +115,14 @@ contract CallitConfig {
     // lp settings
     uint64 public MIN_USD_MARK_LIQ = 500000; // (500000 = $0.500000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
     uint32 public RATIO_LP_TOK_PER_USD = 10000; // # of ticket tokens per usd, minted for LP deploy
-    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) init LP usd amount needed per $CALL earned by market maker
+    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = %1.000000; 6 decimals) usd opening LP needed (mark.marketUsdAmnts.usdAmntLP) per $CALL earned by market maker
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
         // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
         //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)    
-
+        //  - in addition to usd opening LP needed (above), perhaps ...
+        //      1) min amount of market ticket holders
+        //      2) min amount of closing LP needed (mark.marketUsdAmnts.usdAmntPrizePool)
+        
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     // NOTE: all USD bals & payouts stores uint precision to 6 decimals
