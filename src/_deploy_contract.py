@@ -51,6 +51,10 @@ def init_web3_all():
         # lst_tup_abi_bin_path.append(LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin')
         contract_ = W3_.add_contract_deploy(LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin')
         contr_name = LST_CONTR_ABI_BIN[i].split('/')[-1]
+
+        # CallitConfig (bc i needs the addresses of the other)
+        if contr_name == 'CallitConfig': continue
+
         lst_contracts.append(contract_)
         lst_contract_names.append(contr_name)
         lst_contract_file_paths.append((LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin'))
