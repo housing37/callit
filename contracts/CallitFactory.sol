@@ -34,6 +34,7 @@ interface ICallitToken {
 interface ICallitTicket {
     function burnForRewardClaim(address _account) external;
     function decimals() external pure returns (uint8);
+    function setDeadlineTransferLock(bool _lock) external;
 }
 interface ICallitDelegate {
     function makeNewMarket( string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
@@ -519,6 +520,12 @@ contract CallitFactory {
         // mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt = CONF.RATIO_CALL_MINT_PER_MARK_CLOSE();
         _mintCallToksEarned(msg.sender, callEarnedAmnt); // emit CallTokensEarned
+
+        // un-lock ticket transfers (ie. call deadline passed & all liquidity pulled, no more bets)
+        for (uint16 i=0; i < mark.marketResults.resultOptionTokens.length;) {
+            ICallitTicket(mark.marketResults.resultOptionTokens[i]).setDeadlineTransferLock(false); // false = un-locked
+            unchecked {i++;}
+        }
 
         // emit log for closed market
         emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, markHash, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote, callEarnedAmnt);

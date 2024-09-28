@@ -28,6 +28,11 @@ import "./ICallitConfig.sol";
 interface IERC20x {
     function decimals() external pure returns (uint8);
 }
+interface ICallitTicket {
+    // function burnForRewardClaim(address _account) external;
+    // function decimals() external pure returns (uint8);
+    function setDeadlineTransferLock(bool _lock) external;
+}
 
 contract CallitDelegate {
     /* GLOBALS (CALLIT) */
@@ -283,6 +288,9 @@ contract CallitDelegate {
 
             // update market prize pool usd received from LP (usdAmntPrizePool: defualts to 0)
             usdAmntPrizePool += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(IERC20x(mark.marketResults.resultTokenUsdStables[i]).decimals(), amountToken1, VAULT._usd_decimals())); 
+
+            // local ticket transfers (ie. call deadline passed & all liquidity pulled, no more bets)
+            ICallitTicket(mark.marketResults.resultOptionTokens[i]).setDeadlineTransferLock(true); // true = locked
 
             unchecked {
                 i++;

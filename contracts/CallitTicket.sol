@@ -19,6 +19,7 @@ import "./node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 interface ICallitConfig { // don't need everything in ICallitConfig.sol
     function ADDR_VAULT() external view returns(address);
     function ADDR_FACT() external view returns(address);
+    function ADDR_DELEGATE() external view returns(address);
 }
 interface ICallitVault {
     function deposit(address _depositor) external payable;
@@ -32,6 +33,9 @@ contract CallitTicket is ERC20 {
     ICallitConfig private CONF; // set via constructor()
     event MintedForPriceParity(address _receiver, uint256 _amount);
     event BurnForRewardClaim(address _account, uint256 _amount);
+    event DeadlineTransferLockUpdate(bool _prevLockStatus, bool _newLockStatus);
+
+    bool DEADLINE_TRANSFER_LOCK = false;
 
     constructor(uint256 _initSupply, string memory _name, string memory _symbol) ERC20(_name, _symbol) {
         ADDR_CONFIG = msg.sender; // config invokes new CallitTicket(...)
@@ -60,7 +64,7 @@ contract CallitTicket is ERC20 {
         _;        
     }
     modifier onlyFactory() {
-        require(msg.sender == CONF.ADDR_FACT(), " !fact ;p ");
+        require(msg.sender == CONF.ADDR_FACT() || msg.sender == CONF.ADDR_DELEGATE(), " !fact|del ;p ");
         _;
     }
     // inovked by vault
@@ -73,10 +77,30 @@ contract CallitTicket is ERC20 {
         _burn(_account, balanceOf(_account)); // NOTE: checks _balance[_account]
         emit BurnForRewardClaim(_account, balanceOf(_account));
     }
+    function setDeadlineTransferLock(bool _lock) external onlyFactory {
+        bool prev = DEADLINE_TRANSFER_LOCK;
+        DEADLINE_TRANSFER_LOCK = _lock;
+        emit DeadlineTransferLockUpdate(prev, DEADLINE_TRANSFER_LOCK);
+    }
 
     // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
     fallback() external payable {
         // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)    
         ICallitVault(CONF.ADDR_VAULT()).deposit{value: msg.value}(msg.sender);
+    }
+
+    /* -------------------------------------------------------- */
+    /* ERC20 - OVERRIDES                                        */
+    /* -------------------------------------------------------- */
+    function transferFrom(address from, address to, uint256 value) public override returns (bool) {
+        require(!DEADLINE_TRANSFER_LOCK, ' transfers deadline-locked :0 ');
+        
+        // checks msg.sender 'allowance(from, msg.sender, value)' 
+        //  then invokes '_transfer(from, to, value)'
+        return super.transferFrom(from, to, value);
+    }
+    function transfer(address to, uint256 value) public override returns (bool) {
+        require(!DEADLINE_TRANSFER_LOCK, ' transfers deadline-locked :( ');
+        return super.transfer(to, value); // invokes '_transfer(msg.sender, to, value)'
     }
 }
