@@ -8,16 +8,11 @@ interface ICallitConfigMarket {
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
     function grossStableBalance(address[] memory _stables, address _vault) external view returns (uint64);
     function owedStableBalance() external view returns (uint64);
-    // function LIVE_PAIR_ADDIES(uint256 _idx) external view returns(address);
-    // function getLivePairAddies() external view returns(address[] memory);
-    // function getLivePairAddiesCnt() external view returns(uint256);
-    // function editLivePairAddress(address _pairAddr, address _ticket, bool _add) external;
     function getLiveTickets() external view returns(address[] memory);
     function editLiveTicketList(address _ticket, address  _pairAddr, bool _add) external;
     function TICK_PAIR_ADDR(address _key) external view returns(address);
 
     function _getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
-    // function getMakerForTicket(address _ticket) external view returns(address);
     function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote, bool _paid) external;
     function getMarketVotesForAcct(address _account, bool _paid) external view returns(ICallitLib.MARKET_VOTE[] memory);
     function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external;
@@ -26,9 +21,7 @@ interface ICallitConfigMarket {
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker) external;
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
-    // function HASH_MARKET(address _key) external view returns(ICallitLib.MARKET memory);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
-
     function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external;
     function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
 }
@@ -98,8 +91,6 @@ interface ICallitConfig {
     function getDexAddies() external view returns (address[] memory, address[] memory);
     function get_WHITELIST_USD_STABLES() external view returns(address[] memory);
     function get_USWAP_V2_ROUTERS() external view returns(address[] memory);
-    // function VAULT_getStableTokenLowMarketValue() external view returns(address);
-    // function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external returns(address);
     function VAULT_deployTicket(address _sender, uint256 _markNum, uint16 _tickIdx, uint256 _initSupplyNoDecs) external returns(address);
 
     // call token mint rewards
@@ -113,21 +104,6 @@ interface ICallitConfig {
     function RATIO_PROMO_USD_PER_CALL_MINT() external view returns(uint64);
     function MIN_USD_PROMO_TARGET() external view returns(uint64);
 
-    // // lp settings
-    // function KEEPER_logTicketPair(address _ticket, address _pair) external;
-    // function MIN_USD_MARK_LIQ() external view returns(uint64);
-    // // function RATIO_LP_TOK_PER_USD() external view returns(uint16);
-    // // function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
-
-    // function INIT_factory(address _delegate) external;
-    // function KEEPER_setContracts(address _fact, address _delegate, address _lib) external;
-
-    // function getWhitelistStables() external view returns (address[] memory);
-
     // NOTE: legacy public globals
-    // function WHITELIST_USD_STABLES(uint256 _idx) external view returns(address); // private w/ public getter
-    // function USD_STABLES_HISTORY(uint256 _idx) external view returns(address); // private w/ public getter
     function USWAP_V2_ROUTERS(uint256 _idx) external view returns(address); // public
-    // function USD_STABLE_DECIMALS(address _key) external view returns(uint8); // public
-    // function ROUTERS_TO_FACTORY(address _key) external view returns(address); // public
 }
