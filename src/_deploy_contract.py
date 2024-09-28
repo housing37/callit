@@ -20,6 +20,7 @@ import pprint
 from attributedict.collections import AttributeDict # tx_receipt requirement
 import _web3 # from web3 import Account, Web3, HTTPProvider
 
+SELECT_DEPLOY_ALL = False
 LST_CONTR_ABI_BIN = [
     # "../bin/contracts/CallitTicket", # deployed from CallitConfig
     "../bin/contracts/CallitLib",
@@ -35,6 +36,26 @@ W3_ = None
 ABI_FILE = None
 BIN_FILE = None
 CONTRACT = None
+
+def init_web3_all():
+    global W3_, ABI_FILE, BIN_FILE, CONTRACT
+    # init W3_, user select abi to deploy, generate contract & deploy
+    W3_ = _web3.myWEB3().init_inp()
+    # lst_tup_abi_bin_path = []
+    lst_contracts = []
+    lst_contract_names = []
+    lst_contract_file_paths = []
+    print('*WARNING* detected SELECT_DEPLOY_ALL == True ...')
+    print(' Gathering all ABIs & BINs to build all contracts in "LST_CONTR_ABI_BIN" ...')
+    for i,v in enumerate(LST_CONTR_ABI_BIN):
+        # lst_tup_abi_bin_path.append(LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin')
+        contract_ = W3_.add_contract_deploy(LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin')
+        contr_name = LST_CONTR_ABI_BIN[i].split('/')[-1]
+        lst_contracts.append(contract_)
+        lst_contract_names.append(contr_name)
+        lst_contract_file_paths.append((LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin'))
+
+    return lst_contracts, lst_contract_names, lst_contract_file_paths
 
 def init_web3():
     global W3_, ABI_FILE, BIN_FILE, CONTRACT
@@ -172,6 +193,82 @@ def main():
     print(cStrDivider_1, f'RECEIPT:\n {tx_rc_print}', sep='\n')
     print(cStrDivider_1, f"\n\n Contract deployed at address: {tx_receipt['contractAddress']}\n\n", sep='\n')
 
+def main_deploy_all():
+    import _keeper
+    global W3_, ABI_FILE, BIN_FILE, CONTRACT
+    lst_constructor_tx = []
+    lst_nonce_tx = []
+
+    # select chain, read/init abis & bins, set gas, return contract list
+    lst_contracts, lst_contr_names, lst_contract_file_paths = init_web3_all() 
+    for i in range(0, len(lst_contracts)):
+        tx_nonce = W3_.W3.eth.get_transaction_count(W3_.SENDER_ADDRESS) + i
+        print(f'\nBUILDING...\n bytecode: {lst_contract_file_paths[i][1]}')
+        print(f' abi: {lst_contract_file_paths[i][0]}')
+        print(f' w/ nonce: {tx_nonce}')
+        assert input('\n (1) procced? [y/n]\n  > ') == 'y', "aborted...\n"
+
+        # constr_args, = generate_contructor(f'{contr_name}.constructor(...)') # 0x78b48b71C8BaBd02589e3bAe82238EC78966290c
+        constr_args, _ = _keeper.go_enter_func_params(f'{lst_contr_names[i]}.constructor(...)')
+        
+        print(f'  using "constructor({", ".join(map(str, constr_args))})"')
+        assert input(f'\n (2) procced? [y/n] _ {get_time_now()}\n  > ') == 'y', "aborted...\n"
+
+        # proceed = estimate_gas(CONTRACT, constr_args) # (3) proceed? [y/n]
+        # assert proceed, "\ndeployment canceled after gas estimate\n"
+
+        print('\n calculating gas ...')
+        # tx_nonce = W3_.W3.eth.get_transaction_count(W3_.SENDER_ADDRESS)
+        tx_params = {
+            'chainId': W3_.CHAIN_ID,
+            'nonce': tx_nonce,
+        }
+        lst_gas_params = get_gas_params_lst(W3_.RPC_URL, min_params=False, max_params=True, def_params=True)
+        for d in lst_gas_params: tx_params.update(d) # append gas params
+
+        print(f' staging tx #{i} w/ NONCE: {tx_nonce} ...')
+        # constructor_tx = CONTRACT.constructor().build_transaction(tx_params)
+        constructor_tx = lst_contracts[i].constructor(*constr_args).build_transaction(tx_params)
+        lst_constructor_tx.append(constructor_tx)
+        lst_nonce_tx.append(tx_nonce)
+
+    dict_contr_addr = {}
+    for j in range(0, len(lst_constructor_tx)):
+        print('', cStrDivider_1, f'SIGNING & SENDING tx #{j} ({lst_contr_names[j]}) _ w/ NONCE: {lst_nonce_tx[j]} ... {get_time_now()}', sep='\n')
+        # Sign and send the transaction # Deploy the contract
+        tx_signed = W3_.W3.eth.account.sign_transaction(lst_constructor_tx[j], private_key=W3_.SENDER_SECRET)
+        tx_hash = W3_.W3.eth.send_raw_transaction(tx_signed.rawTransaction)
+
+        print(cStrDivider_1, f'waiting for receipt ... {get_time_now()}', sep='\n')
+        print(f'    tx_hash: {tx_hash.hex()}')
+
+        # Wait for the transaction to be mined
+        wait_time = 300 # sec
+        try:
+            tx_receipt = W3_.W3.eth.wait_for_transaction_receipt(tx_hash, timeout=wait_time)
+            print("Transaction confirmed in block:", tx_receipt.blockNumber, f' ... {get_time_now()}')
+        # except W3_.W3.exceptions.TransactionNotFound:    
+        #     print(f"Transaction not found within the specified timeout... wait_time: {wait_time}", f' ... {get_time_now()}')
+        # except W3_.W3.exceptions.TimeExhausted:
+        #     print(f"Transaction not confirmed within the specified timeout... wait_time: {wait_time}", f' ... {get_time_now()}')
+        except Exception as e:
+            print(f"\n{get_time_now()}\n Transaction not confirmed within the specified timeout... wait_time: {wait_time}")
+            print_except(e)
+            # exit(1)
+            continue
+
+        # print incoming tx receipt (requires pprint & AttributeDict)
+        tx_receipt = AttributeDict(tx_receipt) # import required
+        tx_rc_print = pprint.PrettyPrinter().pformat(tx_receipt)
+        print(cStrDivider_1, f'RECEIPT:\n {tx_rc_print}', sep='\n')
+        print(cStrDivider_1, f"\n\n Contract deployed at address: {tx_receipt['contractAddress']}\n\n", sep='\n')
+
+        dict_contr_addr[lst_contr_names[j]] = tx_receipt['contractAddress']
+
+    print(cStrDivider_1, f'DEPLOYED CONTRACTS ...', cStrDivider_1, sep='\n')
+    print(*(f"{key}: {val}" for key, val in dict_contr_addr.items()), sep='\n')
+    print()
+
 #------------------------------------------------------------#
 #   DEFAULT SUPPORT                                          #
 #------------------------------------------------------------#
@@ -230,7 +327,14 @@ if __name__ == "__main__":
     
     ## exe ##
     try:
-        main()
+        SELECT_DEPLOY_ALL = input(' Deploy all contracts in "LST_CONTR_ABI_BIN"? [y/n]\n > ')
+        SELECT_DEPLOY_ALL = SELECT_DEPLOY_ALL.lower() == 'y' or SELECT_DEPLOY_ALL == '1'
+        if SELECT_DEPLOY_ALL:
+            print(' *WARNING* detected SELECT_DEPLOY_ALL == True ...')
+            main_deploy_all()
+        else:
+            main()
+        
     except Exception as e:
         print_except(e, debugLvl=0)
     
