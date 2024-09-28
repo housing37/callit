@@ -54,7 +54,7 @@ contract CallitConfig {
     address public ADDR_CALL = address(0x553F55F802D03dF4Ce69370BC4B12eE9668209c6); // CallitToken v0.20
     address public ADDR_FACT = address(0x4487086421413909FEE207260f9ECFb451FE35E6); // CallitFactory v0.67
     address public ADDR_CONFM = address(0x6dd8c30D67e39A145e11b3f086dDE48c624EC96c); // CallitConfigMarket v0.5
-    // address public ADDR_CONF = address(0x174fB6cbc83Ef578c0A36c07ac51b5a355230F43); // CallitConfig v0.21
+    // address public ADDR_CONF = address(0x05Af648CD6d5e657CfF1A011EFFc1a76956b020e); // CallitConfig v0.22
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
     ICallitToken private CALL = ICallitToken(ADDR_CALL);
     ICallitConfigMarket private CONFM = ICallitConfigMarket(ADDR_CONFM);

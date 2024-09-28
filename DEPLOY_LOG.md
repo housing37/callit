@@ -63,6 +63,8 @@
     CONSTANTS
         ["lab_1", "lab_2", "lab_3"]
         ["des_1", "des_2", "des_3"]
+        ["A", "B"]
+        ["A_d", "B_d"]
         0x0000000000000000000000000000000000000000
     #-----------------------------------------------------------------------------------------------------------#
     #-----------------------------------------------------------------------------------------------------------#
@@ -76,7 +78,7 @@
 
     #-----------------------------------------------------------------------------------------------------------#
     address public ADDR_LIB = address(0x84Ac3BE8Bc1393385A2ec18A4cf4A4BB93721b83); // CallitLib v0.30
-    address public ADDR_VAULT = address(0xE6A3288AB88B88A83D92Fb3Ba9c14699ef62b29d); // CallitVault v0.51
+    address public ADDR_VAULT = address(0xE6A3288AB88B88A83D92Fb3Ba9c14699ef62b29d); // CallitVault v0.51 (wiped, LP left over)
     address public ADDR_DELEGATE = address(0xd1C73b043DF4BC75d6e210a97E9Fb6f6ef4388f7); // CallitDelegate v0.48
     address public ADDR_CALL = address(0x0b8C202F4af1A7F24083e3e781fdB595464e538b); // CallitToken v0.19
     address public ADDR_FACT = address(0xA80c21e68A2a2E6395Ec3f2EA486b409463ed40a); // CallitFactory v0.66
@@ -103,7 +105,7 @@
 
     #-----------------------------------------------------------------------------------------------------------#
     address public ADDR_LIB = address(0x34Ac2E41777b17c104c1545405F7384E46F7e33D); // CallitLib v0.20
-    address public ADDR_VAULT = address(0x4C484C02915853F4B588720494B84ba145436621); // CallitVault v0.50 (test _maintenanceLP)
+    address public ADDR_VAULT = address(0x4C484C02915853F4B588720494B84ba145436621); // CallitVault v0.50 (wiped, test _maintLP)
     address public ADDR_DELEGATE = address(0xf738454B1a33f72b3DaE45F08621E2F272FEf443); // CallitDelegate v0.44
     address public ADDR_CALL = address(0x20c05a15477aC128924009893ddfAA89fb4F9AbF); // CallitToken v0.18
     address public ADDR_FACT = address(0x26e0E127a35c3777fB258f4884E5D92B0055A97b); // CallitFactory v0.63
