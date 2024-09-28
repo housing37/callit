@@ -81,7 +81,6 @@ contract CallitConfig {
 
     uint16 public PERC_REQ_CLAIM_PROMO_REWARD = 1000; // 1000 = 10% // LEFT OFF HERE ... needs keeper setter
     
-
     // default all fees to 0 (KEEPER setter available)
     uint16 public PERC_PROMO_CLAIM_FEE; // note: no other % fee
     uint16 public PERC_MARKET_MAKER_FEE; // note: no other % fee
@@ -122,7 +121,7 @@ contract CallitConfig {
         //  - in addition to usd opening LP needed (above), perhaps ...
         //      1) min amount of market ticket holders
         //      2) min amount of closing LP needed (mark.marketUsdAmnts.usdAmntPrizePool)
-        
+
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     // NOTE: all USD bals & payouts stores uint precision to 6 decimals
@@ -332,7 +331,6 @@ contract CallitConfig {
         // emit DepositStableUpdated(old_0, old_1, DEPOSIT_USD_STABLE, DEPOSIT_ROUTER);
     }
     function KEEPER_setMarketConfig(uint16 _maxResultOpts, uint64 _maxEoaMarkets, uint64 _minUsdArbTargPrice, uint256 _secDefaultVoteTime, bool _useDefaultVotetime) external {
-    // function KEEPER_setMarketSettings(uint64 _minUsdArbTargPrice, bool _useDefaultVotetime) external {
         MAX_RESULTS = _maxResultOpts; // max # of result options a market may have
         MAX_EOA_MARKETS = _maxEoaMarkets;
         // ex: 10000 == $0.010000 (ie. $0.01 w/ _usd_decimals() = 6 decimals)
@@ -358,7 +356,6 @@ contract CallitConfig {
         CALL.setTokenNameSymbol(_tok_name, _tok_symb); // emits 'TokenNameSymbolUpdated'
     }
     function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint32 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
-    // function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint16 _tokCntPerUsd) external onlyKeeper {
         RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
         MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
@@ -376,7 +373,6 @@ contract CallitConfig {
         RATIO_CALL_MINT_PER_MARK_CLOSE = _callPerMarkClose; // amount of all $CALL minted per market close action reward
         RATIO_PROMO_USD_PER_CALL_MINT = _promoUsdPerCall; // usd amnt buy needed per $CALL earned in promo (note: global for promos to avoid exploitations)
         MIN_USD_PROMO_TARGET = _minUsdPromoTarget; // min target for creating promo codes ($ target = $ bets this promo brought in)
-        
     }
 
     /* -------------------------------------------------------- */
@@ -390,15 +386,7 @@ contract CallitConfig {
     /* -------------------------------------------------------- */
     /* PUBLIC - VAULT
     /* -------------------------------------------------------- */
-    // function VAULT_deployTicket(uint256 _initSupplyNoDecs, string calldata _tokName, string calldata _tokSymb) external onlyVault returns(address) {
     function VAULT_deployTicket(address _sender, uint256 _markNum, uint16 _tickIdx, uint256 _initSupplyNoDecs) external onlyVault returns(address) {
-        // address new_tick_tok = CONF.VAULT_deployTicket(_sender, _markNum, i, tokenAmount);
-
-        // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
-        // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-        // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
-        // address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
-        // return address(new CallitTicket(_initSupplyNoDecs, _tokName, _tokSymb)); // _config = address(this)
         (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _markNum, _tickIdx, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
         return address(new CallitTicket(_initSupplyNoDecs, tok_name, tok_symb)); // _config = address(this)
     }
@@ -453,6 +441,7 @@ contract CallitConfig {
         else
             revert(' !blank space handles :-[=] ');     
     }
+
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)
     /* -------------------------------------------------------- */

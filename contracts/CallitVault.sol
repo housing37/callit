@@ -59,15 +59,6 @@ contract CallitVault {
     address[] private resultTokenUsdStables;
     uint64 [] private resultTokenVotes;   
 
-    // /* _ ACCOUNT SUPPORT (legacy) _ */
-    // // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
-    // // NOTE: all USD bals & payouts stores uint precision to 6 decimals
-    // // NOTE: legacy public
-    // mapping(address => uint64) public ACCT_USD_BALANCES; 
-    // address[] public ACCOUNTS; // NOTE: private is more secure; consider external KEEPER getter instead
-    // mapping(address => address) private TICK_PAIR_ADDR; // used for lp maintence KEEPER withdrawel
-    // mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
-
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -155,16 +146,6 @@ contract CallitVault {
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
         return (gross_bal, owed_bal, net_bal);
     }
-    // callit
-    // function KEEPER_withdrawTicketLP(address _ticket) external onlyKeeper {
-    //     // NOTE: can only withdraw LP from one _ticket at a time
-    //     //  bc no current way to get market for _ticket (from FACTORY)
-    //     IERC20(TICK_PAIR_ADDR[_ticket]).transfer(CONF.KEEPER(), IERC20(TICK_PAIR_ADDR[_ticket]).balanceOf(address(this)));
-    // }
-    // function KEEPER_logTicketPair(address _ticket, address _pair) external onlyFactory() {
-    //     require(_ticket != address(0) && _pair != address(0), ' 0 address :[ ');
-    //     TICK_PAIR_ADDR[_ticket] = _pair;
-    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - ACCESSORS
@@ -181,9 +162,6 @@ contract CallitVault {
             // uint32 max USD: ~4K -> 4,294.967295 USD (6 decimals)
             // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
     }
-    // function getAccounts() external view returns (address[] memory) {
-    //     return ACCOUNTS;
-    // }
 
     /* -------------------------------------------------------- */
     /* PUBLIC - SUPPORTING (CALLIT market management)
@@ -236,12 +214,9 @@ contract CallitVault {
                                     address(this), // to (receiver)
                                     block.timestamp + 300
                                 );
-        // uint64 stableAmntOut = _uint64_from_uint256(amntOut[amntOut.length - 1]); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
         uint64 stableAmntOut = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(pls_stab_path[1]).decimals(), amntOut[amntOut.length - 1], _usd_decimals())); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
         
         // update account balance
-        // ACCT_USD_BALANCES[_depositor] += stableAmntOut;
-        // ACCOUNTS = LIB._addAddressToArraySafe(_depositor, ACCOUNTS, true); // true = no dups
         CONFM.edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
 
         emit DepositReceived(_depositor, msgValue, stableAmntOut);
@@ -270,7 +245,6 @@ contract CallitVault {
         // calc influencer reward from _usdAmnt to send to promo.promotor
         //  and update amount owed for this _promoCodeHash
         uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
-        // PROMO_USD_OWED[_promoCodeHash] += usdReward;
         CONF.setUsdOwedForPromoHash(CONF.PROMO_USD_OWED(_promoCodeHash) + usdReward, _promoCodeHash);
         emit PromoRewardLogged(_promoCodeHash, usdReward, _promotor, _sender, _ticket);
 
@@ -304,12 +278,10 @@ contract CallitVault {
         return (net_usdAmnt, tick_amnt_out);
     }
     function payPromoUsdReward(address _sender, address _promoCodeHash, uint64 _usdReward, address _receiver) external onlyFactory returns(uint64) {
-        // uint64 usdOwed = PROMO_USD_OWED[_promoCodeHash];
         uint64 usdOwed = CONF.PROMO_USD_OWED(_promoCodeHash);
         require(_promoCodeHash != address(0) && usdOwed > 0 && _usdReward <= usdOwed, ' not enough owed ;[ ');
         uint64 net_usdReward = LIB._deductFeePerc(usdOwed, CONF.PERC_PROMO_CLAIM_FEE(), usdOwed);
         _payUsdReward(_sender, net_usdReward, _receiver); // pay w/ lowest value whitelist stable held (returns on 0 reward)
-        // PROMO_USD_OWED[_promoCodeHash] = usdOwed - _usdReward; // deduct entire _usdReward from owed (not just net)
         CONF.setUsdOwedForPromoHash(usdOwed - _usdReward, _promoCodeHash); // deduct entire _usdReward from owed (not just net)
         return net_usdReward; // return what was actually paid (ie. net)
     }
@@ -332,17 +304,6 @@ contract CallitVault {
     }
 
     function createDexLP(address _sender, uint256 _markNum, string[] calldata _resultLabels, uint256 _net_usdAmntLP, uint32 _ratioLpTokPerUsd) external onlyFactory() returns(ICallitLib.MARKET_RESULTS memory){
-
-        // // note: makeNewMarket
-        // // temp-arrays for 'makeNewMarket' support
-        // address[] memory resultOptionTokens = new address[](_resultLabels.length);
-        // address[] memory resultTokenLPs = new address[](_resultLabels.length);
-        // address[] memory resultTokenRouters = new address[](_resultLabels.length);
-        // address[] memory resultTokenFactories = new address[](_resultLabels.length);
-
-        // address[] memory resultTokenUsdStables = new address[](_resultLabels.length);
-        // uint64 [] memory resultTokenVotes = new uint64[](_resultLabels.length);
-
         // note: makeNewMarket
         // temp-arrays for 'makeNewMarket' support
         resultOptionTokens = new address[](_resultLabels.length);
@@ -371,36 +332,7 @@ contract CallitVault {
 
         // Loop through _resultLabels and deploy ERC20s for each (and generate LP)
         for (uint16 i = 0; i < _resultLabels.length;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
-        // for (uint16 i = 0; i < _resultCnt;) { // NOTE: MAX_RESULTS is type uint16 max = ~65K -> 65,535            
-            // // Get/calc amounts for initial LP (usd and token amounts)
-            // (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, _ratioLpTokPerUsd);
-            // (uint256 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultLabels.length, RATIO_LP_TOK_PER_USD);
-            // (uint64 usdAmount, uint256 tokenAmount) = LIB._getAmountsForInitLP(_net_usdAmntLP, _resultCnt, RATIO_LP_TOK_PER_USD);
-
-            // Deploy a new ERC20 token for each result label (init supply = tokenAmount; transfered to VAULT to create LP)
-            // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _mark_num, i, TOK_TICK_NAME_SEED, TOK_TICK_SYMB_SEED);
-            // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), tok_name, tok_symb));
-            // address new_tick_tok = address (new CallitTicket(tokenAmount, address(VAULT), ADDR_FACT, "tTICKET_0", "tTCK0"));
-            // address new_tick_tok = address (new CallitTicket(tokenAmount, address(this), ADDR_FACT, "tTICKET_0", "tTCK0"));
-            // address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, "tTICKET_0", "tTCK0");
-            // (string memory tok_name, string memory tok_symb) = LIB._genTokenNameSymbol(_sender, _markNum, i, CONF.TOK_TICK_NAME_SEED(), CONF.TOK_TICK_SYMB_SEED());
-            // address new_tick_tok = CONF.VAULT_deployTicket(tokenAmount, tok_name, tok_symb);
             address new_tick_tok = CONF.VAULT_deployTicket(_sender, _markNum, i, tokenAmount);
-                // LEFT OFF HERE ... needs to add 'LIB._genTokenNameSymbol' integration
-            
-            // Create DEX LP for new ticket token (from VAULT, using VAULT's stables, and VAULT's minted new tick init supply)
-            // address pairAddr = _createDexLP(NEW_TICK_UNISWAP_V2_ROUTER, NEW_TICK_UNISWAP_V2_FACTORY, new_tick_tok, NEW_TICK_USD_STABLE, tokenAmount, usdAmount);
-
-            /** FROM VAULT */
-            // address router_addr = CONF.NEW_TICK_UNISWAP_V2_ROUTER();
-            // address stable_addr = CONF.NEW_TICK_USD_STABLE();
-            // IERC20x stable = IERC20x(stable_addr);
-
-            // // normalize internal tracking decimals to stable contract decimals
-            // usdAmount = _normalizeStableAmnt(_usd_decimals(), usdAmount, stable.decimals());
-
-            // // approve router to spend this vault's tokens needed
-            // stable.approve(router_addr, usdAmount);
 
             // approve router to spend this vault's new ticket tokens needed
             IERC20(new_tick_tok).approve(router_addr, tokenAmount);
@@ -425,7 +357,6 @@ contract CallitVault {
             // add new ticket address to config's live ticket array
             //  NOTE: sets pairAddr to TICK_PAIR_ADDR[new_tick_tok] mapping, w/ 'true' add
             CONFM.editLiveTicketList(new_tick_tok, pairAddr, true); // true = add
-            /** _FROM VAULT_ */
 
             // verify ERC20 & LP was created
             require(new_tick_tok != address(0) && pairAddr != address(0), ' err: gen tick tok | lp :( ');

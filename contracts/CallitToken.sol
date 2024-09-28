@@ -44,10 +44,6 @@ contract CallitToken is ERC20, Ownable {
     // string private TOK_SYMB = "CALL";
     // string private TOK_NAME = "CALL-IT VOTE";
 
-    // mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
-    // mapping(address => string) public ACCT_HANDLES; // market makers (etc.) can set their own handles
-    // mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
-
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -59,9 +55,7 @@ contract CallitToken is ERC20, Ownable {
     /* CONSTRUCTOR SUPPORT
     /* -------------------------------------------------------- */
     constructor() ERC20(TOK_NAME, TOK_SYMB) Ownable(msg.sender) {     
-        // _mint(msg.sender, _initSupply * 10**uint8(decimals())); // 'emit Transfer'
-
-        // NOTE: init supply minted to KEEPER of FACTORY 
+        // NOTE: init supply minted to KEEPER in FACTORY 
         //  via FACTORY._mintCallToksEarned in FACTORY.constructor
     }
 
@@ -107,8 +101,6 @@ contract CallitToken is ERC20, Ownable {
         //      allows for factory minting fractions of a token if needed
         _mint(_receiver, _callAmntMint);
 
-        // uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
-        // EARNED_CALL_VOTES[_receiver] += _callVotesEarned; 
         uint64 prevEarned = CONF.EARNED_CALL_VOTES(_receiver);
         CONF.setCallVoteCntEarned(_receiver, prevEarned + _callVotesEarned);
         
@@ -123,19 +115,11 @@ contract CallitToken is ERC20, Ownable {
         uint256 _prev = CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender);
         CONF.setCallTokenVoteLock(msg.sender, _lock);
         emit CallTokenLockUpdated(_prev, CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender));
-        // ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
     }
     function balanceOf_voteCnt(address _voter) external view returns(uint64) {
         return _uint64_from_uint256(balanceOf(_voter) / 10**uint8(decimals())); // do not return decimals
             // NOTE: _uint64_from_uint256 checks out OK
     }
-    // function setAcctHandle(string calldata _handle) external {
-    //     require(bytes(_handle).length >= 1 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
-    //     if (_validNonWhiteSpaceString(_handle))
-    //         ACCT_HANDLES[msg.sender] = _handle;
-    //     else
-    //         revert(' !blank space handles :-[=] ');     
-    // }
     function setTokenNameSymbol(string calldata _name, string calldata _symbol) external onlyConfig {
         string memory prev_name = TOK_NAME;
         string memory prev_symb = TOK_SYMB;
@@ -169,7 +153,6 @@ contract CallitToken is ERC20, Ownable {
             // uint128 max USD: ~340T -> 340,282,366,920,938,463,463.374607431768211455 (18 decimals)
     }
     function transferFrom(address from, address to, uint256 value) public override returns (bool) {
-        // require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;) ');
         require(CONF.ACCT_CALL_VOTE_LOCK_TIME(from) == 0, ' tokens locked for voting ;) ');
         
         // checks msg.sender 'allowance(from, msg.sender, value)' 
@@ -177,7 +160,6 @@ contract CallitToken is ERC20, Ownable {
         return super.transferFrom(from, to, value);
     }
     function transfer(address to, uint256 value) public override returns (bool) {
-        // require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked ;0 ');
         require(CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender) == 0, ' tokens locked voting ;) ');
         return super.transfer(to, value); // invokes '_transfer(msg.sender, to, value)'
     }
@@ -190,18 +172,4 @@ contract CallitToken is ERC20, Ownable {
         uint64 convertedValue = uint64(value);
         return convertedValue;
     }
-    // function _validNonWhiteSpaceString(string calldata _s) private pure returns(bool) { // from CallitLib.sol
-    //     for (uint8 i=0; i < bytes(_s).length;) {
-    //         if (bytes(_s)[i] != 0x20) {
-    //             // Found a non-space character, return true
-    //             return true; 
-    //         }
-    //         unchecked {
-    //             i++;
-    //         }
-    //     }
-
-    //     // found string with all whitespaces as chars
-    //     return false;
-    // }
 } 

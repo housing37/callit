@@ -104,8 +104,6 @@ library CallitLib {
 
         return (currHighIdx, currHigh);
     }
-    // uint64 ticketTargetPriceUSD = _getCallTicketUsdTargetPrice(mark.marketResults.resultOptionTokens, mark.marketResults.resultTokenLPs, mark.marketResults.resultTokenUsdStables, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE);
-    // function _getCallTicketUsdTargetPrice(address[] memory _resultTickets, address[] memory _pairAddresses, address[] memory _resultStables, uint16 _tickIdx, uint64 _usdMinTargetPrice) private view returns(uint64) {
     function _getCallTicketUsdTargetPrice(ICallitLib.MARKET memory _mark, uint16 _tickIdx, uint64 _usdMinTargetPrice, uint8 _usd_decs) external view returns(uint64) {
         address[] memory _resultTickets = _mark.marketResults.resultOptionTokens;
         address[] memory _pairAddresses = _mark.marketResults.resultTokenLPs;
@@ -136,7 +134,6 @@ library CallitLib {
         int64 target_price = 1 - int64(alt_sum);
         return target_price > 0 ? uint64(target_price) : _usdMinTargetPrice; // note: min is likely 10000 (ie. $0.010000 w/ _usd_decimals() = 6)
     }
-    // function _logMarketResultReview(address _maker, uint256 _markNum, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory, uint64, uint64) {
     function genMarketResultReview(address _sender, ICallitLib.MARKET memory _mark, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external pure returns(ICallitLib.MARKET_REVIEW memory) {
         uint64 agreeCnt = 0;
         uint64 disagreeCnt = 0;
@@ -150,7 +147,6 @@ library CallitLib {
         disagreeCnt = !_resultAgree ? disagreeCnt+1 : disagreeCnt;
         return (ICallitLib.MARKET_REVIEW(_sender, _resultAgree, _mark.maker, _mark.marketNum, _mark.marketHash, agreeCnt, disagreeCnt, reviewCnt));
     }
-    // function _validVoteCount(uint64 votes_held, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
     function getValidVoteCount(uint64 _tokensHeld_noDecs, uint32 _ratioTokPerVote, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64) {
         // calc organic votes held based on ratio input & add to votes earned input
         uint64 votes_held =  _tokensHeld_noDecs * _ratioTokPerVote;

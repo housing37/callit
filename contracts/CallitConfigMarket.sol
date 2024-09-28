@@ -163,14 +163,7 @@ contract CallitConfigMarket {
         //  people need to get a list of seperate reviews 
         //  as well as the sum of all agreeCnt & disagreeCnt in all reviews
     }
-    // function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker, address _markHash) external onlyFactory {
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker) external onlyFactory {
-        // require(_maker != address(0) && _markHash != address(0), ' bad maker | hash :*{ ');
-        // // ACCT_MARKETS[_maker].push(_mark);
-        // ACCT_MARKET_HASHES[_maker].push(_markHash);
-        // HASH_MARKET[_markHash] = _mark;
-        // MARKET_HASH_LST.push(_markHash);
-
         require(_maker != address(0) && _mark.marketHash != address(0), ' bad maker | hash :*{ ');
         ACCT_MARKET_HASHES[_maker].push(_mark.marketHash);
         HASH_MARKET[_mark.marketHash] = _mark;
