@@ -47,14 +47,15 @@ def init_web3_all():
     lst_contract_file_paths = []
     print('*WARNING* detected SELECT_DEPLOY_ALL == True ...')
     print(' Gathering all ABIs & BINs to build all contracts in "LST_CONTR_ABI_BIN" ...')
+    for i, v in enumerate(LST_CONTR_ABI_BIN): print(' ',i,'=',f'{v} _ {W3_.get_file_dt(v+".bin")}') # parse through tuple
     for i,v in enumerate(LST_CONTR_ABI_BIN):
-        # lst_tup_abi_bin_path.append(LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin')
-        contract_ = W3_.add_contract_deploy(LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin')
         contr_name = LST_CONTR_ABI_BIN[i].split('/')[-1]
-
         # CallitConfig (bc i needs the addresses of the other)
-        if contr_name == 'CallitConfig': continue
+        if contr_name == 'CallitConfig': 
+            print('\nIGNORING CallitConfig ... just FYI ;) ')
+            continue
 
+        contract_ = W3_.add_contract_deploy(LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin')
         lst_contracts.append(contract_)
         lst_contract_names.append(contr_name)
         lst_contract_file_paths.append((LST_CONTR_ABI_BIN[i]+'.abi', LST_CONTR_ABI_BIN[i]+'.bin'))
@@ -210,13 +211,13 @@ def main_deploy_all():
         print(f'\nBUILDING...\n bytecode: {lst_contract_file_paths[i][1]}')
         print(f' abi: {lst_contract_file_paths[i][0]}')
         print(f' w/ nonce: {tx_nonce}')
-        assert input('\n (1) procced? [y/n]\n  > ') == 'y', "aborted...\n"
+        # assert input('\n (1) procced? [y/n]\n  > ') == 'y', "aborted...\n"
 
         # constr_args, = generate_contructor(f'{contr_name}.constructor(...)') # 0x78b48b71C8BaBd02589e3bAe82238EC78966290c
         constr_args, _ = _keeper.go_enter_func_params(f'{lst_contr_names[i]}.constructor(...)')
         
         print(f'  using "constructor({", ".join(map(str, constr_args))})"')
-        assert input(f'\n (2) procced? [y/n] _ {get_time_now()}\n  > ') == 'y', "aborted...\n"
+        # assert input(f'\n (2) procced? [y/n] _ {get_time_now()}\n  > ') == 'y', "aborted...\n"
 
         # proceed = estimate_gas(CONTRACT, constr_args) # (3) proceed? [y/n]
         # assert proceed, "\ndeployment canceled after gas estimate\n"
