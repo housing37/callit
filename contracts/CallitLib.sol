@@ -187,9 +187,9 @@ library CallitLib {
         // return (_uint64_from_uint256(_usdAmntLP / _resultOptionCnt), uint256((_usdAmntLP / _resultOptionCnt) * _tokPerUsd));
             // NOTE: _uint64_from_uint256 checked OK
 
-        uint64 usdAmountLP = _uint64_from_uint256(_usdAmntLP / _resultOptionCnt);
-        uint256 tokAmntLP = _normalizeStableAmnt(6, usdAmountLP * _tokPerUsd, 18); // convert from usd decs to ticket decs
-        return (usdAmountLP, tokAmntLP);
+        uint64 usdAmountLP_ind = _uint64_from_uint256(_usdAmntLP / _resultOptionCnt);
+        uint256 tokAmntLP_ind = _normalizeStableAmnt(6, usdAmountLP_ind * _tokPerUsd, 18); // convert from usd decs to ticket decs
+        return (usdAmountLP_ind, tokAmntLP_ind);
             // NOTE: _usdAmntLP & _tokPerUsd coming in from DELEGATE.makeNewMarket -> VAULT.createDexLP
             //  _usdAmntLP, will always be w/in uint64 range, formated in VAULT._usd_decimals() -> 6
             //  _tokPerUsd, hence needs to add 10**12 decimals, matching ERC20's standard -> 18 (needed for CallitTicket.sol)

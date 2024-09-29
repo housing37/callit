@@ -259,6 +259,7 @@ contract CallitFactory {
         // log category created for this ticket's market hash
         CONFM.setHashMarket(markHash, mark, _category);
     }
+
     function makeNewMarket(string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
                             uint64 _usdAmntLP, 
                             uint256 _dtCallDeadline, 
@@ -269,6 +270,9 @@ contract CallitFactory {
                             ) external { 
         require(_usdAmntLP >= CONF.MIN_USD_MARK_LIQ(), ' need more liquidity! :{=} ');
         require(2 <= _resultLabels.length && _resultLabels.length <= CONF.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
+
+        // LOCKS total LP = $1 * (# of result options), w/o needing to change ABI | function signature
+        _usdAmntLP = LIB._uint64_from_uint256(1000000 * _resultLabels.length);
 
         // initilize/validate market number for struct MARKET tracking
         uint256 mark_num = CONFM.getMarketCntForMaker(msg.sender);
