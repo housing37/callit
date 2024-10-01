@@ -172,17 +172,13 @@ contract CallitConfigMarket {
         HASH_MARKET[_mark.marketHash] = _mark;
         MARKET_HASH_LST.push(_mark.marketHash);
     }
-    // function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote, bool _paid) external onlyFactory {
-    function _pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote, bool _paid) private {
-        require(_account != address(0), ' bad _account :*{ ');
-        if (_paid) ACCT_MARKET_VOTES[_account].push(_markVote);
-        else ACCT_MARKET_VOTES_PAID[_account].push(_markVote);
-    }
     function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external onlyFactory {
         // NOTE: move this market vote index '_idxMove', to paid
         // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
         // remove _idxMove MARKET_VOTE from ACCT_MARKET_VOTES[msg.sender]
         //  by replacing it with the last element (then popping last element)
+        // NOTE: input MARKET_VOTE.paid should already be set to 'true'
+        //  ie. this function simply 'moves', and does not 'set'
         ACCT_MARKET_VOTES_PAID[_sender].push(_m_vote);
         uint64 lastIdx = uint64(ACCT_MARKET_VOTES[_sender].length) - 1;
         if (_idxMove != lastIdx) { ACCT_MARKET_VOTES[_sender][_idxMove] = ACCT_MARKET_VOTES[_sender][lastIdx]; }
@@ -358,7 +354,7 @@ contract CallitConfigMarket {
 
         // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
         //  NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
-        _pushAcctMarketVote(_sender, ICallitLib.MARKET_VOTE(_sender, ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, mark.marketHash, false), false); // false, false = un-paid, un-paid
+        ACCT_MARKET_VOTES[_sender].push(ICallitLib.MARKET_VOTE(_sender, ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, mark.marketHash, false));
 
         // // mint $CALL token reward to msg.sender
         // _mintCallToksEarned(_sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
