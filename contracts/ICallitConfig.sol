@@ -13,7 +13,6 @@ interface ICallitConfigMarket {
     function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
     function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) external;
-    function grossStableBalance(address[] memory _stables, address _vault) external view returns (uint64);
     function owedStableBalance() external view returns (uint64);
     function getLiveTickets() external view returns(address[] memory);
     function editLiveTicketList(address _ticket, address  _pairAddr, bool _add) external;
@@ -29,8 +28,6 @@ interface ICallitConfigMarket {
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
-    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external;
-    function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
 }
 interface ICallitConfig {    
 

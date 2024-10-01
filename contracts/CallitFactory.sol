@@ -29,11 +29,8 @@ interface ICallitToken {
     // function EARNED_CALL_VOTES(address _key) external view returns(uint64); // public
     function mintCallToksEarned(address _receiver, uint256 _callAmntMint, uint64 _callVotesEarned, address _sender) external;
     function decimals() external pure returns (uint8);
-    // function balanceOf_voteCnt(address _voter) external view returns(uint64);
-
-    // function setLiveTcktCnt(uint256 _cnt) external;
-    // function initVoterHashForAcct(address _acct) external;
-    // function getVoterHashForAcct(address _acct) external view returns(address);
+    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external;
+    function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory);
 }
 interface ICallitTicket {
     function burnForRewardClaim(address _account) external;
@@ -576,9 +573,8 @@ contract CallitFactory {
         cTicket.burnForRewardClaim(msg.sender);
 
         // log caller's review of market results
-        // (ICallitLib.MARKET_REVIEW memory marketReview, uint64 agreeCnt, uint64 disagreeCnt) = LIB._logMarketResultReview(mark.maker, mark.marketNum, CONFM.getMarketReviewsForMaker(mark.maker), _resultAgree);
-        ICallitLib.MARKET_REVIEW memory marketReview = LIB.genMarketResultReview(msg.sender, mark, CONFM.getMarketReviewsForMaker(mark.maker), _resultAgree);
-        CONFM.pushAcctMarketReview(marketReview, mark.maker);
+        ICallitLib.MARKET_REVIEW memory marketReview = LIB.genMarketResultReview(msg.sender, mark, CALL.getMarketReviewsForMaker(mark.maker), _resultAgree);
+        CALL.pushAcctMarketReview(marketReview, mark.maker);
 
         // emit log event for reviewing market result
         emit MarketReviewed(msg.sender, _resultAgree, mark.maker, mark.marketNum, markHash, marketReview.agreeCnt, marketReview.disagreeCnt);

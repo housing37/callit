@@ -59,7 +59,7 @@ contract CallitConfigMarket {
     address[] public LIVE_TICKETS_LST;
     // mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
     // mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
-    mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    // mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
 
     // NOTE: a copy of all MARKET in ICallitLib.MARKET[] is stored in DELEGATE (via ACCT_MARKET_HASHES -> HASH_MARKET)
     //  ie. ACCT_MARKETS[_maker][0] == HASH_MARKET[ACCT_MARKET_HASHES[_maker][0]]
@@ -77,11 +77,10 @@ contract CallitConfigMarket {
     mapping(address => address) public TICKET_MAKER; // store ticket to their MARKET.maker mapping
     address[] public MARKET_HASH_LST; // store list of all market haches
 
+    // NOTE: required for voter hash algorithm (all need to be in the same contract)
     mapping(address => uint64[]) private MARK_HASH_RESULT_VOTES; // store market hash to result vote counts array (ie. keep private then set MARKET resultTokenVotes after close);
     mapping(address => address) private ACCT_VOTER_HASH; // address hash used for generating _senderTicketHash in FACT.castVoteForMarketTicket
-
-    // set by CONFM on every LIVE_TICKETS_LST update
-    uint64 private LIVE_TICKET_COUNT; // uint64 = max 18,000Q live tickets it can account for
+    uint64 private LIVE_TICKET_COUNT; // uint64 = max 18,000Q live tickets it can account for // CONFM set during LIVE_TICKETS_LST updates
 
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -167,18 +166,6 @@ contract CallitConfigMarket {
         }
         LIVE_TICKET_COUNT = LIB._uint64_from_uint256(LIVE_TICKETS_LST.length);
     }
-    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external onlyFactory {
-        require(_maker != address(0), ' !_maker :=/ ');
-        ACCT_MARKET_REVIEWS[_maker].push(_marketReview);
-    }
-    function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory) {
-        require(_maker != address(0), ' !_maker :--/ ');
-        return ACCT_MARKET_REVIEWS[_maker];
-
-        // LEFT OFF HERE ...
-        //  people need to get a list of seperate reviews 
-        //  as well as the sum of all agreeCnt & disagreeCnt in all reviews
-    }
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker) external onlyFactory {
         require(_maker != address(0) && _mark.marketHash != address(0), ' bad maker | hash :*{ ');
         ACCT_MARKET_HASHES[_maker].push(_mark.marketHash);
@@ -231,18 +218,6 @@ contract CallitConfigMarket {
     }
     function getLiveTickets() external view returns(address[] memory) {
         return LIVE_TICKETS_LST;
-    }
-    function grossStableBalance(address[] memory _stables, address _vault) external view returns (uint64) {
-        // NOTE: no onlyVault needed, anyone can call this function
-        //  ie. simply gets a gross bal of whatever tokens & for whatever addy they want
-        uint64 gross_bal = 0;
-        for (uint8 i = 0; i < _stables.length;) {
-            // NOTE: more efficient algorithm taking up less stack space with local vars
-            require(IERC20(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
-            gross_bal += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(IERC20(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(_vault), VAULT._usd_decimals()));
-            unchecked {i++;}
-        }
-        return gross_bal;
     }
     function owedStableBalance() external view onlyVault returns (uint64) {
         uint64 owed_bal = 0;

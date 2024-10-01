@@ -44,7 +44,8 @@ contract CallitToken is ERC20, Ownable {
     mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     // mapping(address => address) private ACCT_VOTER_HASH; // address hash used for generating _senderTicketHash in FACT.castVoteForMarketTicket
-
+    mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
+    
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
@@ -91,6 +92,19 @@ contract CallitToken is ERC20, Ownable {
         ICallitVault(CONF.ADDR_VAULT()).deposit{value: msg.value}(msg.sender);
         
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
+    }
+
+    function pushAcctMarketReview(ICallitLib.MARKET_REVIEW memory _marketReview, address _maker) external onlyFactory {
+        require(_maker != address(0), ' !_maker :=/ ');
+        ACCT_MARKET_REVIEWS[_maker].push(_marketReview);
+    }
+    function getMarketReviewsForMaker(address _maker) external view returns(ICallitLib.MARKET_REVIEW[] memory) {
+        require(_maker != address(0), ' !_maker :--/ ');
+        return ACCT_MARKET_REVIEWS[_maker];
+
+        // LEFT OFF HERE ...
+        //  people need to get a list of seperate reviews 
+        //  as well as the sum of all agreeCnt & disagreeCnt in all reviews
     }
 
     /* -------------------------------------------------------- */

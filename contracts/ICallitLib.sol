@@ -81,6 +81,8 @@ interface ICallitLib {
         uint64 disagreeCnt;
         uint64 reviewCnt;
     }
+    function grossStableBalance(address[] memory _stables, address _vault, uint8 _usd_decimals) external view returns (uint64);
+
     // note: only these used in CallitFactory ... (maybe less after CallitDelegate integration)    
     function genMarketResultReview(address _sender, ICallitLib.MARKET memory _mark, ICallitLib.MARKET_REVIEW[] memory _makerReviews, bool _resultAgree) external view returns(ICallitLib.MARKET_REVIEW memory);
     function getValidVoteCount(uint64 _tokensHeld_noDecs, uint32 _ratioTokPerVote, uint64 _votesEarned, uint256 _voterLockTime, uint256 _markCreateTime) external pure returns(uint64);

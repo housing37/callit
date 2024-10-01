@@ -28,6 +28,18 @@ library CallitLib {
     /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
+    function grossStableBalance(address[] memory _stables, address _vault, uint8 _usd_decimals) external view returns (uint64) {
+        // NOTE: no onlyVault needed, anyone can call this function
+        //  ie. simply gets a gross bal of whatever tokens & for whatever addy they want
+        uint64 gross_bal = 0;
+        for (uint8 i = 0; i < _stables.length;) {
+            // NOTE: more efficient algorithm taking up less stack space with local vars
+            require(IERC20(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
+            gross_bal += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(IERC20(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(_vault), _usd_decimals));
+            unchecked {i++;}
+        }
+        return gross_bal;
+    }
     // NOTE: *WARNING* _stables could have duplicates (from 'whitelistStables' set by keeper)
     function _getStableTokenLowMarketValue(address[] memory _stables, address[] memory _routers) external view returns (address) {
         // traverse _stables & select stable w/ the lowest market value

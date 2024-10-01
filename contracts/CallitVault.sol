@@ -141,7 +141,7 @@ contract CallitVault {
         // return _collectiveStableBalances(WHITELIST_USD_STABLES);
 
         // (address[] memory stables,,) = CONF.getDexAddies();
-        uint64 gross_bal = CONFM.grossStableBalance(CONF.get_WHITELIST_USD_STABLES(), address(this));
+        uint64 gross_bal = LIB.grossStableBalance(CONF.get_WHITELIST_USD_STABLES(), address(this), _usd_decimals());
         uint64 owed_bal = CONFM.owedStableBalance();
         int64 net_bal = int64(gross_bal) - int64(owed_bal);
         return (gross_bal, owed_bal, net_bal);
