@@ -25,11 +25,15 @@ interface IERC20 {
     function transfer(address to, uint256 value) external returns (bool);
 }
 interface ICallitToken {
-    function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
-    function EARNED_CALL_VOTES(address _key) external view returns(uint64); // public
+    // function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
+    // function EARNED_CALL_VOTES(address _key) external view returns(uint64); // public
     function mintCallToksEarned(address _receiver, uint256 _callAmntMint, uint64 _callVotesEarned, address _sender) external;
     function decimals() external pure returns (uint8);
-    function balanceOf_voteCnt(address _voter) external view returns(uint64);
+    // function balanceOf_voteCnt(address _voter) external view returns(uint64);
+
+    // function setLiveTcktCnt(uint256 _cnt) external;
+    // function initVoterHashForAcct(address _acct) external;
+    // function getVoterHashForAcct(address _acct) external view returns(address);
 }
 interface ICallitTicket {
     function burnForRewardClaim(address _account) external;
@@ -360,7 +364,7 @@ contract CallitFactory {
         emit MarketCallsClosed(msg.sender, _ticket, mark.maker, mark.marketNum, markHash, mark.marketUsdAmnts.usdAmntPrizePool, callEarnedAmnt);
     }
     function initMyVoterHash() external {
-        CONF.initVoterHashForAcct(msg.sender);
+        CONFM.initVoterHashForAcct(msg.sender);
             // NOTE: this integration hides ticket address voting for from mempool/on-chain logs
             //     ie. they only see the _senderTicketHash generated 
             //         along w/ what market is being voted on
@@ -374,83 +378,93 @@ contract CallitFactory {
             //          and retrieve the ticket address that _senderTicketHash references 
     }
     function getMyVoterHash() external view returns(address) {
-        return CONF.getVoterHashForAcct(msg.sender);
+        // *WARNING* use must have their wallet conencted to use this function
+        //  ie. read request must come from user's EOA and not the RPC server default assigned for 'view' requests
+        return CONFM.getVoterHashForAcct(msg.sender);
     }
     function castVoteForMarketTicket(address _senderTicketHash, address _markHash) external { // NOTE: !_deductFeePerc; reward mint
         require(_senderTicketHash != address(0) && _markHash != address(0), ' invalid hash :-{=} ');
-        // require(IERC20(_ticket).balanceOf(msg.sender) == 0, ' no votes ;( ');
-
-        // *WARNING* -> malicious actors could still monitor the chain activity (tx-by-tx)
-        //    this function call potentially allows someone to manually track ticket counts as they come in
-        //     (ie. a web page could be created that displays & tracks ticket votes as they come in)
-        // HOWEVER, acquiring the soure code for 'CONF.initVoterHashForAcct' is required ...
-        //  if a malicious actor sees the code for CONF.initVoterHashForAcct
-        //      then they can indeed figure out an EOA’s voter hash by reviewing 
-        //      the chain’s call history for ‘initVoterHashForAcct’
-        //      and replicating it using the seed params found inside the function code
-        //  if they can replicate EOA voter hashes, they can then loop through all 
-        //      resultOptionTokens for the market (markHash) that the EOAs voted on,
-        //      and retrieve the ticket address that _senderTicketHash references 
-
-        // get ticket address from _senderTicketHash
-        //  loop through all tickets in _markHash
-        //   find ticket where hash(msg.sender-voter-hash + ticket) == _senderTicketHash
-        ICallitLib.MARKET memory mark = CONFM.getMarketForHash(_markHash);
-        address ticket;
-        for (uint8 i=0; i < mark.marketResults.resultOptionTokens.length;){
-            address[] memory toHash = new address[](2);
-            toHash[0] = CONF.getVoterHashForAcct(msg.sender);
-            toHash[1] = mark.marketResults.resultOptionTokens[i];
-            address ticketHash = LIB.genHashOfAddies(toHash);
-            if (ticketHash == _senderTicketHash) {
-                ticket = mark.marketResults.resultOptionTokens[i];
-                break;
-            }
-                
-            unchecked{i++;}
-        }
-        require(ticket != address(0), ' bad ticket hash :/ '); // note: ticket holder check in LIB._addressIsMarketMakerOrCaller
-        // require(IERC20(ticket).balanceOf(msg.sender) == 0, ' no votes ;( ');
-
-        // algorithmic logic...
-        //  - verify $CALL token held/locked through out this market time period
-        //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
-        //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
-        //  - store vote in struct MARKET_VOTE and push to ACCT_MARKET_VOTES
-
-        // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        (, uint16 tickIdx,) = CONFM._getMarketForTicket(ticket); // reverts if market not found | address(0)
-        require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
-
-        //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
-        // (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
-        (bool is_maker, bool is_caller) = LIB._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
-        require(!is_maker && !is_caller, ' no self-voting :o ');
-
-        //  - verify $CALL token held/locked through out this market time period
-        //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
-        // uint64 vote_cnt = LIB._validVoteCount(CALL.balanceOf_voteCnt(msg.sender), CALL.EARNED_CALL_VOTES(msg.sender), CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
-        uint64 vote_cnt = LIB.getValidVoteCount(CALL.balanceOf_voteCnt(msg.sender), CONF.RATIO_CALL_TOK_PER_VOTE(), CALL.EARNED_CALL_VOTES(msg.sender), CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
-        require(vote_cnt > 0, ' invalid voter :{=} ');
-            // LEFT OFF HERE ... integrate ability for regular $CALL holders to vote 
-            //  (ie. at lower ratio... maybe 1:10 votes to holdings)
-
-        //  - store vote in struct MARKET
-        mark.marketResults.resultTokenVotes[tickIdx] += vote_cnt; // NOTE: write to market
-        CONFM.setHashMarket(_markHash, mark, '');
-
-        // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
-        //  NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
-        // DELEGATE.ACCT_MARKET_VOTES[msg.sender].push(ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
-        CONFM.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, mark.marketHash, false), false); // false, false = un-paid, un-paid
+        CONFM.castVoteForMarketTicket(msg.sender, _senderTicketHash, _markHash);
 
         // mint $CALL token reward to msg.sender
         _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
+            // NOTE: -> DO NOT want to emit event log for casting votes
+            //  this will allow people to see majority votes before voting
 
-        // event MarketTicketVote
+        // // require(IERC20(_ticket).balanceOf(msg.sender) == 0, ' no votes ;( ');
 
-        // NOTE: -> DO NOT want to emit event log for casting votes 
-        //  this will allow people to see majority votes before voting        
+        // // *WARNING* -> malicious actors could still monitor the chain activity (tx-by-tx)
+        // //    this function call potentially allows someone to manually track ticket counts as they come in
+        // //     (ie. a web page could be created that displays & tracks ticket votes as they come in)
+        // // HOWEVER, acquiring the source code for 'CONF.initVoterHashForAcct' is required ...
+        // //  if a malicious actor sees the code for CONF.initVoterHashForAcct
+        // //      then they can indeed figure out an EOA’s voter hash by reviewing 
+        // //      the chain’s call history for ‘initVoterHashForAcct’
+        // //      and replicating it using the seed params found inside the function code
+        // //  if they can replicate EOA voter hashes, they can then loop through all 
+        // //      resultOptionTokens for the market (markHash) that the EOAs voted on,
+        // //      and retrieve the ticket address that _senderTicketHash references 
+
+        // // get ticket address from _senderTicketHash
+        // //  loop through all tickets in _markHash
+        // //   find ticket where hash(msg.sender-voter-hash + ticket) == _senderTicketHash
+        // ICallitLib.MARKET memory mark = CONFM.getMarketForHash(_markHash);
+        // address ticket;
+        // uint16 tickIdx;
+        // for (uint8 i=0; i < mark.marketResults.resultOptionTokens.length;){
+        //     address[] memory toHash = new address[](2);
+        //     toHash[0] = CONF.getVoterHashForAcct(msg.sender);
+        //     toHash[1] = mark.marketResults.resultOptionTokens[i];
+        //     address ticketHash = LIB.genHashOfAddies(toHash);
+        //     if (ticketHash == _senderTicketHash) {
+        //         ticket = mark.marketResults.resultOptionTokens[i];
+        //         tickIdx = i;
+        //         break;
+        //     }
+                
+        //     unchecked{i++;}
+        // }
+        // require(ticket != address(0), ' bad ticket hash :/ '); // note: ticket holder check in LIB._addressIsMarketMakerOrCaller
+        // // require(IERC20(ticket).balanceOf(msg.sender) == 0, ' no votes ;( ');
+
+        // // algorithmic logic...
+        // //  - verify $CALL token held/locked through out this market time period
+        // //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
+        // //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
+        // //  - store vote in struct MARKET_VOTE and push to ACCT_MARKET_VOTES
+
+        // // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
+        // // (, uint16 tickIdx,) = CONFM._getMarketForTicket(ticket); // reverts if market not found | address(0)
+        // require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
+
+        // //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
+        // // (bool is_maker, bool is_caller) = _addressIsMarketMakerOrCaller(msg.sender, mark);
+        // (bool is_maker, bool is_caller) = LIB._addressIsMarketMakerOrCaller(msg.sender, mark.maker, mark.marketResults.resultOptionTokens);
+        // require(!is_maker && !is_caller, ' no self-voting :o ');
+
+        // //  - verify $CALL token held/locked through out this market time period
+        // //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
+        // uint64 vote_cnt = LIB.getValidVoteCount(CALL.balanceOf_voteCnt(msg.sender), CONF.RATIO_CALL_TOK_PER_VOTE(), CALL.EARNED_CALL_VOTES(msg.sender), CALL.ACCT_CALL_VOTE_LOCK_TIME(msg.sender), mark.blockTimestamp);
+        // require(vote_cnt > 0, ' invalid voter :{=} ');
+        //     // LEFT OFF HERE ... integrate ability for regular $CALL holders to vote 
+        //     //  (ie. at lower ratio... maybe 1:10 votes to holdings)
+
+        // //  - store vote in struct MARKET
+        // mark.marketResults.resultTokenVotes[tickIdx] += vote_cnt; // NOTE: write to market
+        // CONFM.setHashMarket(_markHash, mark, '');
+
+        // // log market vote per EOA, so EOA can claim voter fees earned (where votes = "majority of votes / winning result option")
+        // //  NOTE: *WARNING* if ACCT_MARKET_VOTES was public, then anyone can see the votes before voting has ended
+        // // DELEGATE.ACCT_MARKET_VOTES[msg.sender].push(ICallitLib.MARKET_VOTE(msg.sender, _ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, false)); // false = not paid
+        // CONFM.pushAcctMarketVote(msg.sender, ICallitLib.MARKET_VOTE(msg.sender, ticket, tickIdx, vote_cnt, mark.maker, mark.marketNum, mark.marketHash, false), false); // false, false = un-paid, un-paid
+
+        // // mint $CALL token reward to msg.sender
+        // _mintCallToksEarned(msg.sender, CONF.RATIO_CALL_MINT_PER_VOTE()); // emit CallTokensEarned
+
+        // // event MarketTicketVote
+
+        // // NOTE: -> DO NOT want to emit event log for casting votes 
+        // //  this will allow people to see majority votes before voting        
     }
 
     function closeMarketForTicket(address _ticket) external { // _deductFeePerc PERC_MARKET_CLOSE_FEE from mark.marketUsdAmnts.usdAmntPrizePool
@@ -470,7 +484,9 @@ contract CallitFactory {
         // getting winning result index to set mark.winningVoteResultIdx
         //  for voter fee claim algorithm (ie. only pay majority voters)
         // mark.winningVoteResultIdx = _getWinningVoteIdxForMarket(mark); // NOTE: write to market
-        mark.winningVoteResultIdx = LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
+        // mark.winningVoteResultIdx = LIB._getWinningVoteIdxForMarket(mark.marketResults.resultTokenVotes); // NOTE: write to market
+        uint64[] memory votes = CONFM.getResultVotesForMarketHash(markHash);
+        mark.winningVoteResultIdx = LIB._getWinningVoteIdxForMarket(votes);
 
         // validate total % pulling from 'usdVoterRewardPool' is not > 100% (10000 = 100.00%)
         require(CONF.PERC_PRIZEPOOL_VOTERS() + CONF.PERC_MARKET_CLOSE_FEE() < 10000, ' perc error ;( ');

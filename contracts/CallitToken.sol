@@ -24,10 +24,6 @@ import "./ICallitVault.sol";
 interface ICallitConfig { // do not need all of ICallitConfig.sol
     function ADDR_FACT() external view returns(address);
     function ADDR_VAULT() external view returns(address);
-    function EARNED_CALL_VOTES(address _key) external view returns(uint64);
-    function setCallVoteCntEarned(address _acct, uint64 _votesCnt) external;
-    function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256);
-    function setCallTokenVoteLock(address _sender, bool _lock) external;
 }
 
 contract CallitToken is ERC20, Ownable {
@@ -43,6 +39,11 @@ contract CallitToken is ERC20, Ownable {
     string private TOK_NAME = string(abi.encodePacked("tCALL-IT_", tVERSION));
     // string private TOK_SYMB = "CALL";
     // string private TOK_NAME = "CALL-IT VOTE";
+
+    // vote data storage
+    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
+    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
+    // mapping(address => address) private ACCT_VOTER_HASH; // address hash used for generating _senderTicketHash in FACT.castVoteForMarketTicket
 
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -101,20 +102,20 @@ contract CallitToken is ERC20, Ownable {
         //      allows for factory minting fractions of a token if needed
         _mint(_receiver, _callAmntMint);
 
-        uint64 prevEarned = CONF.EARNED_CALL_VOTES(_receiver);
-        CONF.setCallVoteCntEarned(_receiver, prevEarned + _callVotesEarned);
+        uint64 prevEarned = EARNED_CALL_VOTES[_receiver];
+        EARNED_CALL_VOTES[_receiver] += _callVotesEarned; 
         
         // emit log for call tokens earned
-        emit CallTokensEarned(_sender, _receiver, _callAmntMint, _callVotesEarned, prevEarned, CONF.EARNED_CALL_VOTES(_receiver));
+        emit CallTokensEarned(_sender, _receiver, _callAmntMint, _callVotesEarned, prevEarned, EARNED_CALL_VOTES[_receiver]);
     }
 
     /* -------------------------------------------------------- */
     /* PUBLIC SETTERS
     /* -------------------------------------------------------- */
     function setCallTokenVoteLock(bool _lock) external {
-        uint256 _prev = CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender);
-        CONF.setCallTokenVoteLock(msg.sender, _lock);
-        emit CallTokenLockUpdated(_prev, CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender));
+        uint256 _prev = ACCT_CALL_VOTE_LOCK_TIME[msg.sender];
+        ACCT_CALL_VOTE_LOCK_TIME[msg.sender] = _lock ? block.timestamp : 0;
+        emit CallTokenLockUpdated(_prev, ACCT_CALL_VOTE_LOCK_TIME[msg.sender]);
     }
     function balanceOf_voteCnt(address _voter) external view returns(uint64) {
         return _uint64_from_uint256(balanceOf(_voter) / 10**uint8(decimals())); // do not return decimals
@@ -153,14 +154,14 @@ contract CallitToken is ERC20, Ownable {
             // uint128 max USD: ~340T -> 340,282,366,920,938,463,463.374607431768211455 (18 decimals)
     }
     function transferFrom(address from, address to, uint256 value) public override returns (bool) {
-        require(CONF.ACCT_CALL_VOTE_LOCK_TIME(from) == 0, ' tokens locked for voting ;) ');
+        require(ACCT_CALL_VOTE_LOCK_TIME[from] == 0, ' tokens locked for voting ;) ');
         
         // checks msg.sender 'allowance(from, msg.sender, value)' 
         //  then invokes '_transfer(from, to, value)'
         return super.transferFrom(from, to, value);
     }
     function transfer(address to, uint256 value) public override returns (bool) {
-        require(CONF.ACCT_CALL_VOTE_LOCK_TIME(msg.sender) == 0, ' tokens locked voting ;) ');
+        require(ACCT_CALL_VOTE_LOCK_TIME[msg.sender] == 0, ' tokens locked voting ;) ');
         return super.transfer(to, value); // invokes '_transfer(msg.sender, to, value)'
     }
 

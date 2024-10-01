@@ -65,8 +65,6 @@ contract CallitConfig {
     // address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
 
-    // set by CONFM on every LIVE_TICKETS_LST update
-    uint64 private LIVE_TICKET_COUNT; // uint64 = max 18,000Q live tickets it can account for
     
     // note: receive / deposit
     address public DEPOSIT_USD_STABLE;
@@ -142,42 +140,8 @@ contract CallitConfig {
     mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
     mapping(address => address[]) public PROMOTOR_HASHES; // map promo code list to their promotor
 
-    // vote data storage
-    mapping(address => uint256) public ACCT_CALL_VOTE_LOCK_TIME; // track EOA to their call token lock timestamp; remember to reset to 0 (ie. 'not locked') ***
-    mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
-    mapping(address => address) private ACCT_VOTER_HASH; // address hash used for generating _senderTicketHash in FACT.castVoteForMarketTicket
-
     // market makers (etc.) can set their own handles
     mapping(address => string) public ACCT_HANDLES;
-
-    function getVoterHashForAcct(address _acct) external view onlyFactory returns(address) {
-        require(_acct != address(0) && ACCT_VOTER_HASH[_acct] != address(0), ' no vote hash, call init :-/ ');
-        return ACCT_VOTER_HASH[_acct];
-    }
-    function initVoterHashForAcct(address _acct) external onlyFactory {
-        require(_acct != address(0) && ACCT_VOTER_HASH[_acct] == address(0), ' no _acct | prev-set :/ ');
-        // Combine block properties with msg.sender to create a pseudo-random number
-        uint256 rdm = uint256(keccak256(abi.encodePacked(
-            block.timestamp,    // Current block timestamp
-            blockhash(block.number - 1),  // Hash of the previous block
-            msg.sender,          // Address of the transaction sender
-            LIVE_TICKET_COUNT // local var seed (shouldn't be trackable w/in on-chain call stack)
-        )));
-        // Truncate the random number to 160 bits (Ethereum address size)
-        ACCT_VOTER_HASH[_acct] = address(uint160(rdm));
-
-            // NOTE: this integration hides ticket address voting for from mempool/call-stack logs
-            //     ie. they only see the _senderTicketHash generated 
-            //         along w/ what market is being voted on
-            //         but they can’t see which actual ticket
-            //     note: if a malicious actor sees the code for CONF.initVoterHashForAcct
-            //         then they can indeed figure out an EOA’s voter hash by reviewing 
-            //          the chain’s call history for ‘initVoterHashForAcct’
-            //          and replicating it using the seed params found inside the function code
-            //         if they have an EOA’s voter hash, they can then loop through all 
-            //          resultOptionTokens for the market (markHash) that was voted on,
-            //          and retrieve the ticket address that _senderTicketHash references 
-    }
 
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -241,10 +205,10 @@ contract CallitConfig {
         require(msg.sender == ADDR_FACT, " !fact :+[ ");
         _;
     }
-    modifier onlyConfM() {
-        require(msg.sender == ADDR_CONFM, " !fact :+[ ");
-        _;
-    }
+    // modifier onlyConfM() {
+    //     require(msg.sender == ADDR_CONFM, " !fact :+[ ");
+    //     _;
+    // }
 
     function keeperCheck(uint256 _check) external view returns(bool) { 
         return _check == KEEPER_CHECK; 
@@ -376,14 +340,6 @@ contract CallitConfig {
     }
 
     /* -------------------------------------------------------- */
-    /* PUBLIC - CONFM
-    /* -------------------------------------------------------- */
-    function setLiveTcktCnt(uint256 _cnt) external onlyConfM {
-        // uint64 = max 18,000Q live tickets it can account for
-        LIVE_TICKET_COUNT = LIB._uint64_from_uint256(_cnt); 
-    }
-
-    /* -------------------------------------------------------- */
     /* PUBLIC - VAULT
     /* -------------------------------------------------------- */
     function VAULT_deployTicket(address _sender, uint256 _markNum, uint16 _tickIdx, uint256 _initSupplyNoDecs) external onlyVault returns(address) {
@@ -425,14 +381,6 @@ contract CallitConfig {
     }
     function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external onlyVault {
         PROMO_USD_OWED[_promoCodeHash] = _usdOwed;
-    }
-    function setCallVoteCntEarned(address _acct, uint64 _votesCnt) external onlyCALL {
-        require(_acct != address(0), ' bad _acct  ;) ');
-        EARNED_CALL_VOTES[_acct] += _votesCnt; 
-    }
-    function setCallTokenVoteLock(address _sender, bool _lock) external onlyCALL {
-        require(_sender != address(0), ' bad _sender :/ '); 
-        ACCT_CALL_VOTE_LOCK_TIME[_sender] = _lock ? block.timestamp : 0;
     }
     function setAcctHandle(address _sender, string calldata _handle) external onlyFactory {
         require(_sender != address(0) && bytes(_handle).length >= 2 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
