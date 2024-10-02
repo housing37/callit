@@ -112,7 +112,7 @@ contract CallitConfig {
 
     // lp settings
     uint64 public MIN_USD_MARK_LIQ = 500000; // (500000 = $0.500000) min usd liquidity (total to split across all resultOptions) needed for 'makeNewMarket', if _usdAmntLP > 0, else 'makeNewMarket' uses $1 per result option
-    uint64 public RATIO_LP_USD_PER_TICK = 1000000; // (1000000 = $1.000000) required USD liquidity per result option, needed for 'makeNewMarket', if _usdAmntLP == 0, else 'makeNewMarket' uses _usdAmntLP & checks against MIN_USD_MARK_LIQ
+    uint64 public RATIO_LP_USD_PER_TICK = 1000000; // (1000000 = $1.000000) default required USD liquidity per result option, needed for 'makeNewMarket', if _usdAmntLP == 0, else 'makeNewMarket' uses _usdAmntLP & checks against MIN_USD_MARK_LIQ
     uint32 public RATIO_LP_TOK_PER_USD = 100; // # of ticket tokens per usd, minted for each individual LP deploy (ie. mint 100 tickets for liquidity, per 1 USD maker provided for liquidty)
     uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = $1.000000; 6 decimals) min amnt of closing usd LP needed (ie. mark.marketUsdAmnts.usdAmntPrizePool: final gross usd brought in) per $CALL earned by market maker
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
@@ -326,10 +326,11 @@ contract CallitConfig {
         require(bytes(_tok_name).length > 0 && bytes(_tok_symb).length > 0, ' invalid input  :<> ');
         CALL.setTokenNameSymbol(_tok_name, _tok_symb); // emits 'TokenNameSymbolUpdated'
     }
-    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint32 _tokCntPerUsd, uint64 _usdMinInitLiq) external onlyKeeper {
+    function KEEPER_setLpSettings(uint64 _usdPerCallEarned, uint32 _tokCntPerUsd, uint64 _usdMinInitLiq, uint64 _usdPerTickLiq) external onlyKeeper {
         RATIO_LP_USD_PER_CALL_TOK = _usdPerCallEarned; // LP usd amount needed per $CALL earned by market maker
         RATIO_LP_TOK_PER_USD = _tokCntPerUsd; // # of ticket tokens per usd, minted for LP deploy
-        MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+        MIN_USD_MARK_LIQ = _usdMinInitLiq; // min usd liquidity needed for 'makeNewMarket' (total to split across all resultOptions)
+        RATIO_LP_USD_PER_TICK = _usdPerTickLiq; // default required usd liquidity needed for 'makeNewMarket', per result option, if _usdAmntLP input is 0
     }
     function KEEPER_setMarketLoserMints(uint8 _mintAmnt, uint8 _percSupplyReq) external onlyKeeper {
         require(_percSupplyReq <= 10000, ' total percs > 100.00% ;) ');
