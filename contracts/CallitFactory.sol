@@ -270,12 +270,12 @@ contract CallitFactory {
                             uint256 _dtResultVoteEnd, 
                             string[] calldata _resultLabels, 
                             string[] calldata _resultDescrs
-                            ) external { 
-        require(_usdAmntLP >= CONF.MIN_USD_MARK_LIQ(), ' need more liquidity! :{=} ');
+                            ) external {
+        // _usdAmntLP = 0, triggers: set total LP = $1 * (# of result options), w/o needing to change ABI | function signature
+        //  note: _usdAmntLP acct balance check in DELEGATE.makeNewMarket
+        if (_usdAmntLP == 0) _usdAmntLP = LIB._uint64_from_uint256(1000000 * _resultLabels.length);
+        else require(_usdAmntLP >= CONF.MIN_USD_MARK_LIQ(), ' need more liquidity! :{=} ');
         require(2 <= _resultLabels.length && _resultLabels.length <= CONF.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
-
-        // LOCKS total LP = $1 * (# of result options), w/o needing to change ABI | function signature
-        _usdAmntLP = LIB._uint64_from_uint256(1000000 * _resultLabels.length);
 
         // initilize/validate market number for struct MARKET tracking
         uint256 mark_num = CONFM.getMarketCntForMaker(msg.sender);
@@ -414,9 +414,11 @@ contract CallitFactory {
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 
         // check if mark.maker earned $CALL tokens
-        if (mark.marketUsdAmnts.usdAmntLP >= CONF.RATIO_LP_USD_PER_CALL_TOK()) {
+        // if (mark.marketUsdAmnts.usdAmntLP >= CONF.RATIO_LP_USD_PER_CALL_TOK()) {
+        if (mark.marketUsdAmnts.usdAmntPrizePool >= CONF.RATIO_LP_USD_PER_CALL_TOK()) {
             // mint $CALL to mark.maker & log $CALL votes earned
-            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / CONF.RATIO_LP_USD_PER_CALL_TOK()); // emit CallTokensEarned
+            // _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntLP / CONF.RATIO_LP_USD_PER_CALL_TOK()); // emit CallTokensEarned
+            _mintCallToksEarned(mark.maker, mark.marketUsdAmnts.usdAmntPrizePool / CONF.RATIO_LP_USD_PER_CALL_TOK()); // emit CallTokensEarned
         }
 
         // close market

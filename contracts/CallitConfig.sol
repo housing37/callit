@@ -111,15 +111,17 @@ contract CallitConfig {
     uint64  public MAX_EOA_MARKETS = type(uint8).max; // uint8 = 255 (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
 
     // lp settings
-    uint64 public MIN_USD_MARK_LIQ = 500000; // (500000 = $0.500000) min usd liquidity need for 'makeNewMarket' (total to split across all resultOptions)
+    uint64 public MIN_USD_MARK_LIQ = 500000; // (500000 = $0.500000) min usd liquidity (total to split across all resultOptions) needed for 'makeNewMarket', if _usdAmntLP > 0, else 'makeNewMarket' uses $1 per result option
     uint32 public RATIO_LP_TOK_PER_USD = 100; // # of ticket tokens per usd, minted for each individual LP deploy (ie. mint 100 tickets for liquidity, per 1 USD maker provided for liquidty)
-    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = $1.000000; 6 decimals) usd opening LP needed (mark.marketUsdAmnts.usdAmntLP) per $CALL earned by market maker
+    uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = $1.000000; 6 decimals) min amnt of closing usd LP needed (ie. mark.marketUsdAmnts.usdAmntPrizePool: final gross usd brought in) per $CALL earned by market maker
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
         // LEFT OFF HERE  ... need more requirement for market maker earning $CALL
-        //  ex: maker could create $100 LP, not promote, delcare himself winner, get his $100 back and earn free $CALL)    
-        //  - in addition to usd opening LP needed (above), perhaps ...
+        //  ex: maker could create $100 LP, not promote, build LP to meet requirements, 
+        //      delcare himself winner, get his $100 back and earn free $CALL
+        //  - in addition to usd closing LP needed (above), perhaps ...
+        //      0) min amount of opening LP needed (only pertains to maker choosing their init market LP)
         //      1) min amount of market ticket holders
-        //      2) min amount of closing LP needed (mark.marketUsdAmnts.usdAmntPrizePool)
+        //      DONE - 2) min amount of closing LP needed (mark.marketUsdAmnts.usdAmntPrizePool)
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)
