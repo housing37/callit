@@ -3,8 +3,6 @@ pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
 interface ICallitVoter {
     function set_LIVE_TICKET_COUNT(uint64 _cnt) external;
-    function initVoterHashForAcct(address _acct) external;
-    function getVoterHashForAcct(address _acct) external view returns(address);
 
     function getResultVotesForMarketHash(address _markHash) external view returns(uint64[] memory);
     function castVoteForMarketTicket(address _sender, address _senderTicketHash, address _markHash) external;

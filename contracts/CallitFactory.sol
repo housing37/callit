@@ -362,25 +362,6 @@ contract CallitFactory {
         // emit log for this closed market calls event
         emit MarketCallsClosed(msg.sender, _ticket, mark.maker, mark.marketNum, markHash, mark.marketUsdAmnts.usdAmntPrizePool, callEarnedAmnt);
     }
-    function initMyVoterHash() external {
-        VOTER.initVoterHashForAcct(msg.sender);
-            // NOTE: this integration hides ticket address voting for from mempool/on-chain logs
-            //     ie. they only see the _senderTicketHash generated 
-            //         along w/ what market is being voted on
-            //         but they can’t see which actual ticket
-            //     note: if a malicious actor sees the code for initVoterHashForAcct
-            //         then they can indeed figure out an EOA’s voter hash by reviewing 
-            //          the chain’s call history for ‘initVoterHashForAcct’
-            //          and replicating it using the seed params found inside the function code
-            //         if they have an EOA’s voter hash, they can then loop through all 
-            //          resultOptionTokens for the market (markHash) that was voted on,
-            //          and retrieve the ticket address that _senderTicketHash references 
-    }
-    function getMyVoterHash() external view returns(address) {
-        // *WARNING* use must have their wallet conencted to use this function
-        //  ie. read request must come from user's EOA and not the RPC server default assigned for 'view' requests
-        return VOTER.getVoterHashForAcct(msg.sender);
-    }
     function castVoteForMarketTicket(address _senderTicketHash, address _markHash) external { // NOTE: !_deductFeePerc; reward mint
         require(_senderTicketHash != address(0) && _markHash != address(0), ' invalid hash :-{=} ');
         VOTER.castVoteForMarketTicket(msg.sender, _senderTicketHash, _markHash);
