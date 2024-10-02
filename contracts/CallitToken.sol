@@ -30,7 +30,7 @@ contract CallitToken is ERC20, Ownable {
     /* -------------------------------------------------------- */
     /* GLOBALS
     /* -------------------------------------------------------- */
-    string public tVERSION = '0.20';  
+    string public tVERSION = '0.21';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -45,7 +45,7 @@ contract CallitToken is ERC20, Ownable {
     mapping(address => uint64) public EARNED_CALL_VOTES; // track EOAs to result votes allowed for open markets (uint64 max = ~18,000Q -> 18,446,744,073,709,551,615)
     // mapping(address => address) private ACCT_VOTER_HASH; // address hash used for generating _senderTicketHash in FACT.castVoteForMarketTicket
     mapping(address => ICallitLib.MARKET_REVIEW[]) private ACCT_MARKET_REVIEWS; // store maker to all their MARKET_REVIEWs created by callers
-    
+
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */

@@ -22,7 +22,7 @@ interface IERC20x {
 library CallitLib {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
-    string public constant tVERSION = '0.31';
+    string public constant tVERSION = '0.32'; 
     event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */

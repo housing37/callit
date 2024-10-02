@@ -33,7 +33,7 @@ contract CallitVoter {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.1';  
+    string public tVERSION = '0.1';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig

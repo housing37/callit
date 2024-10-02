@@ -39,7 +39,7 @@ interface ICallitTicket {
 contract CallitVault {
     /* _ ADMIN SUPPORT (legacy) _ */
     bool private FIRST_ = true;
-    string public constant tVERSION = '0.52';  
+    string public constant tVERSION = '0.53';
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitMarket private CONFM; // set via CONF_setConfig
