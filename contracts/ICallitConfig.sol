@@ -27,21 +27,21 @@ interface ICallitConfigMarket {
     function getMarketHashesForMakerOrCategory(address _maker, string calldata _category) external view returns(address[] memory);
     function getMarketForHash(address _hash) external view returns(ICallitLib.MARKET memory);
     function getMarketCntForMaker(address _maker) external view returns(uint256);
+
+    // voter migration
+    function setAcctHandle(address _sender, string calldata _handle) external;
+    function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external;
+    function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external;
+    function getPromoHashesForAcct(address _acct) external view returns(address[] memory);
+    function getPromoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory);
 }
 interface ICallitConfig {    
 
     function TOK_TICK_NAME_SEED() external view returns(string calldata);
     function TOK_TICK_SYMB_SEED() external view returns(string calldata);
 
-    // token migration
-    function setAcctHandle(address _sender, string calldata _handle) external;
-
     // vault migration
-    function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external;
-    function getPromoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory);
     function PROMO_USD_OWED(address _key) external view returns(uint64);
-    function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external;
-    function getPromoHashesForAcct(address _acct) external view returns(address[] memory);
 
     function ADMINS(address _key) external view returns(bool);
     // function adminStatus(address _admin) external view returns(bool);

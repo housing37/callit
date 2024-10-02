@@ -150,10 +150,10 @@ contract CallitFactory {
         return CONFM.getMarketForHash(_hash); // checks require
     }
     function getPromosForAcct(address _acct) external view returns(ICallitLib.PROMO[] memory) {
-        address[] memory promoHashes = CONF.getPromoHashesForAcct(_acct); // checks require on _acct & length > 0
+        address[] memory promoHashes = CONFM.getPromoHashesForAcct(_acct); // checks require on _acct & length > 0
         ICallitLib.PROMO[] memory ret_promos = new ICallitLib.PROMO[](promoHashes.length);
         for (uint64 i=0; i < promoHashes.length;) {
-            ret_promos[i] = CONF.getPromoForHash(promoHashes[i]);
+            ret_promos[i] = CONFM.getPromoForHash(promoHashes[i]);
             unchecked { i++; }
         }
 
@@ -246,7 +246,7 @@ contract CallitFactory {
         //  emit DepositReceived(msg.sender, amntIn, 0);
     }
     function setAcctHandle(string calldata _handle) external {
-        CONF.setAcctHandle(msg.sender, _handle); // checks require for _handle
+        CONFM.setAcctHandle(msg.sender, _handle); // checks require for _handle
     }
     function setMarketInfo(address _anyTicket, string calldata _category, string calldata _rules, string calldata _imgUrl) external {
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)

@@ -245,7 +245,7 @@ contract CallitVault {
         // calc influencer reward from _usdAmnt to send to promo.promotor
         //  and update amount owed for this _promoCodeHash
         uint64 usdReward = LIB._perc_of_uint64(_percReward, _usdAmnt);
-        CONF.setUsdOwedForPromoHash(CONF.PROMO_USD_OWED(_promoCodeHash) + usdReward, _promoCodeHash);
+        CONFM.setUsdOwedForPromoHash(CONF.PROMO_USD_OWED(_promoCodeHash) + usdReward, _promoCodeHash);
         emit PromoRewardLogged(_promoCodeHash, usdReward, _promotor, _sender, _ticket);
 
         // deduct usdReward & promo buy fee _usdAmnt
@@ -282,7 +282,7 @@ contract CallitVault {
         require(_promoCodeHash != address(0) && usdOwed > 0 && _usdReward <= usdOwed, ' not enough owed ;[ ');
         uint64 net_usdReward = LIB._deductFeePerc(usdOwed, CONF.PERC_PROMO_CLAIM_FEE(), usdOwed);
         _payUsdReward(_sender, net_usdReward, _receiver); // pay w/ lowest value whitelist stable held (returns on 0 reward)
-        CONF.setUsdOwedForPromoHash(usdOwed - _usdReward, _promoCodeHash); // deduct entire _usdReward from owed (not just net)
+        CONFM.setUsdOwedForPromoHash(usdOwed - _usdReward, _promoCodeHash); // deduct entire _usdReward from owed (not just net)
         return net_usdReward; // return what was actually paid (ie. net)
     }
     // note: migrate to CallitBank

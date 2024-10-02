@@ -123,14 +123,14 @@ contract CallitDelegate {
         require(CONF.PERC_PROMO_BUY_FEE() + _percReward < 10000, ' invalid promo buy _perc :(=) ');
         require(_promotor != address(0) && LIB._validNonWhiteSpaceString(_promoCode) && _usdTarget >= CONF.MIN_USD_PROMO_TARGET(), ' !param(s) :={ ');
         address promoCodeHash = LIB._generateAddressHash(_promotor, _promoCode);
-        ICallitLib.PROMO memory promo = CONF.getPromoForHash(promoCodeHash);
+        ICallitLib.PROMO memory promo = CONFM.getPromoForHash(promoCodeHash);
         require(promo.promotor == address(0), ' promo already exists :-O ');
-        CONF.setPromoForHash(promoCodeHash, ICallitLib.PROMO(_promotor, _promoCode, promoCodeHash, _usdTarget, 0, _percReward, msg.sender, block.number));
+        CONFM.setPromoForHash(promoCodeHash, ICallitLib.PROMO(_promotor, _promoCode, promoCodeHash, _usdTarget, 0, _percReward, msg.sender, block.number));
         emit PromoCreated(promoCodeHash, _promotor, _promoCode, _usdTarget, 0, _percReward, msg.sender, block.number);
     }
     function checkPromoBalance(address _promoCodeHash) external view returns(uint64) {
         // return _checkPromoBalance(_promoCodeHash);
-        ICallitLib.PROMO memory promo = CONF.getPromoForHash(_promoCodeHash);
+        ICallitLib.PROMO memory promo = CONFM.getPromoForHash(_promoCodeHash);
         // require(promo.promotor != address(0), ' invalid promo :-O ');
         return promo.usdTarget - promo.usdUsed; // note: w/o 'require', should simply return 0
     }
@@ -195,7 +195,7 @@ contract CallitDelegate {
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }
     function buyCallTicketWithPromoCode(address _usdStableResult, address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _sender) external onlyFactory returns(uint64, uint256) { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
-        ICallitLib.PROMO memory promo = CONF.getPromoForHash(_promoCodeHash);
+        ICallitLib.PROMO memory promo = CONFM.getPromoForHash(_promoCodeHash);
         require(promo.promotor != address(0) && promo.promotor != _sender && promo.usdTarget - promo.usdUsed >= _usdAmnt && promo.promotor != _sender, ' invalid promo :-O ');
 
         // NOTE: algorithmic logic...
@@ -293,7 +293,7 @@ contract CallitDelegate {
         // NOTE: no $CALL tokens minted for this action   
     }
     function claimPromotorRewards(address _promoCodeHash) external {
-        ICallitLib.PROMO memory promo = CONF.getPromoForHash(_promoCodeHash);
+        ICallitLib.PROMO memory promo = CONFM.getPromoForHash(_promoCodeHash);
         require(promo.promotor != address(0), ' !promotor :p ');
 
         uint64 usdTargRem = promo.usdTarget - promo.usdUsed;

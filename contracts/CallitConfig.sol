@@ -135,14 +135,14 @@ contract CallitConfig {
     address[] public WHITELIST_USD_STABLES; // NOTE: private is more secure (legacy) consider KEEPER getter
     address[] public USD_STABLES_HISTORY; // NOTE: private is more secure (legacy) consider KEEPER getter
 
-    // *WARNING* -> re-deploy means wiping promo & vote data & account handles
-    // promo data storage
-    mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
-    mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
-    mapping(address => address[]) public PROMOTOR_HASHES; // map promo code list to their promotor
+    // // *WARNING* -> re-deploy means wiping promo & vote data & account handles
+    // // promo data storage
+    // mapping(address => uint64) public PROMO_USD_OWED; // maps promo code HASH to usd owed for that hash
+    // mapping(address => ICallitLib.PROMO) public HASH_PROMO; // store promo code hashes to their PROMO mapping
+    // mapping(address => address[]) public PROMOTOR_HASHES; // map promo code list to their promotor
 
-    // market makers (etc.) can set their own handles
-    mapping(address => string) public ACCT_HANDLES;
+    // // market makers (etc.) can set their own handles
+    // mapping(address => string) public ACCT_HANDLES;
 
     /* -------------------------------------------------------- */
     /* EVENTS
@@ -368,29 +368,6 @@ contract CallitConfig {
     function adminStatus(address _admin) external view returns(bool) {
         require(_admin != address(0), ' !_admin :/ ');
         return ADMINS[_admin];
-    }
-    function getPromoForHash(address _promoHash) external view returns(ICallitLib.PROMO memory) {
-        require(_promoHash != address(0), ' no hash :/ ');
-        return HASH_PROMO[_promoHash];
-    }
-    function getPromoHashesForAcct(address _acct) external view returns(address[] memory) {
-        require(_acct != address(0) && PROMOTOR_HASHES[_acct].length > 0, ' no _acct :/ ');
-        return PROMOTOR_HASHES[_acct];
-    }
-    function setPromoForHash(address _promoHash, ICallitLib.PROMO memory _promo) external {
-        require(_promo.promotor != address(0) && _promoHash != address(0), ' no promo|hash :/ ');
-        HASH_PROMO[_promoHash] = _promo;
-        PROMOTOR_HASHES[_promo.promotor].push(_promoHash);
-    }
-    function setUsdOwedForPromoHash(uint64 _usdOwed, address _promoCodeHash) external onlyVault {
-        PROMO_USD_OWED[_promoCodeHash] = _usdOwed;
-    }
-    function setAcctHandle(address _sender, string calldata _handle) external onlyFactory {
-        require(_sender != address(0) && bytes(_handle).length >= 2 && bytes(_handle)[0] != 0x20, ' !_handle :[] ');
-        if (LIB._validNonWhiteSpaceString(_handle))
-            ACCT_HANDLES[_sender] = _handle;
-        else
-            revert(' !blank space handles :-[=] ');     
     }
 
     /* -------------------------------------------------------- */
