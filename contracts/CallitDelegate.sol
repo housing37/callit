@@ -42,6 +42,7 @@ contract CallitDelegate {
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
     ICallitConfigMarket private CONFM; // set via CONF_setConfig
+    ICallitVoter private VOTER; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
     ICallitVault private VAULT; // set via CONF_setConfig
 
@@ -90,6 +91,7 @@ contract CallitDelegate {
         ADDR_CONFIG = _conf;
         CONF = ICallitConfig(_conf);
         CONFM = ICallitConfigMarket(CONF.ADDR_CONFM());
+        VOTER = ICallitVoter(CONF.ADDR_VOTER());
         LIB = ICallitLib(CONF.ADDR_LIB());
         VAULT = ICallitVault(CONF.ADDR_VAULT()); // set via CONF_setConfig
     }
@@ -241,7 +243,7 @@ contract CallitDelegate {
     function claimVoterRewards(address _sender) external onlyFactory { // _deductFeePerc PERC_VOTER_CLAIM_FEE from usdRewardOwed
         // NOTE: loops through all non-piad msg.sender votes (including 'live' markets)
         // require(ACCT_MARKET_VOTES[_sender].length > 0, ' no un-paid market votes :) ');
-        ICallitLib.MARKET_VOTE[] memory sender_votes = CONFM.getMarketVotesForAcct(_sender, false); // false = un-paid
+        ICallitLib.MARKET_VOTE[] memory sender_votes = VOTER.getMarketVotesForAcct(_sender, false); // false = un-paid
         require(sender_votes.length > 0, ' no un-paid market votes :) ');
         uint64 usdRewardOwed = 0;
         for (uint64 i = 0; i < sender_votes.length;) { // uint64 max = ~18,000Q -> 18,446,744,073,709,551,615
@@ -269,7 +271,7 @@ contract CallitDelegate {
                 // add this MARKET_VOTE to ACCT_MARKET_VOTES_PAID[msg.sender]
                 // remove _idxMove MARKET_VOTE from ACCT_MARKET_VOTES[msg.sender]
                 //  by replacing it with the last element (then popping last element)
-                CONFM.moveMarketVoteToPaid(_sender, i, m_vote); // does not write to market
+                VOTER.moveMarketVoteToPaid(_sender, i, m_vote); // does not write to market
                 // ACCT_MARKET_VOTES_PAID[_sender].push(m_vote);
                 // uint64 lastIdx = uint64(ACCT_MARKET_VOTES[_sender].length) - 1;
                 // if (i != lastIdx) { ACCT_MARKET_VOTES[_sender][i] = ACCT_MARKET_VOTES[_sender][lastIdx]; }

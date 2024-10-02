@@ -34,8 +34,8 @@ library CallitLib {
         uint64 gross_bal = 0;
         for (uint8 i = 0; i < _stables.length;) {
             // NOTE: more efficient algorithm taking up less stack space with local vars
-            require(IERC20(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
-            gross_bal += LIB._uint64_from_uint256(LIB._normalizeStableAmnt(IERC20(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(_vault), _usd_decimals));
+            require(IERC20x(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
+            gross_bal += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(_vault), _usd_decimals));
             unchecked {i++;}
         }
         return gross_bal;

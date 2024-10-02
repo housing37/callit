@@ -53,6 +53,7 @@ contract CallitConfig {
     address public ADDR_DELEGATE = address(0xD7468C558B10878FF3CfD60D5Bd0321018E2825f); // CallitDelegate v0.49
     address public ADDR_CALL = address(0x553F55F802D03dF4Ce69370BC4B12eE9668209c6); // CallitToken v0.20
     address public ADDR_FACT = address(0x4487086421413909FEE207260f9ECFb451FE35E6); // CallitFactory v0.67
+    address public ADDR_VOTER = address(0x0000000000000000000000000000000000000000); // CallitFactory v0.0
     address public ADDR_CONFM = address(0x6dd8c30D67e39A145e11b3f086dDE48c624EC96c); // CallitConfigMarket v0.5
     // address public ADDR_CONF = address(0x05Af648CD6d5e657CfF1A011EFFc1a76956b020e); // CallitConfig v0.22
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
@@ -241,7 +242,7 @@ contract CallitConfig {
         require(_admin != address(0), ' !_admin :{+} ');
         ADMINS[_admin] = _enable;
     }
-    function KEEPER_setContracts(address _lib, address _vault, address _delegate, address _CALL, address _fact, address _confMark, address _conf) external onlyKeeper {
+    function KEEPER_setContracts(address _lib, address _vault, address _delegate, address _CALL, address _fact, address _voter, address _confMark, address _conf) external onlyKeeper {
         // EOA may indeed send 0x0 to "opt-in" for changing _conf address in support contracts
         //  if no _conf, update support contracts w/ current CONFIG address
 
@@ -250,6 +251,7 @@ contract CallitConfig {
         if (_delegate != address(0)) ADDR_DELEGATE = _delegate;
         if (    _CALL != address(0)) ADDR_CALL = _CALL;
         if (    _fact != address(0)) ADDR_FACT = _fact; 
+        if (   _voter != address(0)) ADDR_VOTER = _voter;
         if (    _confMark != address(0)) ADDR_CONFM = _confMark; 
         if (    _conf == address(0)) _conf = address(this);
 
@@ -259,6 +261,7 @@ contract CallitConfig {
         ISetConfig(ADDR_DELEGATE).CONF_setConfig(_conf);
         ISetConfig(ADDR_CALL).CONF_setConfig(_conf);
         ISetConfig(ADDR_FACT).CONF_setConfig(_conf);
+        ISetConfig(ADDR_VOTER).CONF_setConfig(_conf);
         ISetConfig(ADDR_CONFM).CONF_setConfig(_conf);
 
         // reset configs used in this contract

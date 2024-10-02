@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 import "./ICallitLib.sol";
-interface ICallitConfigMarket {
-    // function setLiveTcktCnt(uint256 _cnt) external;
+interface ICallitVoter {
+    function set_LIVE_TICKET_COUNT(uint64 _cnt) external;
     function initVoterHashForAcct(address _acct) external;
     function getVoterHashForAcct(address _acct) external view returns(address);
 
     function getResultVotesForMarketHash(address _markHash) external view returns(uint64[] memory);
     function castVoteForMarketTicket(address _sender, address _senderTicketHash, address _markHash) external;
-
+    function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external;
+    function getMarketVotesForAcct(address _account, bool _paid) external view returns(ICallitLib.MARKET_VOTE[] memory);
+}
+interface ICallitConfigMarket {
     // vault migration
     function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public
@@ -20,8 +23,6 @@ interface ICallitConfigMarket {
 
     function _getMarketForTicket(address _ticket) external view returns(ICallitLib.MARKET memory, uint16, address);
     // function pushAcctMarketVote(address _account, ICallitLib.MARKET_VOTE memory _markVote, bool _paid) external;
-    function getMarketVotesForAcct(address _account, bool _paid) external view returns(ICallitLib.MARKET_VOTE[] memory);
-    function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external;
     function setHashMarket(address _markHash, ICallitLib.MARKET memory _mark, string calldata _category) external;
     function setMakerForTickets(address _maker, address[] memory _tickets) external;
     function storeNewMarket(ICallitLib.MARKET memory _mark, address _maker) external;
@@ -53,6 +54,7 @@ interface ICallitConfig {
     function ADDR_CALL() external view returns(address);
     function ADDR_FACT() external view returns(address);
     function ADDR_CONFM() external view returns(address);
+    function ADDR_VOTER() external view returns(address);
 
     function NEW_TICK_UNISWAP_V2_ROUTER() external returns(address);
     function NEW_TICK_UNISWAP_V2_FACTORY() external returns(address);
