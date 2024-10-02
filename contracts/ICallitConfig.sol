@@ -82,6 +82,7 @@ interface ICallitConfig {
 
     // lp settings
     function MIN_USD_MARK_LIQ() external view returns(uint64);
+    function RATIO_LP_USD_PER_TICK() external view returns(uint64);
     function RATIO_LP_TOK_PER_USD() external view returns(uint32);
     function RATIO_LP_USD_PER_CALL_TOK() external view returns(uint64);
 

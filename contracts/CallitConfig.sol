@@ -112,6 +112,7 @@ contract CallitConfig {
 
     // lp settings
     uint64 public MIN_USD_MARK_LIQ = 500000; // (500000 = $0.500000) min usd liquidity (total to split across all resultOptions) needed for 'makeNewMarket', if _usdAmntLP > 0, else 'makeNewMarket' uses $1 per result option
+    uint64 public RATIO_LP_USD_PER_TICK = 1000000; // (1000000 = $1.000000) required USD liquidity per result option, needed for 'makeNewMarket', if _usdAmntLP == 0, else 'makeNewMarket' uses _usdAmntLP & checks against MIN_USD_MARK_LIQ
     uint32 public RATIO_LP_TOK_PER_USD = 100; // # of ticket tokens per usd, minted for each individual LP deploy (ie. mint 100 tickets for liquidity, per 1 USD maker provided for liquidty)
     uint64 public RATIO_LP_USD_PER_CALL_TOK = 1000000; // (1000000 = $1.000000; 6 decimals) min amnt of closing usd LP needed (ie. mark.marketUsdAmnts.usdAmntPrizePool: final gross usd brought in) per $CALL earned by market maker
         // NOTE: utilized in 'FACTORY.closeMarketForTicket'
@@ -122,6 +123,7 @@ contract CallitConfig {
         //      0) min amount of opening LP needed (only pertains to maker choosing their init market LP)
         //      1) min amount of market ticket holders
         //      DONE - 2) min amount of closing LP needed (mark.marketUsdAmnts.usdAmntPrizePool)
+        //      3) min amount of time between market open & close
 
     /* _ ACCOUNT SUPPORT (legacy) _ */
     // uint64 max USD: ~18T -> 18,446,744,073,709.551615 (6 decimals)

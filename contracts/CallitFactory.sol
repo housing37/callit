@@ -273,7 +273,7 @@ contract CallitFactory {
                             ) external {
         // _usdAmntLP = 0, triggers: set total LP = $1 * (# of result options), w/o needing to change ABI | function signature
         //  note: _usdAmntLP acct balance check in DELEGATE.makeNewMarket
-        if (_usdAmntLP == 0) _usdAmntLP = LIB._uint64_from_uint256(1000000 * _resultLabels.length);
+        if (_usdAmntLP == 0) _usdAmntLP = LIB._uint64_from_uint256(CONF.RATIO_LP_USD_PER_TICK() * _resultLabels.length);
         else require(_usdAmntLP >= CONF.MIN_USD_MARK_LIQ(), ' need more liquidity! :{=} ');
         require(2 <= _resultLabels.length && _resultLabels.length <= CONF.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
 
