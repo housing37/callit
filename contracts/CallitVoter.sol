@@ -37,7 +37,7 @@ contract CallitVoter {
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
-    ICallitConfigMarket private CONFM; // set via CONF_setConfig
+    ICallitMarket private CONFM; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
     // ICallitVault private VAULT; // set via CONF_setConfig
     // ICallitDelegate private DELEGATE; // set via CONF_setConfig
@@ -80,7 +80,7 @@ contract CallitVoter {
         require(_conf != address(0), ' !addy :< ');
         ADDR_CONFIG = _conf;
         CONF = ICallitConfig(ADDR_CONFIG);
-        CONFM = ICallitConfigMarket(CONF.ADDR_CONFM());
+        CONFM = ICallitMarket(CONF.ADDR_CONFM());
         LIB = ICallitLib(CONF.ADDR_LIB());
         // VAULT = ICallitVault(CONF.ADDR_VAULT()); // set via CONF_setConfig
         // DELEGATE = ICallitDelegate(CONF.ADDR_DELEGATE());

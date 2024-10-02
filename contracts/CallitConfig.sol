@@ -32,7 +32,7 @@ import "./ICallitLib.sol";
 // interface IERC20x {
 //     function decimals() external pure returns (uint8);
 // }
-interface ICallitConfigMarket {
+interface ICallitMarket {
     function getLiveTicketCnt() external view returns(uint256);
 }
 interface ISetConfig {
@@ -53,12 +53,12 @@ contract CallitConfig {
     address public ADDR_DELEGATE = address(0xD7468C558B10878FF3CfD60D5Bd0321018E2825f); // CallitDelegate v0.49
     address public ADDR_CALL = address(0x553F55F802D03dF4Ce69370BC4B12eE9668209c6); // CallitToken v0.20
     address public ADDR_FACT = address(0x4487086421413909FEE207260f9ECFb451FE35E6); // CallitFactory v0.67
-    address public ADDR_VOTER = address(0x0000000000000000000000000000000000000000); // CallitFactory v0.0
-    address public ADDR_CONFM = address(0x6dd8c30D67e39A145e11b3f086dDE48c624EC96c); // CallitConfigMarket v0.5
+    address public ADDR_VOTER = address(0x0000000000000000000000000000000000000000); // CallitVoter v0.0
+    address public ADDR_CONFM = address(0x6dd8c30D67e39A145e11b3f086dDE48c624EC96c); // CallitMarket v0.5
     // address public ADDR_CONF = address(0x05Af648CD6d5e657CfF1A011EFFc1a76956b020e); // CallitConfig v0.22
     ICallitLib private LIB = ICallitLib(ADDR_LIB);
     ICallitToken private CALL = ICallitToken(ADDR_CALL);
-    ICallitConfigMarket private CONFM = ICallitConfigMarket(ADDR_CONFM);
+    ICallitMarket private CONFM = ICallitMarket(ADDR_CONFM);
 
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
@@ -271,7 +271,7 @@ contract CallitConfig {
         // reset configs used in this contract
         LIB = ICallitLib(ADDR_LIB);
         CALL = ICallitToken(ADDR_CALL);
-        CONFM = ICallitConfigMarket(ADDR_CONFM);
+        CONFM = ICallitMarket(ADDR_CONFM);
     }
     function KEEPER_setPercFees(uint16 _percMaker, uint16 _percPromo, uint16 _percArbExe, uint16 _percMarkClose, uint16 _percPrizeVoters, uint16 _percVoterClaim, uint16 _perWinnerClaim, uint16 _percPromoClaim) external onlyKeeper {
         // no 2 percs taken out of market close

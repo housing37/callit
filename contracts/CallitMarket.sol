@@ -32,7 +32,7 @@ interface ICallitToken {
 //     function decimals() external pure returns (uint8);
 //     function approve(address spender, uint256 value) external returns (bool);
 // }
-contract CallitConfigMarket {
+contract CallitMarket {
     /* -------------------------------------------------------- */
     /* GLOBALS (STORAGE)
     /* -------------------------------------------------------- */

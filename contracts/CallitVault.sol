@@ -42,7 +42,7 @@ contract CallitVault {
     string public constant tVERSION = '0.52';  
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
-    ICallitConfigMarket private CONFM; // set via CONF_setConfig
+    ICallitMarket private CONFM; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
 
     /* -------------------------------------------------------- */
@@ -96,7 +96,7 @@ contract CallitVault {
         require(_conf != address(0), ' !addy :< ');
         ADDR_CONFIG = _conf;
         CONF = ICallitConfig(_conf);
-        CONFM = ICallitConfigMarket(CONF.ADDR_CONFM());
+        CONFM = ICallitMarket(CONF.ADDR_CONFM());
         LIB = ICallitLib(CONF.ADDR_LIB());
     }
 

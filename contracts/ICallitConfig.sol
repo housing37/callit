@@ -9,7 +9,7 @@ interface ICallitVoter {
     function moveMarketVoteToPaid(address _sender, uint64 _idxMove, ICallitLib.MARKET_VOTE calldata _m_vote) external;
     function getMarketVotesForAcct(address _account, bool _paid) external view returns(ICallitLib.MARKET_VOTE[] memory);
 }
-interface ICallitConfigMarket {
+interface ICallitMarket {
     // vault migration
     function ACCOUNTS(uint256 _idx) external view returns(address); // public w/ public getter
     function ACCT_USD_BALANCES(address _key) external view returns(uint64); // public

@@ -41,7 +41,7 @@ contract CallitDelegate {
     string public constant tVERSION = '0.49';
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
-    ICallitConfigMarket private CONFM; // set via CONF_setConfig
+    ICallitMarket private CONFM; // set via CONF_setConfig
     ICallitVoter private VOTER; // set via CONF_setConfig
     ICallitLib private LIB;     // set via CONF_setConfig
     ICallitVault private VAULT; // set via CONF_setConfig
@@ -90,7 +90,7 @@ contract CallitDelegate {
         require(_conf != address(0), ' !addy :<> ');
         ADDR_CONFIG = _conf;
         CONF = ICallitConfig(_conf);
-        CONFM = ICallitConfigMarket(CONF.ADDR_CONFM());
+        CONFM = ICallitMarket(CONF.ADDR_CONFM());
         VOTER = ICallitVoter(CONF.ADDR_VOTER());
         LIB = ICallitLib(CONF.ADDR_LIB());
         VAULT = ICallitVault(CONF.ADDR_VAULT()); // set via CONF_setConfig
