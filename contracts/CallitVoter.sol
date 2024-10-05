@@ -162,10 +162,14 @@ contract CallitVoter {
         //      resultOptionTokens for the market (markHash) that the EOAs voted on,
         //      and retrieve the ticket address that _senderTicketHash references 
 
+        // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
+        ICallitLib.MARKET memory mark = CONFM.getMarketForHash(_markHash);
+        require(mark.marketUsdAmnts.usdAmntPrizePool > 0, ' calls not closed yet :/ ');
+        require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
+
         // get ticket address from _senderTicketHash
         //  loop through all tickets in _markHash
         //   find ticket where hash(msg.sender-voter-hash + ticket) == _senderTicketHash
-        ICallitLib.MARKET memory mark = CONFM.getMarketForHash(_markHash);
         address ticket;
         uint16 tickIdx;
         for (uint8 i=0; i < mark.marketResults.resultOptionTokens.length;){
@@ -189,10 +193,6 @@ contract CallitVoter {
         //  - vote count = uint(EARNED_CALL_VOTES[msg.sender])
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
         //  - store vote in struct MARKET_VOTE and push to ACCT_MARKET_VOTES
-
-        // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
-        // (, uint16 tickIdx,) = CONFM._getMarketForTicket(ticket); // reverts if market not found | address(0)
-        require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
 
         //  - verify msg.sender is NOT this market's maker or caller (ie. no self voting)
         (bool is_maker, bool is_caller) = LIB._addressIsMarketMakerOrCaller(_sender, mark.maker, mark.marketResults.resultOptionTokens);

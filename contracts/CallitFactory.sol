@@ -364,8 +364,6 @@ contract CallitFactory {
     }
     function castVoteForMarketTicket(address _senderTicketHash, address _markHash) external { // NOTE: !_deductFeePerc; reward mint
         require(_senderTicketHash != address(0) && _markHash != address(0), ' invalid hash :-{=} ');
-        ICallitLib.MARKET memory mark = CONFM.getMarketForHash(_markHash); // validates _markHash exists
-        require(mark.marketUsdAmnts.usdAmntPrizePool > 0, ' calls not closed yet :/ ');
         VOTER.castVoteForMarketTicket(msg.sender, _senderTicketHash, _markHash);
 
         // mint $CALL token reward to msg.sender
