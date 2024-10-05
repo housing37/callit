@@ -42,7 +42,7 @@ interface ICallitLib {
     }
     struct MARKET_USD_AMNTS {
         uint64 usdAmntLP; // total usd provided by maker (will be split amount 'resultOptionTokens')
-        uint64 usdAmntPrizePool; // default 0, until market voting ends
+        uint64 usdAmntPrizePool; // default 0, until market calls ends
         uint64 usdAmntPrizePool_net; // default 0, until market voting ends
         uint64 usdVoterRewardPool; // default 0, until close market calc
         uint64 usdRewardPerVote; // default 0, until close mark calc

@@ -121,25 +121,27 @@ FORMAT: readable ... CallitToken => 6631 bytes _ limits: 24576 bytes & 49152 byt
 
 ## CallitFactory.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitFactory => 19435 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitFactory => 20831 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
-    "0xe0199969": "ACCT_MARKET_REVIEWS(address,uint256)" -> "['address', 'bool', 'address', 'uint256', 'uint64', 'uint64']",
     "0x70c07591": "ADDR_CONFIG()" -> "['address']",
     "0x5abb3764": "CONF_setConfig(address)" -> "[]",
     "0x72dc3b3f": "KEEPER_maintenance(address,uint256)" -> "[]",
-    "0x68f38bd1": "TICKET_MAKERS(address)" -> "['address']",
     "0x5a505989": "buyCallTicketWithPromoCode(address,address,uint64)" -> "[]",
-    "0x06bfc575": "castVoteForMarketTicket(address)" -> "[]",
+    "0x36ed4673": "castVoteForMarketTicket(address,address)" -> "[]",
     "0xd16aca12": "claimTicketRewards(address,bool)" -> "[]",
     "0xe41356f3": "claimVoterRewards()" -> "[]",
     "0x00fa1b81": "closeMarketCallsForTicket(address)" -> "[]",
     "0x8be58395": "closeMarketForTicket(address)" -> "[]",
     "0xb12524d6": "exeArbPriceParityForTicket(address)" -> "[]",
     "0xde1bc55f": "getMarketCntForMakerOrCategory(address,string)" -> "['uint256']",
+    "0x66c2a7cc": "getMarketForHash(address)" -> "['tuple']",
+    "0x7b668032": "getMarketForTicket(address)" -> "['tuple']",
     "0x72a77e1a": "getMarketHashesForMakerOrCategory(string,address,bool,bool,uint8,uint8)" -> "['address[]']",
     "0xd8ddf058": "getMarketsForMakerOrCategory(string,address,bool,bool,uint8,uint8)" -> "['tuple[]']",
+    "0xd09d1d06": "getPromosForAcct(address)" -> "['tuple[]']",
     "0xce448595": "makeNewMarket(string,uint64,uint256,uint256,uint256,string[],string[])" -> "[]",
+    "0x4a9d2f0a": "setAcctHandle(string)" -> "[]",
     "0xcb73f3ee": "setMarketInfo(address,string,string,string)" -> "[]",
     "0x9a60f330": "tVERSION()" -> "['string']",
 }
