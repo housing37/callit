@@ -33,7 +33,7 @@ contract CallitVoter {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.1';
+    string public tVERSION = '0.3';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -165,7 +165,7 @@ contract CallitVoter {
         // get MARKET & idx for _ticket & validate vote time started (NOTE: MAX_EOA_MARKETS is uint64)
         ICallitLib.MARKET memory mark = CONFM.getMarketForHash(_markHash);
         require(mark.marketUsdAmnts.usdAmntPrizePool > 0, ' calls not closed yet :/ ');
-        require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' inactive market voting :p ');
+        require(mark.marketDatetimes.dtResultVoteStart <= block.timestamp && mark.marketDatetimes.dtResultVoteEnd > block.timestamp, ' not time to vote :p ');
 
         // get ticket address from _senderTicketHash
         //  loop through all tickets in _markHash
