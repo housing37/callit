@@ -234,7 +234,7 @@ contract CallitVault {
         //  mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
         //  deduct fees and pay _arbExecuter (_sender)
         (uint64 tokensToMint, uint64 total_usd_cost) = _performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _sender);
-        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = _performTicketMintedDexSell(mark, tickIdx, tokensToMint, total_usd_cost, _sender);
+        (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = _performTicketMintedDexSell(mark, tickIdx, tokensToMint, total_usd_cost, _sender); // _deductFeePerc
         return (ticketTargetPriceUSD, tokensToMint, total_usd_cost, gross_stab_amnt_out, net_usd_profits);
     }
     function _payPromotorDeductFeesBuyTicket(uint16 _percReward, uint64 _usdAmnt, address _promotor, address _promoCodeHash, address _ticket, address _tick_stable_tok, address _sender) external onlyFactory returns(uint64, uint256) {

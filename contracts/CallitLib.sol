@@ -332,6 +332,12 @@ library CallitLib {
         address generatedAddress = address(uint160(uint256(hash)));
         return generatedAddress;
     }
+    // function _perc_of_uint64(uint32 _perc, uint64 _num) public pure returns (uint64) {
+    //     require(_perc <= 10000, 'err: invalid percent');
+    //     uint64 perc_scaled = uint64(_perc) * 100; // safe scaling before multiplication
+    //     require(perc_scaled <= type(uint64).max / _num, 'err: overflow risk');
+    //     return (_num * perc_scaled) / 1000000;
+    // }
     function _perc_of_uint64(uint32 _perc, uint64 _num) public pure returns (uint64) {
         require(_perc <= 10000, 'err: invalid percent');
         // return _perc_of_uint64_unchecked(_perc, _num);

@@ -2,7 +2,7 @@
 
 ## CallitLib.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitLib => 8759 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitLib => 10465 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0xfa4a9870": "TOK_WPLS()" -> "['address']",
@@ -11,6 +11,7 @@ FORMAT: readable ... CallitLib => 8759 bytes _ limits: 24576 bytes & 49152 bytes
     "0xfebd642b": "_best_swap_v2_router_idx_quote(address[],uint256,address[])" -> "['uint8', 'uint256']",
     "0xc80bad13": "_calculateTokensToMint(address,uint256)" -> "['uint256']",
     "0x7403eac9": "_deductFeePerc(uint64,uint16,uint64)" -> "['uint64']",
+    "0xc3a300a3": "_genTokenNameSymbol(address,uint256,uint16,string,string)" -> "['string', 'string']",
     "0x19d50305": "_generateAddressHash(address,string)" -> "['address']",
     "0x277d195d": "_getAmountsForInitLP(uint256,uint256,uint32)" -> "['uint64', 'uint256']",
     "0x895e0b50": "_getCallTicketUsdTargetPrice(tuple,uint16,uint64,uint8)" -> "['uint64']",
@@ -18,7 +19,6 @@ FORMAT: readable ... CallitLib => 8759 bytes _ limits: 24576 bytes & 49152 bytes
     "0xf56276b5": "_getStableTokenLowMarketValue(address[],address[])" -> "['address']",
     "0x9aa304b2": "_getWinningVoteIdxForMarket(uint64[])" -> "['uint16']",
     "0xa8509565": "_isAddressInArray(address,address[])" -> "['bool']",
-    "0x4674c24f": "_logMarketResultReview(address,uint256,tuple[],bool)" -> "['tuple', 'uint64', 'uint64']",
     "0x19db68d9": "_normalizeStableAmnt(uint8,uint256,uint8)" -> "['uint256']",
     "0x0995e7bf": "_perc_of_uint64(uint32,uint64)" -> "['uint64']",
     "0xc8c25894": "_perc_of_uint64_unchecked(uint32,uint64)" -> "['uint64']",
@@ -26,7 +26,9 @@ FORMAT: readable ... CallitLib => 8759 bytes _ limits: 24576 bytes & 49152 bytes
     "0x466816b3": "_remAddressFromArray(address,address[])" -> "['address[]']",
     "0xd39fdbb7": "_uint64_from_uint256(uint256)" -> "['uint64']",
     "0x2e440bcd": "_validNonWhiteSpaceString(string)" -> "['bool']",
-    "0x0dc5fd07": "_validVoteCount(uint64,uint64,uint256,uint256)" -> "['uint64']",
+    "0x12d898ca": "genMarketResultReview(address,tuple,tuple[],bool)" -> "['tuple']",
+    "0xe9b57944": "getValidVoteCount(uint64,uint32,uint64,uint256,uint256)" -> "['uint64']",
+    "0xa67cd60c": "grossStableBalance(address[],address,uint8)" -> "['uint64']",
     "0x9a60f330": "tVERSION()" -> "['string']",
 }
 
