@@ -4,8 +4,10 @@ cStrDivider = '#================================================================
 print('', cStrDivider, f'GO _ {__filename} -> starting IMPORTs & declaring globals', cStrDivider, sep='\n')
 cStrDivider_1 = '#----------------------------------------------------------------#'
 
-import json
+import json, sys
 import _web3 # from web3 import Account, Web3, HTTPProvider
+from datetime import datetime
+DEBUG_LEVEL = 0
 w3 = None
 W3_ = None
 ABI_FILE = None
@@ -95,26 +97,87 @@ def calculate_bytecode_size(bin_file_path):
     # print(f"Bytecode size: {bytecode_size} bytes")
     return bytecode_size
 
-# Example usage
-# bin_file_path = 'YourContract.bin'  # Replace with the path to your .bin file
+#------------------------------------------------------------#
+#   DEFAULT SUPPORT                                          #
+#------------------------------------------------------------#
+READ_ME = f'''
+    *DESCRIPTION*
+        invoke any contract functions
+         utilizes function hashes instead of contract ABI
 
+    *NOTE* INPUT PARAMS...
+        nil
+        
+    *EXAMPLE EXECUTION*
+        $ python3 {__filename} -<nil> <nil>
+        $ python3 {__filename}
+'''
 
-# Example usage
-contr_name = init_web3()
-lst_form_abi, lst_form_print = get_function_details(ABI_FILE, contr_name)
-bytecode_size = calculate_bytecode_size(BIN_FILE)
+#ref: https://stackoverflow.com/a/1278740/2298002
+def print_except(e, debugLvl=0):
+    #print(type(e), e.args, e)
+    if debugLvl >= 0:
+        print('', cStrDivider, f' Exception Caught _ e: {e}', cStrDivider, sep='\n')
+    if debugLvl >= 1:
+        print('', cStrDivider, f' Exception Caught _ type(e): {type(e)}', cStrDivider, sep='\n')
+    if debugLvl >= 2:
+        print('', cStrDivider, f' Exception Caught _ e.args: {e.args}', cStrDivider, sep='\n')
+    if debugLvl >= 3:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        strTrace = traceback.format_exc()
+        print('', cStrDivider, f' type: {exc_type}', f' file: {fname}', f' line_no: {exc_tb.tb_lineno}', f' traceback: {strTrace}', cStrDivider, sep='\n')
 
-# // ref: https://ethereum.org/en/history
-# //  code size limit = 24576 bytes (a limit introduced in Spurious Dragon _ 2016)
-# //  code size limit = 49152 bytes (a limit introduced in Shanghai _ 2023)
-str_limits = f"limits: 24576 bytes & 49152 bytes"
-print("",cStrDivider_1, f"FORMAT: _abi.py ... {contr_name} => {bytecode_size} bytes _ {str_limits}", cStrDivider_1, sep='\n')
-print("{", *lst_form_abi, "}", sep='\n')
-print("",cStrDivider_1, f"FORMAT: readable ... {contr_name} => {bytecode_size} bytes _ {str_limits}", cStrDivider_1, sep='\n')
-print("{", *lst_form_print, "}", sep='\n')
-print("",cStrDivider_1, f"all compiled file sizes in LST_CONTR_ABI_BIN _ {str_limits}", cStrDivider_1, sep='\n')
-for s in LST_CONTR_ABI_BIN:
-    bin_file_path = s + '.bin'
-    bytecode_size = calculate_bytecode_size(bin_file_path)
-    print(bytecode_size, bin_file_path)
-print(cStrDivider_1, cStrDivider_1, sep='\n')
+def wait_sleep(wait_sec : int, b_print=True, bp_one_line=True): # sleep 'wait_sec'
+    print(f'waiting... {wait_sec} sec')
+    for s in range(wait_sec, 0, -1):
+        if b_print and bp_one_line: print(wait_sec-s+1, end=' ', flush=True)
+        if b_print and not bp_one_line: print('wait ', s, sep='', end='\n')
+        time.sleep(1)
+    if bp_one_line and b_print: print() # line break if needed
+    print(f'waiting... {wait_sec} sec _ DONE')
+
+def get_time_now(dt=True):
+    if dt: return '['+datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[0:-4]+']'
+    return '['+datetime.now().strftime("%H:%M:%S.%f")[0:-4]+']'
+
+def read_cli_args():
+    print(f'\nread_cli_args...\n # of args: {len(sys.argv)}\n argv lst: {str(sys.argv)}')
+    for idx, val in enumerate(sys.argv): print(f' argv[{idx}]: {val}')
+    print('read_cli_args _ DONE\n')
+    return sys.argv, len(sys.argv)
+
+if __name__ == "__main__":
+    ## start ##
+    RUN_TIME_START = get_time_now()
+    print(f'\n\nRUN_TIME_START: {RUN_TIME_START}\n'+READ_ME)
+    lst_argv_OG, argv_cnt = read_cli_args()
+
+    ## exe ##
+    try:
+        contr_name = init_web3()
+        lst_form_abi, lst_form_print = get_function_details(ABI_FILE, contr_name)
+        bytecode_size = calculate_bytecode_size(BIN_FILE)
+
+        # // ref: https://ethereum.org/en/history
+        # //  code size limit = 24576 bytes (a limit introduced in Spurious Dragon _ 2016)
+        # //  code size limit = 49152 bytes (a limit introduced in Shanghai _ 2023)
+        str_limits = f"limits: 24576 bytes & 49152 bytes"
+        print("",cStrDivider_1, f"FORMAT: _abi.py ... {contr_name} => {bytecode_size} bytes _ {str_limits}", cStrDivider_1, sep='\n')
+        print("{", *lst_form_abi, "}", sep='\n')
+        print("",cStrDivider_1, f"FORMAT: readable ... {contr_name} => {bytecode_size} bytes _ {str_limits}", cStrDivider_1, sep='\n')
+        print("{", *lst_form_print, "}", sep='\n')
+        print("",cStrDivider_1, f"all compiled file sizes in LST_CONTR_ABI_BIN _ {str_limits}", cStrDivider_1, sep='\n')
+        for s in LST_CONTR_ABI_BIN:
+            bin_file_path = s + '.bin'
+            bytecode_size = calculate_bytecode_size(bin_file_path)
+            print(bytecode_size, bin_file_path)
+        print(cStrDivider_1, cStrDivider_1, sep='\n')
+
+    except Exception as e:
+        print_except(e, debugLvl=DEBUG_LEVEL)
+    
+    ## end ##
+    print(f'\n\nRUN_TIME_START: {RUN_TIME_START}\nRUN_TIME_END:   {get_time_now()}\n')
+
+print('', cStrDivider, f'# END _ {__filename}', cStrDivider, sep='\n')
