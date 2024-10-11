@@ -22,7 +22,7 @@ interface IERC20x {
 library CallitLib {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
-    string public constant tVERSION = '0.32'; 
+    string public constant tVERSION = '0.33';  
     event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */
@@ -343,7 +343,8 @@ library CallitLib {
     //     require(perc_scaled <= type(uint64).max / _num, 'err: overflow risk');
     //     return (_num * perc_scaled) / 1000000;
     // }
-    function _perc_of_uint64(uint32 _perc, uint64 _num) public pure returns (uint64) {
+    // function _perc_of_uint64(uint32 _perc, uint64 _num) public pure returns (uint64) {
+    function _perc_of_uint64(uint16 _perc, uint64 _num) public pure returns (uint64) {
         require(_perc <= 10000, 'err: invalid percent');
         // return _perc_of_uint64_unchecked(_perc, _num);
         return (_num * uint64(_perc * 100)) / 1000000; // chatGPT equation
