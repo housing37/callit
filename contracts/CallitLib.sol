@@ -254,10 +254,15 @@ library CallitLib {
 
         return _uint64_from_uint256(percentage); // Returns the percentage in basis points (e.g., 500 = 5%)
     }
-    // note: migrate to CallitLib
+    // function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) external pure returns(uint64) {
+    //     require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
+    //     return _net_usdAmnt - _perc_of_uint64(_feePerc, _usdAmnt);
+    // }
     function _deductFeePerc(uint64 _net_usdAmnt, uint16 _feePerc, uint64 _usdAmnt) external pure returns(uint64) {
         require(_feePerc <= 10000, ' invalid fee perc :p '); // 10000 = 100.00%
-        return _net_usdAmnt - _perc_of_uint64(_feePerc, _usdAmnt);
+        uint64 usd_perc = (_usdAmnt * uint64(_feePerc * 100)) / 1000000; // chatGPT equation
+        require(_net_usdAmnt >= usd_perc, ' bad perc calc :-/ ');
+        return _net_usdAmnt - usd_perc;
     }
     function _isAddressInArray(address _addr, address[] memory _addrArr) external pure returns(bool) {
         for (uint8 i = 0; i < _addrArr.length;){ // max array size = 255 (uin8 loop)
