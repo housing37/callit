@@ -68,7 +68,7 @@
         0x0000000000000000000000000000000000000000
     #-----------------------------------------------------------------------------------------------------------#
     #-----------------------------------------------------------------------------------------------------------#
-    address public ADDR_LIB = address(0xb053888ba4c42e10e1Fc29fD8B1B9B40C04B438C); // CallitLib v0.33
+    address public ADDR_LIB = address(0x96abd4aad1F2d0d22d3c5B26AFeD80affA10663F); // CallitLib v0.34
     address public ADDR_VAULT = address(0xbD161ED28a24AB6F6dB35Cf6CF0A4363d4A09CC1); // CallitVault v0.54
     address public ADDR_DELEGATE = address(0xe7A20DF5bda3f435122EC66024e2A5AAB3DF4045); // CallitDelegate v0.51
     address public ADDR_CALL = address(0x200F9C731c72Dce8974B28B52d39c20381efb37e); // CallitToken v0.21
