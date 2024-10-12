@@ -410,7 +410,9 @@ contract CallitFactory {
         uint64 usdAmntPrizePool_net_ = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool;
         uint64 usdMarkCloseFee = LIB._perc_of_uint64(CONF.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool);
         mark.marketUsdAmnts.usdAmntPrizePool_net = usdAmntPrizePool_net_ - usdMarkCloseFee; // NOTE: write to market
-        
+            // latest... 101124: still doesn't fucking work ^ w/ same enum error as below
+            //  BUT... the LIB._perc_of_uint64 above it, works just fucking fine!!!
+
             // LEFT OFF HERE .. latest failed here with enum error
             //  0x4e487b710000000000000000000000000000000000000000000000000000000000000012
             //  Panic errors use the selector 0x4e487b71 and the following codes:
