@@ -60,7 +60,7 @@ contract CallitFactory {
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
     
     /* GLOBALS (CALLIT) */
-    string public tVERSION = '0.73';  
+    string public tVERSION = '0.74';
     bool private FIRST_ = true;
     address public ADDR_CONFIG; // set via CONF_setConfig
     ICallitConfig private CONF; // set via CONF_setConfig
@@ -409,9 +409,14 @@ contract CallitFactory {
         // mark.marketUsdAmnts.usdAmntPrizePool_net = LIB._deductFeePerc(usdAmntPrizePool_net_, CONF.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool); // NOTE: write to market
         uint64 usdAmntPrizePool_net_ = mark.marketUsdAmnts.usdAmntPrizePool - mark.marketUsdAmnts.usdVoterRewardPool;
         uint64 usdMarkCloseFee = LIB._perc_of_uint64(CONF.PERC_MARKET_CLOSE_FEE(), mark.marketUsdAmnts.usdAmntPrizePool);
+        LIB.debug_log_uint(msg.sender, 8, 16, 32, usdAmntPrizePool_net_, 256);
+        LIB.debug_log_uint(msg.sender, 8, 16, 32, usdMarkCloseFee, 256);
+        
         mark.marketUsdAmnts.usdAmntPrizePool_net = usdAmntPrizePool_net_ - usdMarkCloseFee; // NOTE: write to market
+        LIB.debug_log_uint(msg.sender, 8, 16, 32, mark.marketUsdAmnts.usdAmntPrizePool_net, 256);
             // latest... 101124: still doesn't fucking work ^ w/ same enum error as below
             //  BUT... the LIB._perc_of_uint64 above it, works just fucking fine!!!
+            //      and all inputs have confirmed to be exactly the same in the blockexplorer
 
             // LEFT OFF HERE .. latest failed here with enum error
             //  0x4e487b710000000000000000000000000000000000000000000000000000000000000012

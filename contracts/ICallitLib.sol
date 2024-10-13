@@ -81,6 +81,10 @@ interface ICallitLib {
         uint64 disagreeCnt;
         uint64 reviewCnt;
     }
+    function debug_log_uint(address _sender, uint8 _uint8, uint16 _uint16, uint32 _uint32, uint64 _uint64, uint256 _uint256) external pure;
+    function debug_log_addess(address _sender, address _address0, address _address1, address _address2) external pure;
+    function debug_log_string(address _sender, string calldata _string0, string calldata _string1, string calldata _string2) external pure;
+
     function grossStableBalance(address[] memory _stables, address _vault, uint8 _usd_decimals) external view returns (uint64);
 
     // note: only these used in CallitFactory ... (maybe less after CallitDelegate integration)    

@@ -22,12 +22,16 @@ interface IERC20x {
 library CallitLib {
     address public constant TOK_WPLS = address(0xA1077a294dDE1B09bB078844df40758a5D0f9a27);
     // address public constant BURN_ADDR = address(0x0000000000000000000000000000000000000369);
-    string public constant tVERSION = '0.34';
+    string public constant tVERSION = '0.35';
     event StepLog(string _descr, uint16 _step, string _data0, string _data1);
 
     /* -------------------------------------------------------- */
     /* PUBLIC
     /* -------------------------------------------------------- */
+    function debug_log_uint(address _sender, uint8 _uint8, uint16 _uint16, uint32 _uint32, uint64 _uint64, uint256 _uint256) external pure {}
+    function debug_log_addess(address _sender, address _address0, address _address1, address _address2) external pure {}
+    function debug_log_string(address _sender, string calldata _string0, string calldata _string1, string calldata _string2) external pure {}
+    
     function grossStableBalance(address[] memory _stables, address _vault, uint8 _usd_decimals) external view returns (uint64) {
         // NOTE: no onlyVault needed, anyone can call this function
         //  ie. simply gets a gross bal of whatever tokens & for whatever addy they want
