@@ -423,6 +423,9 @@ contract CallitFactory {
             //  Panic errors use the selector 0x4e487b71 and the following codes:
             //  0x12 – Invalid enum value (i.e., an enum has been assigned an invalid value).
             
+        // set private held VOTER. to public market's .resultTokenVotes for everyone to now see
+        mark.marketResults.resultTokenVotes = votes; // NOTE: write to market
+        
         // calc & save usd payout per vote ("usd per vote" = usd reward pool / total winning votes)
         mark.marketUsdAmnts.usdRewardPerVote = mark.marketUsdAmnts.usdVoterRewardPool / mark.marketResults.resultTokenVotes[mark.winningVoteResultIdx]; // NOTE: write to market
 

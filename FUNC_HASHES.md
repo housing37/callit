@@ -2,7 +2,7 @@
 
 ## CallitLib.sol
 #----------------------------------------------------------------#
-FORMAT: readable ... CallitLib => 10465 bytes _ limits: 24576 bytes & 49152 bytes
+FORMAT: readable ... CallitLib => 10887 bytes _ limits: 24576 bytes & 49152 bytes
 #----------------------------------------------------------------#
 {
     "0xfa4a9870": "TOK_WPLS()" -> "['address']",
@@ -20,17 +20,21 @@ FORMAT: readable ... CallitLib => 10465 bytes _ limits: 24576 bytes & 49152 byte
     "0x9aa304b2": "_getWinningVoteIdxForMarket(uint64[])" -> "['uint16']",
     "0xa8509565": "_isAddressInArray(address,address[])" -> "['bool']",
     "0x19db68d9": "_normalizeStableAmnt(uint8,uint256,uint8)" -> "['uint256']",
-    "0x0995e7bf": "_perc_of_uint64(uint32,uint64)" -> "['uint64']",
+    "0x3972a5a9": "_perc_of_uint64(uint16,uint64)" -> "['uint64']",
     "0xc8c25894": "_perc_of_uint64_unchecked(uint32,uint64)" -> "['uint64']",
     "0x2a9c544c": "_perc_total_supply_owned(address,address)" -> "['uint64']",
     "0x466816b3": "_remAddressFromArray(address,address[])" -> "['address[]']",
     "0xd39fdbb7": "_uint64_from_uint256(uint256)" -> "['uint64']",
     "0x2e440bcd": "_validNonWhiteSpaceString(string)" -> "['bool']",
+    "0xf8c91e04": "debug_log_addess(address,address,address,address)" -> "[]",
+    "0x5645884e": "debug_log_string(address,string,string,string)" -> "[]",
+    "0x1307dd9c": "debug_log_uint(address,uint8,uint16,uint32,uint64,uint256)" -> "[]",
     "0x12d898ca": "genMarketResultReview(address,tuple,tuple[],bool)" -> "['tuple']",
     "0xe9b57944": "getValidVoteCount(uint64,uint32,uint64,uint256,uint256)" -> "['uint64']",
     "0xa67cd60c": "grossStableBalance(address[],address,uint8)" -> "['uint64']",
     "0x9a60f330": "tVERSION()" -> "['string']",
 }
+
 
 ## CallitVault.sol
 #----------------------------------------------------------------#
