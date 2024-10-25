@@ -1,0 +1,9 @@
+#-----------------------------------------------------------------------------------------------------------#
+address public ADDR_LIB = address(0x4eD1a93A1e3D26199a636C937c1f039068AA914e); // CallitLib v0.35
+address public ADDR_VAULT = address(0xbD161ED28a24AB6F6dB35Cf6CF0A4363d4A09CC1); // CallitVault v0.54
+address public ADDR_DELEGATE = address(0xe7A20DF5bda3f435122EC66024e2A5AAB3DF4045); // CallitDelegate v0.51
+address public ADDR_CALL = address(0x200F9C731c72Dce8974B28B52d39c20381efb37e); // CallitToken v0.21
+address public ADDR_FACT = address(0x3Cd4cB678E2f83483CdBdcb8377Fd1273Cd74A12); // CallitFactory v0.74
+address public ADDR_VOTER = address(0x01b5DC472bd537A95f5a51672902560610802d9c); // CallitVoter v0.3
+address public ADDR_CONFM = address(0x0718a6271A36D5cc9Fc9cE3e994A0A64F9611EC0); // CallitMarket v0.6
+address public ADDR_CONF = address(0xc5FB01Dea1e819bFcfF1690a2ffA493fDfeFae32); // CallitConfig v0.23
