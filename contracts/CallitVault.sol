@@ -225,7 +225,7 @@ contract CallitVault {
 
     //     // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     // }
-    function deposit(address _depositor, address _altToken, uint256 _altAmnt) public payable {
+    function deposit(address _depositor, address _altToken, uint256 _altAmnt) public payable returns(uint64) {
         address[] memory alt_stab_path = new address[](2);
         alt_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
         if (_altToken == address(0x0)) {
@@ -242,6 +242,8 @@ contract CallitVault {
         // emit DepositReceived(_depositor, _altAmnt, stableAmntOut);
         emit DepositReceived(_depositor, _altToken, _altAmnt, stableAmntOut);
         
+        return stableAmntOut;
+
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
     // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits

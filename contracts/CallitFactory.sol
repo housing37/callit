@@ -275,6 +275,8 @@ contract CallitFactory {
                             string[] calldata _resultLabels, 
                             string[] calldata _resultDescrs
                             ) external {
+        // calc usd amnt needed for creating LPs (+ check if curr acct balance can cover it)
+        //  note: if alt token == 0x0, then proceed w/o alt token deposit (attempt w/ curr acct balance)
         uint64 _usdAmntLP = LIB._uint64_from_uint256(CONF.RATIO_LP_USD_PER_TICK() * _resultLabels.length);
         uint64 curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
         if (curr_bal < _usdAmntLP && _altTokSpend != address(0x0)) {
@@ -286,6 +288,9 @@ contract CallitFactory {
             curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
         }
         require(curr_bal >= _usdAmntLP, ' need more liquidity! :{=} ');
+
+        // NOTE: the above check for curr acct balance covered 
+        //  may mean that we can remove this check in DELEGATE.makeNewMarket
 
         // // _usdAmntLP = 0, triggers: set total LP = $1 * (# of result options), w/o needing to change ABI | function signature
         // //  note: _usdAmntLP acct balance check in DELEGATE.makeNewMarket
@@ -309,11 +314,25 @@ contract CallitFactory {
 
         // NOTE: market maker is minted $CALL in 'closeMarketForTicket'
     }   
-    function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
+    // function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
+    function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _altTokSpend, uint256 _altAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt                            
         require(_ticket != address(0), ' invalid _ticket :-{} ');
-        require(CONFM.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
+        // require(CONFM.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
-        // LEFT OFF HERE ... needs alt-coin deposit w/ approval integration (like makeNewMarket above)
+        // if sender provided a usd amnt, then simply use curr account balance
+        //  else, attempt alt token spend / deposit to account balance
+        uint64 curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
+        if (_usdAmnt == 0) { // use alt token
+            require(_altTokSpend != address(0x0), ' alt tok required :/ ');
+
+            // get alt tokens from sender EOA (fails/reverts if EOA doesn't do approval first)
+            //  then perform swap from alt to stable & store in vault
+            //  then set usd deposit amnt to usd amnt input var & get sender's new acct balance
+            IERC20(_altTokSpend).transferFrom(msg.sender, address(this), _altAmnt);
+            _usdAmnt = VAULT.deposit(msg.sender, _altTokSpend, _altAmnt);
+            curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
+        }
+        require(curr_bal >= _usdAmnt, ' low balance! ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
