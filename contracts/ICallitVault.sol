@@ -5,7 +5,8 @@ import "./ICallitLib.sol";
 interface ICallitVault {
     function payPromoUsdReward(address _sender, address _promoCodeHash, uint64 _usdReward, address _receiver) external returns(uint64);
     function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, address _sender) external returns(uint64, uint64, uint64, uint64, uint64);
-    function deposit(address _depositor) external payable;
+    // function deposit(address _depositor) external payable;
+    function deposit(address _depositor, address _altToken, uint256 _altAmnt) external payable;
     
     // NOTE: legacy private (now public)
     function _usd_decimals() external pure returns (uint8);

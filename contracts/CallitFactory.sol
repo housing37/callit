@@ -23,6 +23,7 @@ interface IERC20 {
     function totalSupply() external view returns (uint256);
     function balanceOf(address account) external returns(uint256);
     function transfer(address to, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
 }
 interface ICallitToken {
     // function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
@@ -241,7 +242,8 @@ contract CallitFactory {
     fallback() external payable {
         // handle contract USD value deposits (convert PLS to USD stable)
         // fwd any PLS recieved to VAULT (convert to USD stable & process deposit)
-        VAULT.deposit{value: msg.value}(msg.sender);
+        // VAULT.deposit{value: msg.value}(msg.sender);
+        VAULT.deposit(msg.sender, address(0x0), msg.value);
         // NOTE: at this point, the vault has the deposited stable and the vault has stored accont balances
         //  emit DepositReceived(msg.sender, amntIn, 0);
     }
@@ -264,17 +266,31 @@ contract CallitFactory {
     }
 
     function makeNewMarket(string calldata _name, // _deductFeePerc PERC_MARKET_MAKER_FEE from _usdAmntLP
-                            uint64 _usdAmntLP, 
+                            address _altTokSpend, // pass 0x0 to use native PLS w/ curent acct balance
+                            uint256 _altAmntLP,
+                            // uint64 _usdAmntLP, 
                             uint256 _dtCallDeadline, 
                             uint256 _dtResultVoteStart, 
                             uint256 _dtResultVoteEnd, 
                             string[] calldata _resultLabels, 
                             string[] calldata _resultDescrs
                             ) external {
-        // _usdAmntLP = 0, triggers: set total LP = $1 * (# of result options), w/o needing to change ABI | function signature
-        //  note: _usdAmntLP acct balance check in DELEGATE.makeNewMarket
-        if (_usdAmntLP == 0) _usdAmntLP = LIB._uint64_from_uint256(CONF.RATIO_LP_USD_PER_TICK() * _resultLabels.length);
-        else require(_usdAmntLP >= CONF.MIN_USD_MARK_LIQ(), ' need more liquidity! :{=} ');
+        uint64 _usdAmntLP = LIB._uint64_from_uint256(CONF.RATIO_LP_USD_PER_TICK() * _resultLabels.length);
+        uint64 curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
+        if (curr_bal < _usdAmntLP && _altTokSpend != address(0x0)) {
+            // get alt tokens from sender EOA (fails/reverts if EOA doesn't do approval first)
+            //  then perform swap from alt to stable & store in vault
+            //  then get sender's usd balance & verify enough for min liquidity required
+            IERC20(_altTokSpend).transferFrom(msg.sender, address(this), _altAmntLP);
+            VAULT.deposit(msg.sender, _altTokSpend, _altAmntLP);
+            curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
+        }
+        require(curr_bal >= _usdAmntLP, ' need more liquidity! :{=} ');
+
+        // // _usdAmntLP = 0, triggers: set total LP = $1 * (# of result options), w/o needing to change ABI | function signature
+        // //  note: _usdAmntLP acct balance check in DELEGATE.makeNewMarket
+        // if (_usdAmntLP == 0) _usdAmntLP = LIB._uint64_from_uint256(CONF.RATIO_LP_USD_PER_TICK() * _resultLabels.length);
+        // else require(_usdAmntLP >= CONF.MIN_USD_MARK_LIQ(), ' need more liquidity! :{=} ');
         require(2 <= _resultLabels.length && _resultLabels.length <= CONF.MAX_RESULTS() && _resultLabels.length == _resultDescrs.length, ' bad results count :( ');
 
         // initilize/validate market number for struct MARKET tracking
@@ -296,6 +312,8 @@ contract CallitFactory {
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
         require(_ticket != address(0), ' invalid _ticket :-{} ');
         require(CONFM.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
+
+        // LEFT OFF HERE ... needs alt-coin deposit w/ approval integration (like makeNewMarket above)
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
@@ -320,6 +338,8 @@ contract CallitFactory {
     }
     function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
         require(_ticket != address(0), ' invalid _ticket :-{} ');
+
+        // LEFT OFF HERE ... needs alt-coin deposit w/ approval integration (like makeNewMarket above)
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)

@@ -62,7 +62,8 @@ contract CallitVault {
     /* -------------------------------------------------------- */
     /* EVENTS
     /* -------------------------------------------------------- */
-    event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
+    // event DepositReceived(address _account, uint256 _plsDeposit, uint64 _stableConvert);
+    event DepositReceived(address _account, address _depositToken, uint256 _depositAmnt, uint64 _stableConvert);
     event AlertStableSwap(uint256 _tickStableReq, uint256 _contrStableBal, address _swapFromStab, address _swapToTickStab, uint256 _tickStabAmntNeeded, uint256 _swapAmountOut);
     event AlertZeroReward(address _sender, uint64 _usdReward, address _receiver);
     event PromoRewardLogged(address _promoCodeHash, uint64 _usdRewardPaid, address _promotor, address _buyer, address _ticket);
@@ -123,12 +124,12 @@ contract CallitVault {
     }
     function KEEPER_maintenance(address _erc20, uint256 _amount) external onlyKeeper() {
         if (_erc20 == address(0)) { // _erc20 not found: tranfer native PLS instead
-            require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
+            // require(address(this).balance >= _amount, " Insufficient native PLS balance :[ ");
             payable(CONF.KEEPER()).transfer(_amount); // cast to a 'payable' address to receive ETH
             // emit KeeperWithdrawel(_amount);
         } else { // found _erc20: transfer ERC20
             //  NOTE: _amount must be in uint precision to _erc20.decimals()
-            require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
+            // require(IERC20(_erc20).balanceOf(address(this)) >= _amount, ' not enough amount for token :O ');
             IERC20(_erc20).transfer(CONF.KEEPER(), _amount);
             // emit KeeperMaintenance(_erc20, _amount);
         }
@@ -178,7 +179,8 @@ contract CallitVault {
     */
     // invoked if function invoked doesn't exist OR no receive() implemented & ETH received w/o data
     fallback() external payable {
-        deposit(msg.sender); // emit DepositReceived
+        // deposit(msg.sender); // emit DepositReceived
+        deposit(msg.sender, address(0x0), msg.value); // perform swap from PLS to stable & update CONFM acct balance
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
     
@@ -196,31 +198,50 @@ contract CallitVault {
     //     // extract PLS value sent
     //     uint256 amntIn = msg.value;
     // }
-    function deposit(address _depositor) public payable {
-        // address _depositor = msg.sender;
-        uint256 msgValue = msg.value;
+    // function deposit(address _depositor) public payable {
+    //     // address _depositor = msg.sender;
+    //     uint256 msgValue = msg.value;
 
-        // perform swap from PLS to stable & send to vault
-        // address[2] memory pls_stab_path_x = [TOK_WPLS, CONF.DEPOSIT_USD_STABLE()];
-        address[] memory pls_stab_path = new address[](2);
-        pls_stab_path[0] = TOK_WPLS; // note: WPLS required for 'swapExactETHForTokens'
-        pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
-        IUniswapV2Router02 swapRouter = IUniswapV2Router02(CONF.DEPOSIT_ROUTER());
-        uint256[] memory amountsOut = swapRouter.getAmountsOut(msgValue, pls_stab_path); // quote swap
-        IERC20(address(pls_stab_path[0])).approve(address(swapRouter), msgValue);
-        uint[] memory amntOut = swapRouter.swapExactETHForTokens{value: msgValue}(
-                                    amountsOut[amountsOut.length -1],
-                                    pls_stab_path, //address[] calldata path,
-                                    address(this), // to (receiver)
-                                    block.timestamp + 300
-                                );
-        uint64 stableAmntOut = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(pls_stab_path[1]).decimals(), amntOut[amntOut.length - 1], _usd_decimals())); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
-        
-        // update account balance
+    //     // perform swap from PLS to stable & send to vault
+    //     // address[2] memory pls_stab_path_x = [TOK_WPLS, CONF.DEPOSIT_USD_STABLE()];
+    //     address[] memory pls_stab_path = new address[](2);
+    //     pls_stab_path[0] = TOK_WPLS; // note: WPLS required for 'swapExactETHForTokens'
+    //     pls_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+    //     IUniswapV2Router02 swapRouter = IUniswapV2Router02(CONF.DEPOSIT_ROUTER());
+    //     uint256[] memory amountsOut = swapRouter.getAmountsOut(msgValue, pls_stab_path); // quote swap
+    //     IERC20(address(pls_stab_path[0])).approve(address(swapRouter), msgValue);
+    //     uint[] memory amntOut = swapRouter.swapExactETHForTokens{value: msgValue}(
+    //                                 amountsOut[amountsOut.length -1],
+    //                                 pls_stab_path, //address[] calldata path,
+    //                                 address(this), // to (receiver)
+    //                                 block.timestamp + 300
+    //                             );
+    //     uint64 stableAmntOut = _norm_uint64_from_uint256(IERC20x(pls_stab_path[1]).decimals(), amntOut[amntOut.length - 1], _usd_decimals())); // idx 0=path[0].amntOut, 1=path[1].amntOut, etc.
+
+    //     // update account balance
+    //     CONFM.edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
+
+    //     emit DepositReceived(_depositor, msgValue, stableAmntOut);
+
+    //     // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
+    // }
+    function deposit(address _depositor, address _altToken, uint256 _altAmnt) public payable {
+        address[] memory alt_stab_path = new address[](2);
+        alt_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+        if (_altToken == address(0x0)) {
+            alt_stab_path[0] = TOK_WPLS; // note: WPLS required for 'swapExactETHForTokens'
+        } else {
+            alt_stab_path[0] = _altToken;
+        }
+
+        // perform swap from alt token to stable & log in CONFM.ACCT_USD_BALANCES (or from native PLS if _altToken == 0x0)
+        uint256 stable_amnt_out = _swap_v2_wrap(alt_stab_path, CONF.DEPOSIT_ROUTER(), _altAmnt, address(this), _altToken == address(0x0)); // 0x0 = true = fromETH        
+        uint64 stableAmntOut = _norm_uint64_from_uint256(IERC20x(alt_stab_path[1]).decimals(), stable_amnt_out, _usd_decimals());
         CONFM.edit_ACCT_USD_BALANCES(_depositor, stableAmntOut, true); // true = add
 
-        emit DepositReceived(_depositor, msgValue, stableAmntOut);
-
+        // emit DepositReceived(_depositor, _altAmnt, stableAmntOut);
+        emit DepositReceived(_depositor, _altToken, _altAmnt, stableAmntOut);
+        
         // NOTE: at this point, the vault has the deposited stable and the vault has stored account balances
     }
     // function exeArbPriceParityForTicket(ICallitLib.MARKET memory mark, uint16 tickIdx, uint64 _minUsdTargPrice, address _sender) external onlyFactory returns(uint64, uint64, uint64, uint64, uint64) { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
@@ -256,13 +277,13 @@ contract CallitVault {
         //  if not, swap another contract held stable that can indeed cover
         uint256 contr_stab_bal = IERC20(_tick_stable_tok).balanceOf(address(this)); 
         if (contr_stab_bal < net_usdAmnt) { // not enough tick_stable_tok to cover 'net_usdAmnt' buy
-            uint64 net_usdAmnt_needed = net_usdAmnt - _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_tick_stable_tok).decimals(), contr_stab_bal, _usd_decimals()));
+            uint64 net_usdAmnt_needed = net_usdAmnt - _norm_uint64_from_uint256(IERC20x(_tick_stable_tok).decimals(), contr_stab_bal, _usd_decimals());
             (uint256 stab_amnt_out, address stab_swap_from)  = _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
-            // _swapBestStableForTickStable(net_usdAmnt_needed, _tick_stable_tok);
+            
             emit AlertStableSwap(net_usdAmnt, contr_stab_bal, stab_swap_from, _tick_stable_tok, net_usdAmnt_needed, stab_amnt_out);
 
             // verify
-            require(IERC20(_tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
+            // require(IERC20(_tick_stable_tok).balanceOf(address(this)) >= net_usdAmnt, ' tick-stable swap failed :[] ' );
         }
 
         // swap remaining net_usdAmnt of tick_stable_tok for _ticket on DEX (_ticket receiver = _sender)
@@ -270,7 +291,8 @@ contract CallitVault {
         address[] memory usd_tick_path = new address[](2);
         usd_tick_path[0] = _tick_stable_tok;
         usd_tick_path[1] = _ticket; // NOTE: not swapping for 'this' contract
-        uint256 tick_amnt_out = _exeSwapTokForTok(net_usdAmnt, usd_tick_path, _sender, true); // buyer = _receiver // true = _fromUsdAcctBal
+        // uint256 tick_amnt_out = _exeSwapTokForTok(net_usdAmnt, usd_tick_path, _sender, true); // buyer = _receiver // true = _fromUsdAcctBal
+        uint256 tick_amnt_out = _exeSwapStabForTok_acctBal(net_usdAmnt, usd_tick_path, _sender); // buyer = _receiver // true = _fromUsdAcctBal
 
         // deduct full OG input _usdAmnt from account balance
         CONFM.edit_ACCT_USD_BALANCES(_sender, _usdAmnt, false); // false = sub
@@ -434,7 +456,7 @@ contract CallitVault {
     function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 _ticketTargetPriceUSD, address _arbExecuter) private returns(uint64,uint64) {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         uint256 _usdTickTargPrice_18 = _normalizeStableAmnt(_usd_decimals(), _ticketTargetPriceUSD, 18);
-        uint64 tokensToMint = _uint64_from_uint256(_normalizeStableAmnt(18, LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice_18), _usd_decimals()));
+        uint64 tokensToMint = _norm_uint64_from_uint256(18, LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice_18), _usd_decimals());
 
         // calc price to charge _arbExecuter for minting tokensToMint
         //  then deduct that amount from their account balance
@@ -466,8 +488,9 @@ contract CallitVault {
         // tok_stab_path[0] = _ticket;
         tok_stab_path[0] = _mark.marketResults.resultOptionTokens[_tickIdx];
         tok_stab_path[1] = _mark.marketResults.resultTokenUsdStables[_tickIdx];
-        uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _mark.marketResults.resultTokenRouters[_tickIdx]); // swap tick: use specific router tck:tick-stable
-        uint64 gross_stab_amnt_out = _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_mark.marketResults.resultTokenUsdStables[_tickIdx]).decimals(), usdAmntOut, _usd_decimals()));
+        // uint256 usdAmntOut = _exeSwapTokForStable_router(tokensToMint, tok_stab_path, address(this), _mark.marketResults.resultTokenRouters[_tickIdx]); // swap tick: use specific router tck:tick-stable
+        uint256 usdAmntOut = _swap_v2_wrap(tok_stab_path, _mark.marketResults.resultTokenRouters[_tickIdx], tokensToMint, address(this), false); // true = fromETH        
+        uint64 gross_stab_amnt_out = _norm_uint64_from_uint256(IERC20x(_mark.marketResults.resultTokenUsdStables[_tickIdx]).decimals(), usdAmntOut, _usd_decimals());
 
         // calc & send net profits to _arbExecuter
         //  NOTE: _arbExecuter gets all of 'gross_stab_amnt_out' (since the contract keeps total_usd_cost)
@@ -497,11 +520,17 @@ contract CallitVault {
             }
         }
     }
-    function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
+    function _norm_uint64_from_uint256(uint8 _fromDecimals, uint256 _usdAmnt, uint8 _toDecimals) private pure returns (uint64) {
+        uint256 value = _normalizeStableAmnt(_fromDecimals, _usdAmnt, _toDecimals);
         require(value <= type(uint64).max, "Value exceeds uint64 range");
         uint64 convertedValue = uint64(value);
         return convertedValue;
     }
+    // function _uint64_from_uint256(uint256 value) private pure returns (uint64) {
+    //     require(value <= type(uint64).max, "Value exceeds uint64 range");
+    //     uint64 convertedValue = uint64(value);
+    //     return convertedValue;
+    // }
     // // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) private {
     // function edit_ACCT_USD_BALANCES(address _acct, uint64 _usdAmnt, bool _add) public onlyFactory() {
     //     if (_add) {
@@ -517,7 +546,7 @@ contract CallitVault {
     //     for (uint8 i = 0; i < _stables.length;) {
     //         // NOTE: more efficient algorithm taking up less stack space with local vars
     //         require(IERC20x(_stables[i]).decimals() > 0, ' found stable with invalid decimals :/ ');
-    //         gross_bal += _uint64_from_uint256(_normalizeStableAmnt(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
+    //         gross_bal += _norm_uint64_from_uint256(IERC20x(_stables[i]).decimals(), IERC20(_stables[i]).balanceOf(address(this)), _usd_decimals()));
     //         unchecked {i++;}
     //     }
     //     return gross_bal;
@@ -568,40 +597,44 @@ contract CallitVault {
         address[] memory stab_stab_path = new address[](2);
         stab_stab_path[0] = highStableHeld;
         stab_stab_path[1] = _tickStable;
-        uint256 stab_amnt_out = _exeSwapTokForTok(_usdAmnt, stab_stab_path, address(this), true); // no tick: use best from USWAP_V2_ROUTERS
+        // uint256 stab_amnt_out = _exeSwapTokForTok(_usdAmnt, stab_stab_path, address(this), true); // no tick: use best from USWAP_V2_ROUTERS
+        uint256 stab_amnt_out = _exeSwapStabForTok_acctBal(_usdAmnt, stab_stab_path, address(this)); // no tick: use best from USWAP_V2_ROUTERS
+
         return (stab_amnt_out,highStableHeld);
     }
     // generic: gets best from USWAP_V2_ROUTERS to perform trade
-    function _exeSwapTokForTok(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver, bool _fromUsdAcctBal) private returns (uint256) {
+    // function _exeSwapTokForTok(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver, bool _fromUsdAcctBal) private returns (uint256) {
+    function _exeSwapStabForTok_acctBal(uint256 _tokAmntIn, address[] memory _swap_path, address _receiver) private returns (uint256) {
         // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
-        require(_swap_path[1] != address(this), ' !swap for this :p ');
+        // require(_swap_path[1] != address(this), ' !swap for this :p ');
         
-        if (_fromUsdAcctBal) { // required: _swap_path[0] must be a stable
-            _tokAmntIn = _normalizeStableAmnt(_usd_decimals(), _tokAmntIn, IERC20x(_swap_path[0]).decimals());
-        }
+        // if (_fromUsdAcctBal) { // required: _swap_path[0] must be a stable
+        //     _tokAmntIn = _normalizeStableAmnt(_usd_decimals(), _tokAmntIn, IERC20x(_swap_path[0]).decimals());
+        // }
+        _tokAmntIn = _normalizeStableAmnt(_usd_decimals(), _tokAmntIn, IERC20x(_swap_path[0]).decimals());
         // (,, address[] memory routers) = CONF.getDexAddies();
         (uint8 rtrIdx,) = LIB._best_swap_v2_router_idx_quote(_swap_path, _tokAmntIn, CONF.get_USWAP_V2_ROUTERS());
         uint256 stable_amnt_out = _swap_v2_wrap(_swap_path, CONF.USWAP_V2_ROUTERS(rtrIdx), _tokAmntIn, _receiver, false); // true = fromETH        
         return stable_amnt_out;
     }
     // specify router to use
-    function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
-        // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
-        require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
-        uint256 tok_amnt_out = _swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
-        return tok_amnt_out;
-    }    
+    // function _exeSwapTokForStable_router(uint256 _tokAmnt, address[] memory _tok_stab_path, address _receiver, address _router) private returns (uint256) {
+    //     // NOTE: this contract is not a stable, so it can indeed be _receiver with no issues (ie. will never _receive itself)
+    //     require(_tok_stab_path[1] != address(this), ' this contract not a stable :p ');
+    //     uint256 tok_amnt_out = _swap_v2_wrap(_tok_stab_path, _router, _tokAmnt, _receiver, false); // true = fromETH
+    //     return tok_amnt_out;
+    // }    
     // uniwswap v2 protocol based: get quote and execute swap
     function _swap_v2_wrap(address[] memory path, address router, uint256 amntIn, address outReceiver, bool fromETH) private returns (uint256) {
-        require(path.length >= 2, 'err: path.length :/');
+        // require(path.length >= 2, 'err: path.length :/');
         uint256[] memory amountsOut = IUniswapV2Router02(router).getAmountsOut(amntIn, path); // quote swap
         uint256 amntOutQuote = amountsOut[amountsOut.length -1];
         // uint256 amntOutQuote = _swap_v2_quote(path, router, amntIn);
         uint256 amntOut = _swap_v2(router, path, amntIn, amntOutQuote, outReceiver, fromETH); // approve & execute swap
                 
         // verifiy new balance of token received
-        uint256 new_bal = IERC20(path[path.length -1]).balanceOf(outReceiver);
-        require(new_bal >= amntOut, " _swap: receiver bal too low :{ ");
+        // uint256 new_bal = IERC20(path[path.length -1]).balanceOf(outReceiver);
+        // require(new_bal >= amntOut, " _swap: receiver bal too low :{ ");
         
         return amntOut;
     }
