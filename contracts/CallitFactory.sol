@@ -12,9 +12,11 @@ pragma solidity ^0.8.24;
 
 // inherited contracts
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // deploy
+// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 // local _ $ npm install @openzeppelin/contracts
 // import "./node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./node_modules/@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 import "./ICallitVault.sol"; // imports ICallitLib.sol
 import "./ICallitConfig.sol";
@@ -24,6 +26,7 @@ interface IERC20 {
     function balanceOf(address account) external returns(uint256);
     function transfer(address to, uint256 value) external returns (bool);
     function transferFrom(address from, address to, uint256 value) external returns (bool);
+    function decimals() external pure returns (uint8);
 }
 interface ICallitToken {
     // function ACCT_CALL_VOTE_LOCK_TIME(address _key) external view returns(uint256); // public
@@ -283,7 +286,7 @@ contract CallitFactory {
             // get alt tokens from sender EOA (fails/reverts if EOA doesn't do approval first)
             //  then perform swap from alt to stable & store in vault
             //  then get sender's usd balance & verify enough for min liquidity required
-            IERC20(_altTokSpend).transferFrom(msg.sender, address(this), _altAmntLP);
+            IERC20(_altTokSpend).transferFrom(msg.sender, address(VAULT), _altAmntLP);
             VAULT.deposit(msg.sender, _altTokSpend, _altAmntLP);
             curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
         }
@@ -317,22 +320,19 @@ contract CallitFactory {
     // function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt
     function buyCallTicketWithPromoCode(address _ticket, address _promoCodeHash, uint64 _usdAmnt, address _altTokSpend, uint256 _altAmnt) external { // _deductFeePerc PERC_PROMO_BUY_FEE from _usdAmnt                            
         require(_ticket != address(0), ' invalid _ticket :-{} ');
-        // require(CONFM.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
-        // if sender provided a usd amnt, then simply use curr account balance
-        //  else, attempt alt token spend / deposit to account balance
-        uint64 curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
+        // if sender provided 0 usd amnt, attempt alt token spend / deposit to account balance
+        //  else, simply attempt to use curr account balance
         if (_usdAmnt == 0) { // use alt token
             require(_altTokSpend != address(0x0), ' alt tok required :/ ');
 
             // get alt tokens from sender EOA (fails/reverts if EOA doesn't do approval first)
             //  then perform swap from alt to stable & store in vault
             //  then set usd deposit amnt to usd amnt input var & get sender's new acct balance
-            IERC20(_altTokSpend).transferFrom(msg.sender, address(this), _altAmnt);
+            IERC20(_altTokSpend).transferFrom(msg.sender, address(VAULT), _altAmnt);
             _usdAmnt = VAULT.deposit(msg.sender, _altTokSpend, _altAmnt);
-            curr_bal = CONFM.ACCT_USD_BALANCES(msg.sender);
         }
-        require(curr_bal >= _usdAmnt, ' low balance! ;{ ');
+        require(CONFM.ACCT_USD_BALANCES(msg.sender) >= _usdAmnt, ' low balance ;{ ');
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
@@ -355,10 +355,9 @@ contract CallitFactory {
         // emit log
         emit PromoBuyPerformed(msg.sender, _promoCodeHash, mark.marketResults.resultTokenUsdStables[tickIdx], _ticket, _usdAmnt, net_usdAmnt, tick_amnt_out, callEarnedAmnt);
     }
-    function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
+    // function exeArbPriceParityForTicket(address _ticket) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
+    function exeArbPriceParityForTicket(address _ticket, address _altTokSpend, uint256 _altAmnt) external { // _deductFeePerc PERC_ARB_EXE_FEE from arb profits
         require(_ticket != address(0), ' invalid _ticket :-{} ');
-
-        // LEFT OFF HERE ... needs alt-coin deposit w/ approval integration (like makeNewMarket above)
 
         // get MARKET & idx for _ticket & validate call time not ended (NOTE: MAX_EOA_MARKETS is uint64)
         (ICallitLib.MARKET memory mark, uint16 tickIdx,) = CONFM._getMarketForTicket(_ticket); // reverts if market not found | address(0)
@@ -369,6 +368,43 @@ contract CallitFactory {
         //      ie. simply returns: _ticket target price = $0.01 (MIN_USD_CALL_TICK_TARGET_PRICE default)
         // (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE, msg.sender);
         (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, msg.sender);
+
+        // LEFT OFF HERE ... we might not need this code migration below, from VALUT._performTicketMint
+        //     we might have everything we need to make alt token deposit from msg.sender, in whats returned above
+        //      HOWEVER, this migration does indeed lower the file size compilation of VAULT (which is just about peaking)
+        //       as well, it simplifies the callstack w/ "usd acct balance deduction" & "$CALL minting", executing in one place sequentially
+
+        // total_usd_cost is calc price to charge sender for minting tokensToMint
+        //  HENCE, deduct this amount from their account balance
+        //  note: algo to calc total_usd_cost = _ticketTargetPriceUSD * tokensToMint; (in VALUT._performTicketMint)
+        //  note: algo to calc _ticketTargetPriceUSD found in LIB._getCallTicketUsdTargetPrice
+        //  note: algo to calc tokensToMint found in LIB._calculateTokensToMint
+        if (msg.sender != CONF.KEEPER()) { // free for KEEPER
+            // if sender provided an alt token to use, then swap alt for stable to hold in thier VAULT account
+            //  else, simply see if their VAULT account already has enough to cover
+            if (_altTokSpend != address(0x0)) {
+                // get how many alt tokens need to be swapped in, in order to get total_usd_cost amount of stable out
+                address[] memory alt_stab_path = new address[](2);
+                alt_stab_path[0] = _altTokSpend; // note: WPLS required for 'swapExactETHForTokens'
+                alt_stab_path[1] = CONF.DEPOSIT_USD_STABLE();
+                uint256 usdAmntOut = LIB._normalizeStableAmnt(VAULT._usd_decimals(), total_usd_cost, IERC20(alt_stab_path[1]).decimals());
+                uint256 altAmntsIn = IUniswapV2Router02(CONF.DEPOSIT_ROUTER()).getAmountsIn(usdAmntOut, alt_stab_path)[0];
+                if (altAmntsIn <= _altAmnt) { // use alt token
+                    // get alt tokens from sender EOA (fails/reverts if EOA doesn't do approval first)
+                    //  then perform swap from alt to stable & store in vault
+                    IERC20(_altTokSpend).transferFrom(msg.sender, address(VAULT), _altAmnt);
+                    VAULT.deposit(msg.sender, _altTokSpend, _altAmnt);
+                }
+            }
+
+            // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
+            //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from VAULT contract
+            //      and then receiving the profits of VAULT selling minted tokens at <whatever> higher price (minus perc fees)
+            require(CONFM.ACCT_USD_BALANCES(msg.sender) >= total_usd_cost, ' low balance :( ');
+
+            // deduce that sale amount from their account balance
+            CONFM.edit_ACCT_USD_BALANCES(msg.sender, total_usd_cost, false); // false = sub
+        }
 
         // mint $CALL token reward to msg.sender
         uint64 callEarnedAmnt = CONF.RATIO_CALL_MINT_PER_ARB_EXE();

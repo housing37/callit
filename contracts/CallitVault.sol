@@ -256,7 +256,8 @@ contract CallitVault {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         //  mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
         //  deduct fees and pay _arbExecuter (_sender)
-        (uint64 tokensToMint, uint64 total_usd_cost) = _performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _sender);
+        // (uint64 tokensToMint, uint64 total_usd_cost) = _performTicketMint(mark, tickIdx, ticketTargetPriceUSD, _sender);
+        (uint64 tokensToMint, uint64 total_usd_cost) = _performTicketMint(mark, tickIdx, ticketTargetPriceUSD);
         (uint64 gross_stab_amnt_out, uint64 net_usd_profits) = _performTicketMintedDexSell(mark, tickIdx, tokensToMint, total_usd_cost, _sender); // _deductFeePerc
         return (ticketTargetPriceUSD, tokensToMint, total_usd_cost, gross_stab_amnt_out, net_usd_profits);
     }
@@ -455,22 +456,25 @@ contract CallitVault {
     /* -------------------------------------------------------- */
     /* PRIVATE - SUPPORTING (VAULT)
     /* -------------------------------------------------------- */
-    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 _ticketTargetPriceUSD, address _arbExecuter) private returns(uint64,uint64) {
+    // function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 _ticketTargetPriceUSD, address _arbExecuter) private returns(uint64,uint64) {
+    function _performTicketMint(ICallitLib.MARKET memory _mark, uint64 _tickIdx, uint64 _ticketTargetPriceUSD) private returns(uint64,uint64) {
         // calc # of _ticket tokens to mint for DEX sell (to bring _ticket to price parity w/ target price)
         uint256 _usdTickTargPrice_18 = _normalizeStableAmnt(_usd_decimals(), _ticketTargetPriceUSD, 18);
         uint64 tokensToMint = _norm_uint64_from_uint256(18, LIB._calculateTokensToMint(_mark.marketResults.resultTokenLPs[_tickIdx], _usdTickTargPrice_18), _usd_decimals());
 
-        // calc price to charge _arbExecuter for minting tokensToMint
-        //  then deduct that amount from their account balance
+        // calc price to charge _arbExecuter for minting tokensToMint & return it
+        //  note: deduct that amount from their account balance back in FACT.exeArbPriceParityForTicket
         uint64 total_usd_cost = _ticketTargetPriceUSD * tokensToMint;
-        if (_arbExecuter != CONF.KEEPER()) { // free for KEEPER
-            // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
-            //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from this contract
-            require(CONFM.ACCT_USD_BALANCES(_arbExecuter) >= total_usd_cost, ' low balance :( ');
+        // NOTE: 102524: moved below to FACT.exeArbPriceParityForTicket
+        // if (_arbExecuter != CONF.KEEPER()) { // free for KEEPER
+        //     // verify _arbExecuter usd balance covers contract sale of minted discounted tokens
+        //     //  NOTE: _arbExecuter is buying 'tokensToMint' amount @ price = '_ticketTargetPriceUSD', from this contract
+        //     require(CONFM.ACCT_USD_BALANCES(_arbExecuter) >= total_usd_cost, ' low balance :( ');
 
-            // deduce that sale amount from their account balance
-            CONFM.edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
-        }
+        //     // deduce that sale amount from their account balance
+        //     CONFM.edit_ACCT_USD_BALANCES(_arbExecuter, total_usd_cost, false); // false = sub
+        // }
+        
         
         // mint tokensToMint count to this VAULT and sell on DEX on behalf of _arbExecuter
         //  NOTE: receiver == address(this), NOT _arbExecuter (need to deduct fees before paying _arbExecuter)
