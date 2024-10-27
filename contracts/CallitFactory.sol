@@ -369,17 +369,15 @@ contract CallitFactory {
         // (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, MIN_USD_CALL_TICK_TARGET_PRICE, msg.sender);
         (uint64 ticketTargetPriceUSD, uint64 tokensToMint, uint64 total_usd_cost, uint64 gross_stab_amnt_out, uint64 net_usd_profits) = VAULT.exeArbPriceParityForTicket(mark, tickIdx, msg.sender);
 
-        // LEFT OFF HERE ... we might not need this code migration below, from VALUT._performTicketMint
-        //     we might have everything we need to make alt token deposit from msg.sender, in whats returned above
-        //      HOWEVER, this migration does indeed lower the file size compilation of VAULT (which is just about peaking)
-        //       as well, it simplifies the callstack w/ "usd acct balance deduction" & "$CALL minting", executing in one place sequentially
-
-        // total_usd_cost is calc price to charge sender for minting tokensToMint
+        // total_usd_cost is the calc price to charge sender for minting tokensToMint
         //  HENCE, deduct this amount from their account balance
         //  note: algo to calc total_usd_cost = _ticketTargetPriceUSD * tokensToMint; (in VALUT._performTicketMint)
         //  note: algo to calc _ticketTargetPriceUSD found in LIB._getCallTicketUsdTargetPrice
         //  note: algo to calc tokensToMint found in LIB._calculateTokensToMint
         if (msg.sender != CONF.KEEPER()) { // free for KEEPER
+            // NOTE: 102624, migrated from VAULT, lowers the file size compilation of VAULT (which is just about peaking)
+            //  as well, it simplifies the callstack w/ "usd acct balance deduction" & "$CALL minting", executing in one place sequentially
+
             // if sender provided an alt token to use, then swap alt for stable to hold in thier VAULT account
             //  else, simply see if their VAULT account already has enough to cover
             if (_altTokSpend != address(0x0)) {
