@@ -527,6 +527,8 @@ contract CallitFactory {
         // emit log for closed market
         emit MarketClosed(msg.sender, _ticket, mark.maker, mark.marketNum, markHash, mark.winningVoteResultIdx, mark.marketUsdAmnts.usdAmntPrizePool_net, mark.marketUsdAmnts.usdVoterRewardPool, mark.marketUsdAmnts.usdRewardPerVote, callEarnedAmnt);
     }
+    // LEFT OFF HERE ... what happens if the market result is 50/50
+    //  .... i think it should simply execute normally for all tickets, not just the winning ticket
     function claimTicketRewards(address _ticket, bool _resultAgree) external { // _deductFeePerc PERC_WINNER_CLAIM_FEE from usdPrizePoolShare
         require(_ticket != address(0), ' invalid _ticket :-{+} ');
         require(IERC20(_ticket).balanceOf(msg.sender) > 0, ' ticket !owned ;( ');
