@@ -49,6 +49,9 @@ CALLIT_FUNC_MAP_READ = {
     "name()": ["06fdde03", [], ['string']],
     "symbol()": ["95d89b41", [], ['string']],
     "totalSupply()": ["18160ddd", [], ['uint256']],
+    
+	"#------------USDT------------#": ["xxxxxxxx", [], []], 
+    "getOwners()": ["a0e67e2b", [], ['address[]']],
 }
 CALLIT_FUNC_MAP_WRITE = {
     "#------------FACTORY------------#": ["xxxxxxxx", [], []], 

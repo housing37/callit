@@ -16,7 +16,7 @@ import _web3 # from web3 import Account, Web3, HTTPProvider
 import _abi, _gen_pls_key
 from ethereum.abi import encode_abi, decode_abi # pip install ethereum
 
-DEBUG_LEVEL = 0
+DEBUG_LEVEL = 3
 # LST_CONTR_ABI_BIN = [
 #     "../bin/contracts/CallitLib",
 #     "../bin/contracts/CallitVault",
@@ -70,6 +70,14 @@ def write_with_hash(_contr_addr, _func_hash, _lst_param_types, _lst_params, _lst
     print('preparing function signature w/ func hash & params lists ...')
     func_sign = _func_hash
     if len(_lst_param_types) > 0:
+        # func_sign = _func_hash + encode_abi(_lst_param_types, _lst_params).hex()
+        for i, val in enumerate(_lst_params):
+            if isinstance(val, list):
+                enc_list = []
+                for s in (val):
+                    enc_str = s.encode('utf8')
+                    enc_list.append(enc_str)
+                _lst_params[i] = enc_list
         func_sign = _func_hash + encode_abi(_lst_param_types, _lst_params).hex()
 
     print(f'building tx_data w/ ...\n _contr_addr: {_contr_addr}\n _func_hash: 0x{_func_hash}\n _lst_params: {_lst_params}')
